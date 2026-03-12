@@ -1,0 +1,20 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerSupabaseClient } from '@/lib/supabase-server';
+
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  const supabase = createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { reason } = await request.json();
+
+  const { data, error } = await supabase
+    .from('commissions')
+    .update({ status: 'disputed', artist_notes: reason })
+    .eq('id', params.id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}

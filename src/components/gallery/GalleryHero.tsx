@@ -1,0 +1,35 @@
+import { GalleryProfile } from '@/types/gallery';
+import { GalleryBadge } from './GalleryBadge';
+
+interface GalleryHeroProps {
+  gallery: GalleryProfile;
+}
+
+export function GalleryHero({ gallery }: GalleryHeroProps) {
+  return (
+    <div>
+      <div className="relative h-48 w-full bg-gray-200 md:h-64">
+        {gallery.banner_image_url && (
+          <img src={gallery.banner_image_url} alt="" className="h-full w-full object-cover" />
+        )}
+      </div>
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="-mt-12 mb-4">
+          <div className="inline-flex h-24 w-24 items-center justify-center rounded-full border-4 border-white bg-gray-300 text-2xl font-bold text-white shadow-lg">
+            {gallery.avatar_url ? (
+              <img src={gallery.avatar_url} alt="" className="h-full w-full rounded-full object-cover" />
+            ) : (
+              gallery.gallery_name[0].toUpperCase()
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900">{gallery.gallery_name}</h1>
+          {gallery.is_verified && <GalleryBadge />}
+        </div>
+        {gallery.address && <p className="mt-1 text-sm text-gray-500">{gallery.address}</p>}
+        {gallery.bio && <p className="mt-3 text-gray-600">{gallery.bio}</p>}
+      </div>
+    </div>
+  );
+}

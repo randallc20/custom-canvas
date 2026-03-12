@@ -1,0 +1,27 @@
+export type CommissionStatus =
+  | 'pending'
+  | 'quoted'
+  | 'accepted'
+  | 'in_progress'
+  | 'completed'
+  | 'delivered'
+  | 'confirmed'
+  | 'disputed'
+  | 'cancelled';
+
+export interface Commission {
+  id: string;
+  artist_id: string;
+  requester_id: string;
+  conversation_id: string | null;
+  title: string;
+  description: string;
+  budget_min_cents: number;
+  budget_max_cents: number;
+  status: CommissionStatus;
+  quoted_price_cents: number | null;
+  estimated_completion: string | null;
+  artist_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
