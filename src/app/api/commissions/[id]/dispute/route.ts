@@ -6,6 +6,18 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const { data: commission } = await supabase
+    .from('commissions')
+    .select('requester_id')
+    .eq('id', params.id)
+    .single();
+
+  if (!commission) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  if (commission.requester_id !== user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const { reason } = await request.json();
 
   const { data, error } = await supabase

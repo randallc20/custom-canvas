@@ -68,6 +68,25 @@ export async function markMessagesAsRead(conversationId: string, userId: string)
   if (error) throw error;
 }
 
+export async function getUnreadCounts(userId: string, conversationIds: string[]): Promise<Record<string, number>> {
+  if (conversationIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('messages')
+    .select('conversation_id')
+    .in('conversation_id', conversationIds)
+    .neq('sender_id', userId)
+    .eq('is_read', false);
+
+  if (error) throw error;
+
+  const counts: Record<string, number> = {};
+  for (const row of data) {
+    counts[row.conversation_id] = (counts[row.conversation_id] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export async function getAttachments(messageId: string): Promise<MessageAttachment[]> {
   const { data, error } = await supabase
     .from('message_attachments')

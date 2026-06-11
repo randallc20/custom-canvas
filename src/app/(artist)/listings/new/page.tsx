@@ -29,8 +29,17 @@ export default function NewListingPage() {
   });
 
   const onSubmit = async (data: ListingFormData) => {
-    const { tags, ...rest } = data;
-    await createListing.mutateAsync({ ...rest, artist_id: artistId, is_featured: false });
+    const { tags, description, width_cm, height_cm, depth_cm, year_created, ...rest } = data;
+    await createListing.mutateAsync({
+      ...rest,
+      description: description || null,
+      width_cm: width_cm ?? null,
+      height_cm: height_cm ?? null,
+      depth_cm: depth_cm ?? null,
+      year_created: year_created ?? null,
+      artist_id: artistId,
+      is_featured: false,
+    });
     router.push('/listings');
   };
 

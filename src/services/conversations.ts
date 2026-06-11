@@ -48,6 +48,27 @@ export async function createConversation(
   return data;
 }
 
+export async function findOrCreateConversation(
+  userId: string,
+  otherUserId: string,
+  contextType?: string,
+  contextId?: string
+): Promise<Conversation> {
+  // Check for existing conversation between these two users
+  const { data: existing } = await supabase
+    .from('conversations')
+    .select('*')
+    .or(
+      `and(participant_one.eq.${userId},participant_two.eq.${otherUserId}),and(participant_one.eq.${otherUserId},participant_two.eq.${userId})`
+    )
+    .limit(1)
+    .single();
+
+  if (existing) return existing;
+
+  return createConversation(userId, otherUserId, contextType, contextId);
+}
+
 export async function updateLastMessage(conversationId: string, text: string): Promise<void> {
   const { error } = await supabase
     .from('conversations')

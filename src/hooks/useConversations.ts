@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getConversations, getConversationById, createConversation } from '@/services/conversations';
+import { getConversations, getConversationById, createConversation, findOrCreateConversation } from '@/services/conversations';
 
 export function useConversations(userId: string) {
   return useQuery({
@@ -14,6 +14,28 @@ export function useConversation(id: string) {
     queryKey: ['conversation', id],
     queryFn: () => getConversationById(id),
     enabled: !!id,
+  });
+}
+
+export function useFindOrCreateConversation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      userId: string;
+      otherUserId: string;
+      contextType?: string;
+      contextId?: string;
+    }) =>
+      findOrCreateConversation(
+        params.userId,
+        params.otherUserId,
+        params.contextType,
+        params.contextId
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
   });
 }
 

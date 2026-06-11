@@ -7,6 +7,24 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const { data: commission } = await supabase
+    .from('commissions')
+    .select('artist_id')
+    .eq('id', params.id)
+    .single();
+
+  if (!commission) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const { data: artist } = await supabase
+    .from('artist_profiles')
+    .select('profile_id')
+    .eq('id', commission.artist_id)
+    .single();
+
+  if (artist?.profile_id !== user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const body = await request.json();
   const parsed = commissionQuoteSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });

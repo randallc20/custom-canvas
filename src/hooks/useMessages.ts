@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getMessages, sendMessage, markMessagesAsRead } from '@/services/messages';
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getMessages, sendMessage, markMessagesAsRead, getUnreadCounts } from '@/services/messages';
 import { supabase } from '@/lib/supabase';
 import { Message } from '@/types/message';
 
@@ -61,6 +61,15 @@ export function useSendMessage() {
       queryClient.invalidateQueries({ queryKey: ['messages', variables.conversation_id] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
+  });
+}
+
+export function useUnreadCounts(userId: string, conversationIds: string[]) {
+  return useQuery({
+    queryKey: ['unread-counts', userId, conversationIds],
+    queryFn: () => getUnreadCounts(userId, conversationIds),
+    enabled: !!userId && conversationIds.length > 0,
+    refetchInterval: 30000,
   });
 }
 

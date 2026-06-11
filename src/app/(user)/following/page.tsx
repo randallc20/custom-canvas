@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useFollowedArtists } from '@/hooks/useFollows';
+import { Avatar } from '@/components/ui/Avatar';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 
@@ -20,11 +21,19 @@ export default function FollowingPage() {
       ) : (
         <div className="space-y-3">
           {artists.map((artist) => (
-            <Link key={artist.id} href={`/artist/${artist.slug}`} className="flex items-center gap-3 rounded-lg border border-gray-200 p-4 hover:bg-gray-50">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-sm font-medium">{artist.display_name[0]}</div>
+            <Link
+              key={artist.id}
+              href={`/artist/${artist.slug}`}
+              className="flex items-center gap-3 rounded-lg border border-gray-200 p-4 transition-colors hover:border-gray-300 hover:bg-gray-50"
+            >
+              <Avatar src={artist.banner_image_url} alt={artist.display_name} size="md" />
               <div>
                 <p className="font-medium text-gray-900">{artist.display_name}</p>
-                <p className="text-sm text-gray-500">{artist.city}</p>
+                {artist.neighborhood ? (
+                  <p className="text-sm text-gray-500">{artist.neighborhood}, {artist.city}</p>
+                ) : (
+                  <p className="text-sm text-gray-500">{artist.city}</p>
+                )}
               </div>
             </Link>
           ))}

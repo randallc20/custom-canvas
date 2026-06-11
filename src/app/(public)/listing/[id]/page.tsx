@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { ListingDetail } from '@/components/listing/ListingDetail';
 import { PurchasePanel } from '@/components/listing/PurchasePanel';
+import { RelatedListings } from '@/components/listing/RelatedListings';
+import { TrackView } from '@/components/analytics/TrackView';
 import { notFound } from 'next/navigation';
+import type { ListingWithImages } from '@/types/listing';
 
 interface Props {
   params: { id: string };
@@ -40,21 +43,39 @@ export default async function ListingPage({ params }: Props) {
     tags: (listing.tags ?? []).map((lt: { tag: unknown }) => lt.tag),
   };
 
-  const { data: artist } = await supabase
-    .from('artist_profiles')
-    .select('*')
-    .eq('id', listing.artist_id)
-    .single();
+  const [{ data: artist }, { data: relatedRaw }] = await Promise.all([
+    supabase
+      .from('artist_profiles')
+      .select('*')
+      .eq('id', listing.artist_id)
+      .single(),
+    supabase
+      .from('listings')
+      .select('*, images:listing_images(*), tags:listing_tags(tag:tags(*))')
+      .eq('artist_id', listing.artist_id)
+      .neq('id', listing.id)
+      .eq('status', 'available')
+      .limit(4),
+  ]);
+
+  const relatedListings = (relatedRaw ?? []).map((l: Record<string, unknown>) => ({
+    ...l,
+    tags: ((l.tags as { tag: unknown }[]) ?? []).map((lt) => lt.tag),
+  })) as unknown as ListingWithImages[];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
+      <TrackView artistId={listing.artist_id} eventType="listing_view" listingId={listing.id} />
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <ListingDetail listing={processedListing} artist={artist} />
         </div>
         <div>
-          <PurchasePanel listing={processedListing} artistSlug={artist?.slug ?? ''} />
+          <PurchasePanel listing={processedListing} artistSlug={artist?.slug ?? ''} artistProfileId={artist?.profile_id} />
         </div>
+      </div>
+      <div className="mt-12">
+        <RelatedListings listings={relatedListings} />
       </div>
     </div>
   );

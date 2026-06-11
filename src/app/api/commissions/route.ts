@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { commissionRequestSchema } from '@/schemas/commissionSchema';
+import { sendCommissionRequestEmail } from '@/services/email';
 
 export async function GET(request: NextRequest) {
   const supabase = createServerSupabaseClient();
@@ -64,6 +65,16 @@ export async function POST(request: NextRequest) {
 
   if (conversation) {
     await supabase.from('conversations').update({ context_id: commission.id }).eq('id', conversation.id);
+  }
+
+  const { data: artistProfile } = await supabase
+    .from('profiles')
+    .select('email, full_name')
+    .eq('id', artist.profile_id)
+    .single();
+
+  if (artistProfile?.email) {
+    sendCommissionRequestEmail(artistProfile.email, artistProfile.full_name ?? 'Artist', commission.title).catch(() => {});
   }
 
   return NextResponse.json(commission, { status: 201 });

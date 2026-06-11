@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe, STRIPE_WEBHOOK_SECRET } from '@/lib/stripe';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { calculateCommission } from '@/utils/commissionCalc';
+import { sendOrderConfirmationEmail, sendNewSaleEmail } from '@/services/email';
+import { formatPrice } from '@/utils/formatPrice';
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -33,15 +35,18 @@ export async function POST(request: NextRequest) {
 
         if (listing) {
           const { platformFeeCents, artistPayoutCents } = calculateCommission(listing.price_cents);
+          const shippingRaw = session.metadata?.shipping_address;
+          const shippingAddress = shippingRaw ? JSON.parse(shippingRaw) : null;
 
           await supabase.from('orders').insert({
             listing_id: listingId,
             buyer_id: buyerId,
-            artist_id: (listing.artist as { id: string }).id,
+            artist_id: (listing.artist as unknown as { id: string }).id,
             amount_cents: listing.price_cents,
             platform_fee_cents: platformFeeCents,
             artist_payout_cents: artistPayoutCents,
             stripe_payment_intent_id: session.payment_intent as string,
+            shipping_address: shippingAddress,
             status: 'paid',
           });
 
@@ -49,6 +54,23 @@ export async function POST(request: NextRequest) {
             .from('listings')
             .update({ status: 'sold' })
             .eq('id', listingId);
+
+          const artistObj = listing.artist as unknown as { id: string };
+
+          // Email buyer
+          const { data: buyer } = await supabase.from('profiles').select('email, full_name').eq('id', buyerId).single();
+          if (buyer?.email) {
+            sendOrderConfirmationEmail(buyer.email, buyer.full_name ?? 'Collector', listing.title, formatPrice(listing.price_cents), listing.id).catch(() => {});
+          }
+
+          // Email artist
+          const { data: artistProf } = await supabase.from('artist_profiles').select('display_name, profile_id').eq('id', artistObj.id).single();
+          if (artistProf) {
+            const { data: artistUser } = await supabase.from('profiles').select('email').eq('id', artistProf.profile_id).single();
+            if (artistUser?.email) {
+              sendNewSaleEmail(artistUser.email, artistProf.display_name, listing.title, formatPrice(listing.price_cents), formatPrice(artistPayoutCents)).catch(() => {});
+            }
+          }
         }
       }
       break;

@@ -27,6 +27,7 @@ export function useFeed(filters: FeedFilters = {}) {
     fetchNextPage: query.fetchNextPage,
     hasNextPage: query.hasNextPage,
     isLoading: query.isLoading,
+    isError: query.isError,
     isFetchingNextPage: query.isFetchingNextPage,
   };
 }

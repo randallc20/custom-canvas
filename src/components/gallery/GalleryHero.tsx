@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { GalleryProfile } from '@/types/gallery';
 import { GalleryBadge } from './GalleryBadge';
 
@@ -10,14 +11,14 @@ export function GalleryHero({ gallery }: GalleryHeroProps) {
     <div>
       <div className="relative h-48 w-full bg-gray-200 md:h-64">
         {gallery.banner_image_url && (
-          <img src={gallery.banner_image_url} alt="" className="h-full w-full object-cover" />
+          <Image src={gallery.banner_image_url} alt={`${gallery.gallery_name} banner`} fill className="object-cover" sizes="100vw" priority />
         )}
       </div>
       <div className="mx-auto max-w-7xl px-4">
         <div className="-mt-12 mb-4">
           <div className="inline-flex h-24 w-24 items-center justify-center rounded-full border-4 border-white bg-gray-300 text-2xl font-bold text-white shadow-lg">
             {gallery.avatar_url ? (
-              <img src={gallery.avatar_url} alt="" className="h-full w-full rounded-full object-cover" />
+              <Image src={gallery.avatar_url} alt={gallery.gallery_name} width={96} height={96} className="h-full w-full rounded-full object-cover" />
             ) : (
               gallery.gallery_name[0].toUpperCase()
             )}

@@ -4,25 +4,46 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ListingWithImages } from '@/types/listing';
 import { formatPrice } from '@/utils/formatPrice';
+import { useAuth } from '@/context/AuthContext';
+import { useIsSaved, useToggleSave } from '@/hooks/useSaved';
 
 interface FeedCardProps {
   listing: ListingWithImages;
 }
 
 export function FeedCard({ listing }: FeedCardProps) {
+  const { user } = useAuth();
+  const { data: isSaved } = useIsSaved(user?.id ?? '', listing.id);
+  const toggleSave = useToggleSave();
   const primaryImage = listing.images.find((img) => img.is_primary) ?? listing.images[0];
+
+  const handleSave = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) return;
+    toggleSave.mutate({
+      profileId: user.id,
+      listingId: listing.id,
+      isSaved: !!isSaved,
+    });
+  };
 
   return (
     <Link href={`/listing/${listing.id}`} className="group block">
       <div className="overflow-hidden rounded-lg bg-gray-100 shadow-sm transition-transform group-hover:scale-[1.02] group-hover:shadow-md">
-        {primaryImage && (
+        {primaryImage ? (
           <Image
             src={primaryImage.image_url}
             alt={listing.title}
             width={400}
             height={500}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="w-full object-cover"
           />
+        ) : (
+          <div className="flex aspect-[4/5] items-center justify-center bg-gray-200">
+            <span className="text-sm text-gray-400">No image</span>
+          </div>
         )}
         <div className="p-3">
           <h3 className="truncate text-sm font-medium text-gray-900">{listing.title}</h3>
@@ -31,17 +52,17 @@ export function FeedCard({ listing }: FeedCardProps) {
             <span className="text-sm font-semibold text-gray-900">
               {formatPrice(listing.price_cents)}
             </span>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className="text-gray-400 hover:text-red-500"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-            </button>
+            {user && (
+              <button
+                onClick={handleSave}
+                className={`transition-colors ${isSaved ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                aria-label={isSaved ? 'Unsave' : 'Save'}
+              >
+                <svg className="h-5 w-5" fill={isSaved ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>

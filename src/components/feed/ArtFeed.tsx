@@ -3,20 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useFeed } from '@/hooks/useFeed';
 import { FeedCard } from './FeedCard';
-import { FeedFilters } from './FeedFilters';
+import { FeedFilters, type FeedFilterValues } from './FeedFilters';
+import { FeedSkeleton } from './FeedSkeleton';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 export function ArtFeed() {
-  const [filters, setFilters] = useState<{
-    medium?: string;
-    minPrice?: number;
-    maxPrice?: number;
-    search?: string;
-    sort?: 'recent' | 'price_asc' | 'price_desc' | 'popular';
-  }>({});
+  const [filters, setFilters] = useState<FeedFilterValues>({});
 
-  const { listings, fetchNextPage, hasNextPage, isLoading, isFetchingNextPage } = useFeed(filters);
+  const { listings, fetchNextPage, hasNextPage, isLoading, isFetchingNextPage, isError } = useFeed(filters);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,9 +36,12 @@ export function ArtFeed() {
       <FeedFilters filters={filters} onFilterChange={setFilters} />
 
       {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Spinner size="lg" />
-        </div>
+        <FeedSkeleton />
+      ) : isError ? (
+        <EmptyState
+          title="Something went wrong"
+          description="We couldn't load the feed. Please try refreshing the page."
+        />
       ) : listings.length === 0 ? (
         <EmptyState
           title="No art found"

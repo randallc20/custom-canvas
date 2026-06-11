@@ -2,11 +2,12 @@ import Link from 'next/link';
 import { ListingWithImages } from '@/types/listing';
 import { ArtistProfile } from '@/types/artist';
 import { ImageCarousel } from './ImageCarousel';
+import { ReportButton } from './ReportButton';
 import { formatPrice } from '@/utils/formatPrice';
 
 interface ListingDetailProps {
   listing: ListingWithImages;
-  artist: ArtistProfile;
+  artist: ArtistProfile | null;
 }
 
 export function ListingDetail({ listing, artist }: ListingDetailProps) {
@@ -16,12 +17,14 @@ export function ListingDetail({ listing, artist }: ListingDetailProps) {
 
   return (
     <div>
-      <ImageCarousel images={listing.images} />
+      <ImageCarousel images={listing.images} title={listing.title} />
       <div className="mt-6">
         <h1 className="text-2xl font-bold text-gray-900">{listing.title}</h1>
-        <Link href={`/artist/${artist.slug}`} className="mt-1 text-sm text-[#E8704A] hover:underline">
-          {artist.display_name}
-        </Link>
+        {artist && (
+          <Link href={`/artist/${artist.slug}`} className="mt-1 text-sm text-[#E8704A] hover:underline">
+            {artist.display_name}
+          </Link>
+        )}
         <p className="mt-4 text-2xl font-bold text-gray-900">{formatPrice(listing.price_cents)}</p>
         <div className="mt-4 space-y-1 text-sm text-gray-500">
           <p>Medium: {listing.medium}</p>
@@ -40,6 +43,9 @@ export function ListingDetail({ listing, artist }: ListingDetailProps) {
             ))}
           </div>
         )}
+        <div className="mt-6">
+          <ReportButton listingId={listing.id} />
+        </div>
       </div>
     </div>
   );

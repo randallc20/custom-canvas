@@ -29,7 +29,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     .eq('id', params.id)
     .single();
 
-  if (!listing || (listing.artist as { profile_id: string }).profile_id !== user.id) {
+  if (!listing || (listing.artist as unknown as { profile_id: string }).profile_id !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -56,7 +56,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
     .eq('id', params.id)
     .single();
 
-  if (!listing || (listing.artist as { profile_id: string }).profile_id !== user.id) {
+  if (!listing || (listing.artist as unknown as { profile_id: string }).profile_id !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

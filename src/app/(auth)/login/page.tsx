@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -12,8 +12,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'artist') router.push('/dashboard');
+      else if (user.role === 'gallery') router.push('/dashboard');
+      else if (user.role === 'admin') router.push('/admin');
+      else router.push('/');
+    }
+  }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,9 +30,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signIn(email, password);
-      router.push('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sign in');
+      setError(err instanceof Error ? err.message : 'Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -37,6 +45,11 @@ export default function LoginPage() {
           <Input label="Email" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <Input label="Password" id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end">
+            <Link href="/forgot-password" className="text-sm text-[#E8704A] hover:underline">
+              Forgot password?
+            </Link>
+          </div>
           <Button type="submit" loading={loading} className="w-full">Sign In</Button>
         </form>
         <p className="mt-4 text-center text-sm text-gray-500">

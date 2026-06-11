@@ -5,7 +5,7 @@ export const galleryProfileSchema = z.object({
   bio: z.string().max(2000).optional().or(z.literal('')),
   address: z.string().max(500).optional().or(z.literal('')),
   neighborhood: z.string().max(100).optional().or(z.literal('')),
-  city: z.string().max(100).default('Houston'),
+  city: z.string().max(100),
   website_url: z.string().url().optional().or(z.literal('')),
 });
 

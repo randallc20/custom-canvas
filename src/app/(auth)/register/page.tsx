@@ -20,6 +20,7 @@ export default function RegisterPage() {
   const [role, setRole] = useState('user');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
   const { signUp } = useAuth();
   const router = useRouter();
 
@@ -29,15 +30,43 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await signUp(email, password, role, fullName);
-      if (role === 'artist') router.push('/onboarding/artist');
-      else if (role === 'gallery') router.push('/onboarding/gallery');
-      else router.push('/');
+      setConfirmationSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create account');
     } finally {
       setLoading(false);
     }
   };
+
+  if (confirmationSent) {
+    const onboardingPath = role === 'artist' ? '/onboarding/artist' : role === 'gallery' ? '/onboarding/gallery' : null;
+
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="w-full max-w-sm text-center">
+          <h1 className="mb-4 text-2xl font-bold text-gray-900">Check Your Email</h1>
+          <p className="text-gray-600">
+            We sent a confirmation link to <span className="font-medium">{email}</span>.
+            Click the link to activate your account.
+          </p>
+          {onboardingPath && (
+            <p className="mt-3 text-sm text-gray-500">
+              Already confirmed?{' '}
+              <button
+                onClick={() => router.push(onboardingPath)}
+                className="text-[#E8704A] hover:underline"
+              >
+                Continue to setup
+              </button>
+            </p>
+          )}
+          <Link href="/login" className="mt-4 inline-block text-sm text-[#E8704A] hover:underline">
+            Go to sign in
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
@@ -56,6 +85,7 @@ export default function RegisterPage() {
                   key={r.value}
                   type="button"
                   onClick={() => setRole(r.value)}
+                  aria-pressed={role === r.value}
                   className={`rounded-lg border p-3 text-center text-sm transition-colors
                     ${role === r.value ? 'border-[#E8704A] bg-orange-50 text-[#E8704A]' : 'border-gray-300 hover:bg-gray-50'}`}
                 >

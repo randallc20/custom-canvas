@@ -10,8 +10,8 @@ export async function getSavedListings(profileId: string): Promise<ListingWithIm
 
   if (error) throw error;
   return (data?.map((s) => ({
-    ...(s.listing as Record<string, unknown>),
-    tags: ((s.listing as Record<string, unknown>)?.tags as Array<{ tag: unknown }>)?.map((lt) => lt.tag) ?? [],
+    ...(s.listing as unknown as Record<string, unknown>),
+    tags: ((s.listing as unknown as Record<string, unknown>)?.tags as Array<{ tag: unknown }>)?.map((lt) => lt.tag) ?? [],
   })) ?? []) as ListingWithImages[];
 }
 

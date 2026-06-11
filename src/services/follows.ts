@@ -8,7 +8,7 @@ export async function getFollowedArtists(profileId: string): Promise<ArtistProfi
     .eq('follower_id', profileId);
 
   if (error) throw error;
-  return (data?.map((f) => f.artist) ?? []) as ArtistProfile[];
+  return (data?.map((f) => f.artist) ?? []) as unknown as ArtistProfile[];
 }
 
 export async function followArtist(profileId: string, artistId: string): Promise<void> {

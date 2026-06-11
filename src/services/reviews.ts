@@ -1,0 +1,72 @@
+import { supabase } from '@/lib/supabase';
+import { Review } from '@/types/order';
+
+export async function createReview(data: {
+  order_id: string;
+  reviewer_id: string;
+  rating: number;
+  comment?: string | null;
+}): Promise<Review> {
+  const { data: review, error } = await supabase
+    .from('reviews')
+    .insert({
+      order_id: data.order_id,
+      reviewer_id: data.reviewer_id,
+      rating: data.rating,
+      comment: data.comment ?? null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return review;
+}
+
+export async function getReviewsByArtist(artistId: string): Promise<(Review & { reviewer_name?: string })[]> {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('*, order:orders!inner(artist_id), reviewer:profiles!reviews_reviewer_id_fkey(full_name)')
+    .eq('order.artist_id', artistId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []).map((r: Record<string, unknown>) => {
+    const reviewer = r.reviewer as { full_name: string | null } | null;
+    return {
+      id: r.id as string,
+      order_id: r.order_id as string,
+      reviewer_id: r.reviewer_id as string,
+      rating: r.rating as number,
+      comment: r.comment as string | null,
+      created_at: r.created_at as string,
+      reviewer_name: reviewer?.full_name ?? undefined,
+    };
+  });
+}
+
+export async function getReviewByOrderId(orderId: string): Promise<Review | null> {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('*')
+    .eq('order_id', orderId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getArtistRating(artistId: string): Promise<{ average: number; count: number }> {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('rating, order:orders!inner(artist_id)')
+    .eq('order.artist_id', artistId);
+
+  if (error) throw error;
+
+  const ratings = (data ?? []).map((r: Record<string, unknown>) => r.rating as number);
+  if (ratings.length === 0) return { average: 0, count: 0 };
+
+  const sum = ratings.reduce((a, b) => a + b, 0);
+  return { average: sum / ratings.length, count: ratings.length };
+}

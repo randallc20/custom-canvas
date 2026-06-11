@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { Message } from '@/types/message';
 import { formatTime } from '@/utils/formatTime';
 
@@ -19,7 +20,7 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${isOwn ? 'bg-[#E8704A] text-white' : 'bg-gray-100 text-gray-900'}`}>
         {message.message_type === 'image' ? (
-          <img src={message.content} alt="" className="max-w-full rounded-lg" />
+          <Image src={message.content} alt="Shared image" width={300} height={300} className="max-w-full rounded-lg" sizes="300px" />
         ) : (
           <p className="whitespace-pre-wrap text-sm">{message.content}</p>
         )}

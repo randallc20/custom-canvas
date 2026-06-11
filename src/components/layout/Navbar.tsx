@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useUnread } from '@/context/UnreadContext';
+import { NotificationDropdown } from '@/components/notification/NotificationDropdown';
 
 export function Navbar() {
   const { user, signOut } = useAuth();
@@ -40,6 +41,8 @@ export function Navbar() {
                 )}
               </Link>
 
+              <NotificationDropdown />
+
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
@@ -66,8 +69,14 @@ export function Navbar() {
                     <Link href="/saved" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMenuOpen(false)}>
                       Saved Art
                     </Link>
+                    <Link href="/following" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMenuOpen(false)}>
+                      Following
+                    </Link>
                     <Link href="/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMenuOpen(false)}>
                       Orders
+                    </Link>
+                    <Link href="/commissions" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMenuOpen(false)}>
+                      Commissions
                     </Link>
                     <hr className="my-1" />
                     <button
@@ -118,11 +127,23 @@ export function Navbar() {
                 <Link href="/messages" className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMenuOpen(false)}>
                   Messages {unreadCount > 0 && `(${unreadCount})`}
                 </Link>
+                <Link href="/notifications" className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMenuOpen(false)}>
+                  Notifications
+                </Link>
                 <Link href="/account" className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMenuOpen(false)}>
                   My Account
                 </Link>
                 <Link href="/saved" className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMenuOpen(false)}>
                   Saved Art
+                </Link>
+                <Link href="/following" className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMenuOpen(false)}>
+                  Following
+                </Link>
+                <Link href="/orders" className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMenuOpen(false)}>
+                  Orders
+                </Link>
+                <Link href="/commissions" className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMenuOpen(false)}>
+                  Commissions
                 </Link>
                 <button onClick={() => { signOut(); setMenuOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">
                   Sign Out
