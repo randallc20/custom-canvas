@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useSeries } from '@/hooks/useArtistContent';
 
 export default function NewListingPage() {
   const router = useRouter();
@@ -28,6 +29,8 @@ export default function NewListingPage() {
         }
       });
   }, [user]);
+
+  const { data: seriesOptions = [] } = useSeries(artistId);
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
     resolver: zodResolver(listingSchema),
@@ -51,6 +54,7 @@ export default function NewListingPage() {
       price_visible: data.price_visible,
       sold_price_cents: null,
       show_sold_price: false,
+      series_id: data.series_id || null,
       artist_id: artistId,
       is_featured: false,
     });
@@ -73,6 +77,17 @@ export default function NewListingPage() {
           <Input label="Depth (cm)" type="number" step="0.1" {...register('depth_cm', { valueAsNumber: true })} />
         </div>
         <Input label="Year Created" type="number" {...register('year_created', { valueAsNumber: true })} />
+        {seriesOptions.length > 0 && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-ink">Series (optional)</label>
+            <select {...register('series_id')} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm">
+              <option value="">No series</option>
+              {seriesOptions.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <fieldset className="space-y-4 rounded-xl border border-line p-4">
           <legend className="px-1 text-sm font-semibold text-ink">Pricing</legend>

@@ -9,17 +9,18 @@ import { Button } from '@/components/ui/Button';
 import { formatPrice } from '@/utils/formatPrice';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { PinnedListingSelector } from '@/components/dashboard/PinnedListingSelector';
 
 export function ArtistDashboard() {
   const { user } = useAuth();
-  const [artist, setArtist] = useState<{ id: string; completeness_score: number; stripe_onboarded: boolean } | null>(null);
+  const [artist, setArtist] = useState<{ id: string; slug: string; completeness_score: number; stripe_onboarded: boolean; pinned_listing_ids: string[] | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const { data: listings } = useArtistListings(artist?.id ?? '');
   const { data: orders } = useArtistOrders(artist?.id ?? '');
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('artist_profiles').select('id, completeness_score, stripe_onboarded').eq('profile_id', user.id).single()
+    supabase.from('artist_profiles').select('id, slug, completeness_score, stripe_onboarded, pinned_listing_ids').eq('profile_id', user.id).single()
       .then(({ data }) => { setArtist(data); setLoading(false); });
   }, [user]);
 
@@ -74,11 +75,22 @@ export function ArtistDashboard() {
       <div className="flex flex-wrap gap-3">
         <Link href="/listings/new"><Button>Create Listing</Button></Link>
         <Link href="/profile/edit"><Button variant="outline">Edit Profile</Button></Link>
+        <Link href="/series"><Button variant="outline">Series</Button></Link>
         <Link href="/sales"><Button variant="outline">Sales</Button></Link>
         <Link href="/commissions"><Button variant="outline">Commissions</Button></Link>
         <Link href="/payouts"><Button variant="outline">Payouts</Button></Link>
         <Link href="/analytics"><Button variant="outline">Analytics</Button></Link>
       </div>
+
+      {artist && (
+        <div className="mt-8">
+          <PinnedListingSelector
+            artistId={artist.id}
+            artistSlug={artist.slug}
+            initialPinnedIds={artist.pinned_listing_ids ?? []}
+          />
+        </div>
+      )}
     </div>
   );
 }

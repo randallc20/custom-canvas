@@ -1,8 +1,13 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { ProfileHero } from '@/components/artist/ProfileHero';
-import { ProfileBio } from '@/components/artist/ProfileBio';
-import { GalleryGrid } from '@/components/artist/GalleryGrid';
+import { StorySection } from '@/components/artist/StorySection';
+import { PinnedWork } from '@/components/artist/PinnedWork';
+import { SeriesTabs } from '@/components/artist/SeriesTabs';
+import { EducationTimeline } from '@/components/artist/EducationTimeline';
+import { MeetTheArtist } from '@/components/artist/MeetTheArtist';
+import { PreviewBanner } from '@/components/artist/PreviewBanner';
 import { CommissionPanel } from '@/components/artist/CommissionPanel';
 import { ReviewsList } from '@/components/artist/ReviewsList';
 import { TrackView } from '@/components/analytics/TrackView';
@@ -41,12 +46,12 @@ export default async function ArtistPage({ params }: Props) {
 
   if (!artist) notFound();
 
-  const [listingsRes, reviewsRes] = await Promise.all([
+  const [listingsRes, reviewsRes, seriesRes, educationRes, photosRes, videosRes] = await Promise.all([
     supabase
       .from('listings')
       .select('*, images:listing_images(*), tags:listing_tags(tag:tags(*))')
       .eq('artist_id', artist.id)
-      .eq('status', 'available')
+      .in('status', ['available', 'sold'])
       .order('created_at', { ascending: false }),
     supabase
       .from('reviews')
@@ -54,12 +59,37 @@ export default async function ArtistPage({ params }: Props) {
       .eq('order.artist_id', artist.id)
       .order('created_at', { ascending: false })
       .limit(20),
+    supabase
+      .from('listing_series')
+      .select('*')
+      .eq('artist_id', artist.id)
+      .order('display_order'),
+    supabase
+      .from('artist_education')
+      .select('*')
+      .eq('artist_id', artist.id)
+      .order('display_order'),
+    supabase
+      .from('artist_personal_photos')
+      .select('*')
+      .eq('artist_id', artist.id)
+      .order('display_order'),
+    supabase
+      .from('artist_videos')
+      .select('*')
+      .eq('artist_id', artist.id)
+      .order('display_order'),
   ]);
 
   const processedListings = (listingsRes.data ?? []).map((l: Record<string, unknown>) => ({
     ...l,
     tags: ((l.tags as Array<{ tag: unknown }>) ?? []).map((lt) => lt.tag),
-  })) as unknown as ListingWithImages[];
+  })) as unknown as (ListingWithImages & { series_id?: string | null })[];
+
+  const pinnedIds: string[] = artist.pinned_listing_ids ?? [];
+  const pinnedListings = pinnedIds
+    .map((id) => processedListings.find((l) => l.id === id))
+    .filter(Boolean) as ListingWithImages[];
 
   const reviews = (reviewsRes.data ?? []).map((r: Record<string, unknown>) => ({
     ...(r as unknown as Review),
@@ -69,17 +99,31 @@ export default async function ArtistPage({ params }: Props) {
   return (
     <div>
       <TrackView artistId={artist.id} eventType="profile_view" />
+      <Suspense>
+        <PreviewBanner />
+      </Suspense>
       <ProfileHero artist={artist} />
       <div className="mx-auto max-w-7xl px-4 py-8">
         <div className="grid gap-8 lg:grid-cols-3">
-          <div className="space-y-8 lg:col-span-2">
-            <ProfileBio artist={artist} />
+          <div className="space-y-10 lg:col-span-2">
+            <StorySection artist={artist} />
+            <PinnedWork listings={pinnedListings} />
             <div>
-              <h2 className="mb-4 text-xl font-semibold text-gray-900">Artwork</h2>
-              <GalleryGrid listings={processedListings} />
+              <h2 className="mb-4 text-xl font-semibold text-ink">Artwork</h2>
+              <SeriesTabs
+                listings={processedListings}
+                series={seriesRes.data ?? []}
+                accentColor={artist.accent_color}
+              />
             </div>
+            <MeetTheArtist
+              displayName={artist.display_name}
+              photos={photosRes.data ?? []}
+              videos={videosRes.data ?? []}
+            />
+            <EducationTimeline education={educationRes.data ?? []} />
             <div>
-              <h2 className="mb-4 text-xl font-semibold text-gray-900">Reviews</h2>
+              <h2 className="mb-4 text-xl font-semibold text-ink">Reviews</h2>
               <ReviewsList reviews={reviews} />
             </div>
           </div>

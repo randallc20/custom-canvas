@@ -4,6 +4,8 @@ export const artistProfileSchema = z.object({
   display_name: z.string().min(2).max(100),
   bio: z.string().max(2000).optional().or(z.literal('')),
   artist_statement: z.string().max(5000).optional().or(z.literal('')),
+  story: z.string().optional().or(z.literal('')),
+  primary_mediums: z.array(z.string()).max(10).optional(),
   influences: z.string().max(1000).optional().or(z.literal('')),
   school: z.string().max(200).optional().or(z.literal('')),
   graduation_year: z.number().int().min(1900).max(2030).optional().nullable(),

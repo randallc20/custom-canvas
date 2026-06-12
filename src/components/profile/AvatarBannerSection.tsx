@@ -1,0 +1,66 @@
+'use client';
+
+import Image from 'next/image';
+import { ImageUpload } from '@/components/upload/ImageUpload';
+
+interface AvatarBannerSectionProps {
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  displayName: string;
+  onAvatarUploaded: (url: string) => void | Promise<void>;
+  onBannerUploaded: (url: string) => void | Promise<void>;
+}
+
+export function AvatarBannerSection({
+  avatarUrl,
+  bannerUrl,
+  displayName,
+  onAvatarUploaded,
+  onBannerUploaded,
+}: AvatarBannerSectionProps) {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start gap-4">
+        <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-full border border-line bg-sand">
+          {avatarUrl ? (
+            <Image src={avatarUrl} alt={displayName} width={80} height={80} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-muted">
+              {displayName[0]?.toUpperCase() ?? '?'}
+            </div>
+          )}
+        </div>
+        <div className="flex-1">
+          <p className="mb-2 text-sm font-medium text-ink">Profile photo</p>
+          <ImageUpload
+            endpoint="/api/storage/avatar"
+            maxFiles={1}
+            maxSizeMB={2}
+            label="Drop a square photo, or tap to choose"
+            onUpload={(urls) => onAvatarUploaded(urls[0])}
+          />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-sm font-medium text-ink">Banner</p>
+        {bannerUrl && (
+          <Image
+            src={bannerUrl}
+            alt="Profile banner"
+            width={1440}
+            height={400}
+            className="mb-2 max-h-40 w-full rounded-xl border border-line object-cover"
+          />
+        )}
+        <ImageUpload
+          endpoint="/api/storage/banner"
+          maxFiles={1}
+          maxSizeMB={5}
+          label="Drop a banner image (1440×400 works best)"
+          onUpload={(urls) => onBannerUploaded(urls[0])}
+        />
+      </div>
+    </div>
+  );
+}

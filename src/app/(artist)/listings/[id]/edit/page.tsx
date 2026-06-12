@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useSeries } from '@/hooks/useArtistContent';
 
 export default function EditListingPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,11 +20,16 @@ export default function EditListingPage() {
   const { data: listing, isLoading } = useListing(id);
   const updateListing = useUpdateListing();
   const [isPickupOnly, setIsPickupOnly] = useState(false);
+  const [artistId, setArtistId] = useState('');
+  const { data: seriesOptions = [] } = useSeries(artistId);
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('artist_profiles').select('fulfillment_pref').eq('profile_id', user.id).single()
-      .then(({ data }) => setIsPickupOnly(data?.fulfillment_pref === 'pickup_only'));
+    supabase.from('artist_profiles').select('id, fulfillment_pref').eq('profile_id', user.id).single()
+      .then(({ data }) => {
+        if (data) setArtistId(data.id);
+        setIsPickupOnly(data?.fulfillment_pref === 'pickup_only');
+      });
   }, [user]);
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
@@ -41,6 +47,7 @@ export default function EditListingPage() {
       price_visible: listing.price_visible ?? true,
       show_sold_price: listing.show_sold_price ?? false,
       sold_price_dollars: listing.sold_price_cents != null ? listing.sold_price_cents / 100 : null,
+      series_id: listing.series_id ?? '',
       status: listing.status,
       tags: listing.tags?.map((t) => t.name) ?? [],
     } : undefined,
@@ -67,6 +74,7 @@ export default function EditListingPage() {
         price_visible: data.price_visible,
         show_sold_price: data.show_sold_price ?? false,
         sold_price_cents: data.sold_price_dollars != null ? toCents(data.sold_price_dollars) : null,
+        series_id: data.series_id || null,
         status: data.status,
       },
     });
@@ -88,6 +96,18 @@ export default function EditListingPage() {
           <Input label="Height (cm)" type="number" step="0.1" {...register('height_cm', { valueAsNumber: true })} />
           <Input label="Depth (cm)" type="number" step="0.1" {...register('depth_cm', { valueAsNumber: true })} />
         </div>
+
+        {seriesOptions.length > 0 && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-ink">Series (optional)</label>
+            <select {...register('series_id')} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm">
+              <option value="">No series</option>
+              {seriesOptions.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <fieldset className="space-y-4 rounded-xl border border-line p-4">
           <legend className="px-1 text-sm font-semibold text-ink">Pricing</legend>

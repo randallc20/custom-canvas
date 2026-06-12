@@ -16,6 +16,7 @@ export interface Listing {
   price_visible: boolean;
   sold_price_cents: number | null;
   show_sold_price: boolean;
+  series_id: string | null;
   status: ListingStatus;
   is_featured: boolean;
   view_count: number;

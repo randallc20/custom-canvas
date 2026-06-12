@@ -85,6 +85,15 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
             </Button>
           )}
         </div>
+        {artist.primary_mediums && artist.primary_mediums.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {artist.primary_mediums.map((medium) => (
+              <span key={medium} className="rounded-full bg-sand px-2.5 py-0.5 text-xs font-medium text-muted">
+                {medium}
+              </span>
+            ))}
+          </div>
+        )}
         {artist.bio && <p className="mt-3 max-w-2xl text-gray-600">{artist.bio}</p>}
       </div>
     </div>
