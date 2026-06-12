@@ -33,9 +33,9 @@ export function CommissionStatus({ commission }: CommissionStatusProps) {
       <div className="flex items-center gap-1">
         {STEPS.map((step, i) => (
           <div key={step} className="flex items-center">
-            <div className={`h-3 w-3 rounded-full ${i <= currentStep ? 'bg-[#E8704A]' : 'bg-gray-200'}`} />
+            <div className={`h-3 w-3 rounded-full ${i <= currentStep ? 'bg-terra' : 'bg-gray-200'}`} />
             {i < STEPS.length - 1 && (
-              <div className={`h-0.5 w-6 ${i < currentStep ? 'bg-[#E8704A]' : 'bg-gray-200'}`} />
+              <div className={`h-0.5 w-6 ${i < currentStep ? 'bg-terra' : 'bg-gray-200'}`} />
             )}
           </div>
         ))}

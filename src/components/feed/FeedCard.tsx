@@ -6,15 +6,18 @@ import { ListingWithImages } from '@/types/listing';
 import { formatPrice } from '@/utils/formatPrice';
 import { useAuth } from '@/context/AuthContext';
 import { useIsSaved, useToggleSave } from '@/hooks/useSaved';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 interface FeedCardProps {
   listing: ListingWithImages;
+  revealDelayMs?: number;
 }
 
-export function FeedCard({ listing }: FeedCardProps) {
+export function FeedCard({ listing, revealDelayMs = 0 }: FeedCardProps) {
   const { user } = useAuth();
   const { data: isSaved } = useIsSaved(user?.id ?? '', listing.id);
   const toggleSave = useToggleSave();
+  const revealRef = useScrollReveal<HTMLDivElement>();
   const primaryImage = listing.images.find((img) => img.is_primary) ?? listing.images[0];
 
   const handleSave = (e: React.MouseEvent) => {
@@ -30,7 +33,11 @@ export function FeedCard({ listing }: FeedCardProps) {
 
   return (
     <Link href={`/listing/${listing.id}`} className="group block">
-      <div className="overflow-hidden rounded-lg bg-gray-100 shadow-sm transition-transform group-hover:scale-[1.02] group-hover:shadow-md">
+      <div
+        ref={revealRef}
+        className="reveal card-hover overflow-hidden rounded-xl border border-line bg-surface shadow-card"
+        style={{ '--reveal-delay': `${revealDelayMs}ms` } as React.CSSProperties}
+      >
         {primaryImage ? (
           <Image
             src={primaryImage.image_url}
@@ -41,24 +48,30 @@ export function FeedCard({ listing }: FeedCardProps) {
             className="w-full object-cover"
           />
         ) : (
-          <div className="flex aspect-[4/5] items-center justify-center bg-gray-200">
-            <span className="text-sm text-gray-400">No image</span>
+          <div className="flex aspect-[4/5] items-center justify-center bg-sand">
+            <span className="text-sm text-muted">No image</span>
           </div>
         )}
         <div className="p-3">
-          <h3 className="truncate text-sm font-medium text-gray-900">{listing.title}</h3>
-          <p className="text-xs text-gray-500">{listing.medium}</p>
+          <h3 className="truncate font-sans text-sm font-medium text-ink">{listing.title}</h3>
+          <p className="text-xs text-muted">{listing.medium}</p>
           <div className="mt-1 flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-900">
+            <span className="text-sm font-semibold text-ink">
               {formatPrice(listing.price_cents)}
             </span>
             {user && (
               <button
                 onClick={handleSave}
-                className={`transition-colors ${isSaved ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                className={`transition-colors duration-150 ${isSaved ? 'text-terra' : 'text-muted/60 hover:text-terra'}`}
                 aria-label={isSaved ? 'Unsave' : 'Save'}
               >
-                <svg className="h-5 w-5" fill={isSaved ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+                <svg
+                  key={isSaved ? 'saved' : 'unsaved'}
+                  className="h-5 w-5 animate-heart-pop"
+                  fill={isSaved ? 'currentColor' : 'none'}
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
               </button>

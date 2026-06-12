@@ -22,7 +22,7 @@ export function PriceSlider({ min, max, value, onChange }: PriceSliderProps) {
         max={max}
         value={value[0]}
         onChange={(e) => onChange([parseInt(e.target.value, 10), value[1]])}
-        className="w-full accent-[#E8704A]"
+        className="w-full accent-terra"
       />
       <input
         type="range"
@@ -30,7 +30,7 @@ export function PriceSlider({ min, max, value, onChange }: PriceSliderProps) {
         max={max}
         value={value[1]}
         onChange={(e) => onChange([value[0], parseInt(e.target.value, 10)])}
-        className="w-full accent-[#E8704A]"
+        className="w-full accent-terra"
       />
     </div>
   );

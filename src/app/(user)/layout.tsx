@@ -4,7 +4,7 @@ import { AuthGuard } from '@/components/layout/AuthGuard';
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   return (
     <PageShell>
-      <AuthGuard allowedRoles={['user', 'gallery']}>{children}</AuthGuard>
+      <AuthGuard allowedRoles={['user', 'artist', 'gallery']}>{children}</AuthGuard>
     </PageShell>
   );
 }

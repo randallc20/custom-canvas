@@ -84,7 +84,7 @@ export function CommissionForm({ artistId, artistName }: CommissionFormProps) {
             rows={5}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
               placeholder:text-gray-400
-              focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20"
+              focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
             placeholder="Describe the piece you'd like — subject, size, style, colors, timeline, anything that helps the artist understand your vision..."
           />
           {errors.description && <p className="mt-1 text-xs text-red-600">{errors.description.message}</p>}

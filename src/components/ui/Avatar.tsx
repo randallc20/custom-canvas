@@ -49,7 +49,7 @@ export function Avatar({ src, alt, size = 'md', className = '' }: AvatarProps) {
   return (
     <div
       className={`${sizes[size]} flex items-center justify-center rounded-full
-        bg-[#E8704A] font-semibold text-white ${className}`}
+        bg-terra font-semibold text-white ${className}`}
       aria-label={alt}
     >
       {getInitials(alt)}

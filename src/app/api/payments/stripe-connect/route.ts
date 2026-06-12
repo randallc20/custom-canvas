@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { stripe } from '@/lib/stripe';
+import { getStripe } from '@/lib/stripe';
 
 export async function POST() {
   const supabase = createServerSupabaseClient();
@@ -18,7 +18,7 @@ export async function POST() {
   let accountId = artist.stripe_account_id;
 
   if (!accountId) {
-    const account = await stripe.accounts.create({
+    const account = await getStripe().accounts.create({
       type: 'express',
       email: user.email!,
       capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
@@ -31,7 +31,7 @@ export async function POST() {
       .eq('id', artist.id);
   }
 
-  const accountLink = await stripe.accountLinks.create({
+  const accountLink = await getStripe().accountLinks.create({
     account: accountId,
     refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/payouts`,
     return_url: `${process.env.NEXT_PUBLIC_APP_URL}/payouts?setup=complete`,

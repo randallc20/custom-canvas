@@ -78,7 +78,7 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
               key={image.id}
               onClick={() => setSelectedIndex(index)}
               className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border-2 transition-colors
-                ${index === selectedIndex ? 'border-[#E8704A]' : 'border-transparent hover:border-gray-300'}`}
+                ${index === selectedIndex ? 'border-terra' : 'border-transparent hover:border-gray-300'}`}
               aria-label={`View image ${index + 1}`}
             >
               <Image

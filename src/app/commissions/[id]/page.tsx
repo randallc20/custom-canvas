@@ -179,7 +179,7 @@ function CommissionDetailContent() {
           <div className="mt-6">
             <Link
               href={`/messages/${commission.conversation_id}`}
-              className="inline-flex items-center gap-2 text-sm font-medium text-[#E8704A] hover:underline"
+              className="inline-flex items-center gap-2 text-sm font-medium text-terra hover:underline"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -278,7 +278,7 @@ function CommissionDetailContent() {
                   onChange={(e) => setArtistNotes(e.target.value)}
                   rows={3}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
-                    focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20"
+                    focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
                   placeholder="Any notes about materials, approach, or conditions..."
                 />
               </div>
@@ -304,7 +304,7 @@ function CommissionDetailContent() {
                   onChange={(e) => setDisputeReason(e.target.value)}
                   rows={3}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
-                    focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20"
+                    focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
                   placeholder="Describe the issue..."
                 />
               </div>

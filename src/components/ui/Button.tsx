@@ -3,10 +3,10 @@
 import { ButtonHTMLAttributes, ReactNode } from 'react';
 
 const variants = {
-  primary: 'bg-[#E8704A] hover:bg-[#d4603e] text-white',
-  secondary: 'bg-gray-800 hover:bg-gray-700 text-white',
-  outline: 'border border-gray-300 hover:bg-gray-50 text-gray-700',
-  ghost: 'hover:bg-gray-100 text-gray-700',
+  primary: 'bg-terra hover:bg-terraDark text-white',
+  secondary: 'bg-ink hover:bg-ink/85 text-white',
+  outline: 'border border-line hover:bg-sand/50 text-ink',
+  ghost: 'hover:bg-sand/50 text-ink',
   danger: 'bg-red-600 hover:bg-red-700 text-white',
 };
 
@@ -34,8 +34,8 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      className={`inline-flex items-center justify-center rounded-lg font-medium transition-colors
-        focus:outline-none focus:ring-2 focus:ring-[#E8704A] focus:ring-offset-2
+      className={`press inline-flex items-center justify-center rounded-full font-medium transition-colors duration-150
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-2
         disabled:opacity-50 disabled:cursor-not-allowed
         ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={disabled || loading}

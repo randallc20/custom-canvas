@@ -19,7 +19,7 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
                 type="checkbox"
                 checked={filters.medium === m}
                 onChange={() => onFilterChange({ ...filters, medium: filters.medium === m ? undefined : m })}
-                className="rounded border-gray-300 text-[#E8704A] focus:ring-[#E8704A]"
+                className="rounded border-gray-300 text-terra focus:ring-terra"
               />
               <span className="text-sm text-gray-700">{m}</span>
             </label>

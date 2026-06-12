@@ -51,7 +51,7 @@ export function ConversationList({ conversations, activeId, currentUserId, unrea
                   </p>
                 )}
                 {unread > 0 && (
-                  <span className="ml-2 flex h-5 min-w-[1.25rem] flex-shrink-0 items-center justify-center rounded-full bg-[#E8704A] px-1.5 text-[10px] font-bold text-white">
+                  <span className="ml-2 flex h-5 min-w-[1.25rem] flex-shrink-0 items-center justify-center rounded-full bg-terra px-1.5 text-[10px] font-bold text-white">
                     {unread}
                   </span>
                 )}

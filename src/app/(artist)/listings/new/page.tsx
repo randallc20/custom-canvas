@@ -50,7 +50,7 @@ export default function NewListingPage() {
         <Input label="Title" {...register('title')} error={errors.title?.message} />
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
-          <textarea {...register('description')} rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20" />
+          <textarea {...register('description')} rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
         </div>
         <Input label="Medium" {...register('medium')} error={errors.medium?.message} />
         <div className="grid grid-cols-3 gap-4">

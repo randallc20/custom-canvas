@@ -30,7 +30,7 @@ export function ProfileCard({ artist }: ProfileCardProps) {
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium text-gray-900 group-hover:text-[#E8704A]">
+          <p className="truncate font-medium text-gray-900 group-hover:text-terra">
             {artist.display_name}
           </p>
           {artist.neighborhood && (

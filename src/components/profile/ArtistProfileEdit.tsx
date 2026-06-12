@@ -15,7 +15,7 @@ import { ArtistProfile } from '@/types/artist';
 import { calculateCompletenessScore } from '@/utils/completenessScore';
 import { useToast } from '@/components/ui/Toast';
 
-export default function EditArtistProfilePage() {
+export function ArtistProfileEdit() {
   const { user } = useAuth();
   const updateProfile = useUpdateArtistProfile();
   const [artist, setArtist] = useState<ArtistProfile | null>(null);
@@ -78,7 +78,7 @@ export default function EditArtistProfilePage() {
           <Input label="Display Name" {...register('display_name')} error={errors.display_name?.message} />
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Bio</label>
-            <textarea {...register('bio')} rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20" />
+            <textarea {...register('bio')} rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
           </div>
           <Input label="School" {...register('school')} />
           <Input label="Graduation Year" type="number" {...register('graduation_year', { valueAsNumber: true })} />
@@ -97,7 +97,7 @@ export default function EditArtistProfilePage() {
           <legend className="text-lg font-semibold text-gray-900">About Your Work</legend>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Artist Statement</label>
-            <textarea {...register('artist_statement')} rows={5} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20" />
+            <textarea {...register('artist_statement')} rows={5} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
           </div>
           <Input label="Influences" {...register('influences')} />
           <Input label="Website" {...register('website_url')} placeholder="https://" />
@@ -127,7 +127,7 @@ export default function EditArtistProfilePage() {
           </label>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Commission Description</label>
-            <textarea {...register('commission_desc')} rows={3} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20" />
+            <textarea {...register('commission_desc')} rows={3} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
           </div>
           <Input label="Minimum Price ($)" type="number" {...register('commission_min_cents', { valueAsNumber: true })} />
           <Input label="Turnaround Time" {...register('commission_turnaround')} placeholder="e.g. 2-4 weeks" />

@@ -14,7 +14,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-3xl">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900 md:text-5xl">
             Discover art from Houston&apos;s
-            <span className="text-[#E8704A]"> emerging artists</span>
+            <span className="text-terra"> emerging artists</span>
           </h1>
           <p className="mt-4 text-lg text-gray-600 md:text-xl">
             Browse original work, connect with artists, and commission one-of-a-kind pieces
@@ -23,7 +23,7 @@ export default function HomePage() {
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link
               href="#feed"
-              className="rounded-lg bg-[#E8704A] px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-[#d4603e]"
+              className="rounded-lg bg-terra px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-terraDark"
             >
               Explore Art
             </Link>

@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
             We sent a password reset link to <span className="font-medium">{email}</span>.
             Click the link in the email to set a new password.
           </p>
-          <Link href="/login" className="mt-6 inline-block text-sm text-[#E8704A] hover:underline">
+          <Link href="/login" className="mt-6 inline-block text-sm text-terra hover:underline">
             Back to sign in
           </Link>
         </div>
@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
         </form>
         <p className="mt-4 text-center text-sm text-gray-500">
           Remember your password?{' '}
-          <Link href="/login" className="text-[#E8704A] hover:underline">Sign in</Link>
+          <Link href="/login" className="text-terra hover:underline">Sign in</Link>
         </p>
       </div>
     </div>

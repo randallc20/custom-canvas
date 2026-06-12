@@ -112,13 +112,13 @@ function ListingsContent() {
             {filtered.map((l) => (
               <tr key={l.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
-                  <Link href={`/listing/${l.id}`} className="font-medium text-gray-900 hover:text-[#E8704A]">
+                  <Link href={`/listing/${l.id}`} className="font-medium text-gray-900 hover:text-terra">
                     {l.title}
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-gray-500">
                   {l.artist ? (
-                    <Link href={`/artist/${l.artist.slug}`} className="hover:text-[#E8704A]">
+                    <Link href={`/artist/${l.artist.slug}`} className="hover:text-terra">
                       {l.artist.display_name}
                     </Link>
                   ) : '—'}

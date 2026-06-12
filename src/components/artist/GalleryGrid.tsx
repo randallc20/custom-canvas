@@ -50,7 +50,7 @@ export function GalleryGrid({ listings }: GalleryGridProps) {
             )}
             <div className="p-3">
               <p className="truncate text-sm font-medium text-gray-900">{listing.title}</p>
-              <p className="mt-0.5 text-sm text-[#E8704A]">{formatPrice(listing.price_cents)}</p>
+              <p className="mt-0.5 text-sm text-terra">{formatPrice(listing.price_cents)}</p>
               {listing.medium && (
                 <p className="mt-0.5 truncate text-xs text-gray-400">{listing.medium}</p>
               )}

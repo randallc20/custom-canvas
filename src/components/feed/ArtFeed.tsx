@@ -49,9 +49,9 @@ export function ArtFeed() {
         />
       ) : (
         <div className="columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4">
-          {listings.map((listing) => (
+          {listings.map((listing, i) => (
             <div key={listing.id} className="mb-4 break-inside-avoid">
-              <FeedCard listing={listing} />
+              <FeedCard listing={listing} revealDelayMs={(i % 8) * 50} />
             </div>
           ))}
         </div>

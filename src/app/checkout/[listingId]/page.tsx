@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useListing } from '@/hooks/useListings';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
@@ -28,7 +28,6 @@ function CheckoutContent() {
   const { data: listing, isLoading } = useListing(listingId);
   const { user } = useAuth();
   const { toast } = useToast();
-  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [shipping, setShipping] = useState({
     street: '',

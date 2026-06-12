@@ -32,7 +32,7 @@ export function SearchBar({ value, onChange, onSubmit }: SearchBarProps) {
         onChange={(e) => handleChange(e.target.value)}
         placeholder="Search art, artists, styles..."
         className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm
-          focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20"
+          focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
       />
     </div>
   );

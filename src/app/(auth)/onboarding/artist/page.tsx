@@ -80,11 +80,11 @@ export default function ArtistOnboardingPage() {
         <div className="mb-8">
           <div className="mb-2 flex justify-between text-sm text-gray-500">
             {STEPS.map((s, i) => (
-              <span key={s} className={i <= step ? 'font-medium text-[#E8704A]' : ''}>{s}</span>
+              <span key={s} className={i <= step ? 'font-medium text-terra' : ''}>{s}</span>
             ))}
           </div>
           <div className="h-2 rounded-full bg-gray-200">
-            <div className="h-2 rounded-full bg-[#E8704A] transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+            <div className="h-2 rounded-full bg-terra transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
           </div>
         </div>
 
@@ -96,7 +96,7 @@ export default function ArtistOnboardingPage() {
                 <label className="mb-1 block text-sm font-medium text-gray-700">
                   What drew you to art? Tell visitors about yourself.
                 </label>
-                <textarea {...register('bio')} rows={4} placeholder="What were you making before you knew it was called art?" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20" />
+                <textarea {...register('bio')} rows={4} placeholder="What were you making before you knew it was called art?" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
               </div>
               <Input label="School / University" id="school" {...register('school')} />
             </>
@@ -105,7 +105,7 @@ export default function ArtistOnboardingPage() {
             <>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Artist Statement</label>
-                <textarea {...register('artist_statement')} rows={5} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20" />
+                <textarea {...register('artist_statement')} rows={5} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
               </div>
               <Input label="Influences" id="influences" {...register('influences')} />
             </>

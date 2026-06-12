@@ -81,7 +81,7 @@ export function ReviewForm({ orderId, onSubmit, reviewerId, onSuccess }: ReviewF
           maxLength={2000}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
             placeholder:text-gray-400
-            focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20"
+            focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
           placeholder="Tell others about your experience with this artist..."
         />
       </div>

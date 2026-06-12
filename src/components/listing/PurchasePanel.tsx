@@ -15,7 +15,7 @@ interface PurchasePanelProps {
   artistProfileId?: string;
 }
 
-export function PurchasePanel({ listing, artistSlug, artistProfileId }: PurchasePanelProps) {
+export function PurchasePanel({ listing, artistProfileId }: PurchasePanelProps) {
   const { user } = useAuth();
   const router = useRouter();
   const findOrCreate = useFindOrCreateConversation();

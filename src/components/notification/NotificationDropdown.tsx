@@ -70,7 +70,7 @@ export function NotificationDropdown() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[#E8704A] px-1 text-[10px] font-bold text-white">
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-terra px-1 text-[10px] font-bold text-white">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -83,7 +83,7 @@ export function NotificationDropdown() {
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
-                className="text-xs text-[#E8704A] hover:underline"
+                className="text-xs text-terra hover:underline"
               >
                 Mark all read
               </button>
@@ -110,7 +110,7 @@ export function NotificationDropdown() {
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
-              className="text-xs font-medium text-[#E8704A] hover:underline"
+              className="text-xs font-medium text-terra hover:underline"
             >
               View all notifications
             </Link>
@@ -139,7 +139,7 @@ function NotificationItem({ notification, onClick }: { notification: Notificatio
         <p className="mt-1 text-[10px] text-gray-400">{formatTime(notification.created_at)}</p>
       </div>
       {!notification.is_read && (
-        <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-[#E8704A]" />
+        <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-terra" />
       )}
     </div>
   );

@@ -46,7 +46,7 @@ export function FeedFilters({ filters, onFilterChange }: FeedFiltersProps) {
           defaultValue={filters.search ?? ''}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder="Search art, artists, styles..."
-          className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20"
+          className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
         />
       </div>
 
@@ -101,7 +101,7 @@ export function FeedFilters({ filters, onFilterChange }: FeedFiltersProps) {
         </svg>
         Filters
         {activeCount > 0 && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#E8704A] text-xs text-white">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-terra text-xs text-white">
             {activeCount}
           </span>
         )}

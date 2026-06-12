@@ -122,7 +122,7 @@ function GalleriesContent() {
                   {gallery.address && <p className="text-sm text-gray-400">{gallery.address}</p>}
                   {gallery.neighborhood && <p className="text-sm text-gray-400">{gallery.neighborhood}, {gallery.city}</p>}
                   {gallery.website_url && (
-                    <p className="mt-1 text-sm text-[#E8704A]">{gallery.website_url}</p>
+                    <p className="mt-1 text-sm text-terra">{gallery.website_url}</p>
                   )}
                   {gallery.bio && (
                     <p className="mt-2 text-sm text-gray-600">{gallery.bio}</p>

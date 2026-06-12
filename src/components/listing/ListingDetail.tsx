@@ -21,7 +21,7 @@ export function ListingDetail({ listing, artist }: ListingDetailProps) {
       <div className="mt-6">
         <h1 className="text-2xl font-bold text-gray-900">{listing.title}</h1>
         {artist && (
-          <Link href={`/artist/${artist.slug}`} className="mt-1 text-sm text-[#E8704A] hover:underline">
+          <Link href={`/artist/${artist.slug}`} className="mt-1 text-sm text-terra hover:underline">
             {artist.display_name}
           </Link>
         )}

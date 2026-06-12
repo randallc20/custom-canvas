@@ -76,7 +76,7 @@ function StatCard({ label, value, highlight }: { label: string; value: string; h
   return (
     <div className="rounded-lg border border-gray-200 p-4">
       <p className="text-sm text-gray-500">{label}</p>
-      <p className={`text-2xl font-bold ${highlight ? 'text-[#E8704A]' : 'text-gray-900'}`}>
+      <p className={`text-2xl font-bold ${highlight ? 'text-terra' : 'text-gray-900'}`}>
         {value}
       </p>
     </div>
@@ -93,11 +93,11 @@ function SimpleBarChart({ data, prefix = '' }: { data: { label: string; value: n
           <span className="w-12 flex-shrink-0 text-xs text-gray-400">{d.label}</span>
           <div className="flex-1">
             <div
-              className="h-5 rounded bg-[#E8704A]/20"
+              className="h-5 rounded bg-terra/20"
               style={{ width: `${Math.max((d.value / max) * 100, 2)}%` }}
             >
               <div
-                className="h-full rounded bg-[#E8704A]"
+                className="h-full rounded bg-terra"
                 style={{ width: '100%' }}
               />
             </div>

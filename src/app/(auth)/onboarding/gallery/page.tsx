@@ -64,7 +64,7 @@ export default function GalleryOnboardingPage() {
           <p className="mt-1 text-sm text-gray-400">
             In the meantime, you can browse and discover local artists.
           </p>
-          <Link href="/" className="mt-6 inline-block rounded-lg bg-[#E8704A] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#d4603f]">
+          <Link href="/" className="mt-6 inline-block rounded-lg bg-terra px-5 py-2.5 text-sm font-medium text-white hover:bg-[#d4603f]">
             Explore Art
           </Link>
         </div>
@@ -82,7 +82,7 @@ export default function GalleryOnboardingPage() {
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Tell artists about your gallery and what you&apos;re looking for.
             </label>
-            <textarea {...register('bio')} rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20" />
+            <textarea {...register('bio')} rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
           </div>
           <Input label="Address" id="address" {...register('address')} />
           <Input label="City" id="city" {...register('city')} error={errors.city?.message} />

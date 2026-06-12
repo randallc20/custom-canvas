@@ -6,12 +6,11 @@ import { useArtistListings } from '@/hooks/useArtist';
 import { useArtistOrders } from '@/hooks/useOrders';
 import { Spinner } from '@/components/ui/Spinner';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { formatPrice } from '@/utils/formatPrice';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-export default function ArtistDashboardPage() {
+export function ArtistDashboard() {
   const { user } = useAuth();
   const [artist, setArtist] = useState<{ id: string; completeness_score: number; stripe_onboarded: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,7 +47,7 @@ export default function ArtistDashboardPage() {
         <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
           <p className="text-sm text-blue-800">
             You have {pendingShipment} order{pendingShipment > 1 ? 's' : ''} awaiting shipment.{' '}
-            <Link href="/orders" className="font-medium underline">View orders</Link>
+            <Link href="/sales" className="font-medium underline">View orders</Link>
           </p>
         </div>
       )}
@@ -75,7 +74,7 @@ export default function ArtistDashboardPage() {
       <div className="flex flex-wrap gap-3">
         <Link href="/listings/new"><Button>Create Listing</Button></Link>
         <Link href="/profile/edit"><Button variant="outline">Edit Profile</Button></Link>
-        <Link href="/orders"><Button variant="outline">Sales</Button></Link>
+        <Link href="/sales"><Button variant="outline">Sales</Button></Link>
         <Link href="/commissions"><Button variant="outline">Commissions</Button></Link>
         <Link href="/payouts"><Button variant="outline">Payouts</Button></Link>
         <Link href="/analytics"><Button variant="outline">Analytics</Button></Link>

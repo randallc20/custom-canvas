@@ -116,7 +116,7 @@ function NotificationRow({ notification, onMarkRead }: { notification: Notificat
           </button>
         )}
         {!notification.is_read && (
-          <span className="h-2.5 w-2.5 rounded-full bg-[#E8704A]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-terra" />
         )}
       </div>
     </div>

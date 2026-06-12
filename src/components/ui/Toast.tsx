@@ -17,9 +17,9 @@ interface ToastContextValue {
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
 const typeStyles: Record<ToastType, string> = {
-  success: 'bg-green-600 text-white',
+  success: 'bg-sage text-white',
   error: 'bg-red-600 text-white',
-  info: 'bg-blue-600 text-white',
+  info: 'bg-ink text-cream',
   warning: 'bg-yellow-500 text-white',
 };
 
@@ -38,8 +38,8 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
 
   return (
     <div
-      className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium shadow-lg
-        transition-all duration-300 animate-in slide-in-from-top-2 ${typeStyles[toast.type]}`}
+      className={`flex animate-toast-in items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium shadow-card
+        transition-all duration-300 ${typeStyles[toast.type]}`}
       role="alert"
     >
       <span className="text-base">{icons[toast.type]}</span>

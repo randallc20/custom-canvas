@@ -75,7 +75,7 @@ function OrdersContent() {
         </div>
         <div className="rounded-lg border border-gray-200 p-4">
           <p className="text-sm text-gray-500">Platform Fees</p>
-          <p className="text-2xl font-bold text-[#E8704A]">{formatPrice(totalFees)}</p>
+          <p className="text-2xl font-bold text-terra">{formatPrice(totalFees)}</p>
         </div>
         <div className="rounded-lg border border-gray-200 p-4">
           <p className="text-sm text-gray-500">Artist Payouts</p>

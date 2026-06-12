@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { supabase } from '@/lib/supabase';
 
-export default function EditGalleryProfilePage() {
+export function GalleryProfileEdit() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [galleryId, setGalleryId] = useState('');
@@ -66,7 +66,7 @@ export default function EditGalleryProfilePage() {
             rows={4}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
               placeholder:text-gray-400
-              focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20"
+              focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
             placeholder="Tell visitors about your gallery, your mission, and what kind of art you showcase..."
           />
         </div>

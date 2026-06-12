@@ -28,12 +28,14 @@ export async function GET(request: NextRequest) {
       .from('analytics_events')
       .select('*', { count: 'exact', head: true })
       .eq('artist_id', artistId)
-      .eq('event_type', 'profile_view'),
+      .eq('event_type', 'profile_view')
+      .gte('created_at', since),
     supabase
       .from('analytics_events')
       .select('*', { count: 'exact', head: true })
       .eq('artist_id', artistId)
-      .eq('event_type', 'listing_save'),
+      .eq('event_type', 'listing_save')
+      .gte('created_at', since),
     supabase
       .from('follows')
       .select('*', { count: 'exact', head: true })

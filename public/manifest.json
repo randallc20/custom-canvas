@@ -3,7 +3,7 @@
   "short_name": "Canvas",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#FAF6F0",
   "theme_color": "#E8704A",
   "icons": [
     {

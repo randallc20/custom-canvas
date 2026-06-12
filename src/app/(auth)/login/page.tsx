@@ -46,7 +46,7 @@ export default function LoginPage() {
           <Input label="Password" id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex justify-end">
-            <Link href="/forgot-password" className="text-sm text-[#E8704A] hover:underline">
+            <Link href="/forgot-password" className="text-sm text-terra hover:underline">
               Forgot password?
             </Link>
           </div>
@@ -54,7 +54,7 @@ export default function LoginPage() {
         </form>
         <p className="mt-4 text-center text-sm text-gray-500">
           Don&apos;t have an account?{' '}
-          <Link href="/register" className="text-[#E8704A] hover:underline">Sign up</Link>
+          <Link href="/register" className="text-terra hover:underline">Sign up</Link>
         </p>
       </div>
     </div>

@@ -33,12 +33,12 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose} />
-      <div className="relative z-10 mx-4 w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+      <div className="fixed inset-0 animate-fade-in bg-ink/40 transition-opacity" onClick={onClose} />
+      <div className="relative z-10 mx-4 w-full max-w-lg animate-modal-in rounded-xl border border-line bg-surface p-6 shadow-card">
         {title && (
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
+            <button onClick={onClose} className="text-muted transition-colors duration-150 hover:text-ink">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>

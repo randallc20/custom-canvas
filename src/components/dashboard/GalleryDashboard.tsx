@@ -15,7 +15,7 @@ import { supabase } from '@/lib/supabase';
 import type { GalleryProfile } from '@/types/gallery';
 import type { ArtistProfile } from '@/types/artist';
 
-export default function GalleryDashboardPage() {
+export function GalleryDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [gallery, setGallery] = useState<GalleryProfile | null>(null);

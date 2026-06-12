@@ -139,7 +139,7 @@ function AdminDashboard() {
         <div className="rounded-lg border border-gray-200 p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700">Recent Orders</h2>
-            <Link href="/admin/orders" className="text-xs text-[#E8704A] hover:underline">View all</Link>
+            <Link href="/admin/orders" className="text-xs text-terra hover:underline">View all</Link>
           </div>
           {recentOrders.length > 0 ? (
             <div className="space-y-3">
@@ -164,7 +164,7 @@ function AdminDashboard() {
         <div className="rounded-lg border border-gray-200 p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700">Recent Signups</h2>
-            <Link href="/admin/users" className="text-xs text-[#E8704A] hover:underline">View all</Link>
+            <Link href="/admin/users" className="text-xs text-terra hover:underline">View all</Link>
           </div>
           {recentUsers.length > 0 ? (
             <div className="space-y-3">
@@ -198,7 +198,7 @@ function StatCard({ label, value, highlight }: { label: string; value: string; h
   return (
     <div className="rounded-lg border border-gray-200 p-4">
       <p className="text-sm text-gray-500">{label}</p>
-      <p className={`text-2xl font-bold ${highlight ? 'text-[#E8704A]' : 'text-gray-900'}`}>{value}</p>
+      <p className={`text-2xl font-bold ${highlight ? 'text-terra' : 'text-gray-900'}`}>{value}</p>
     </div>
   );
 }
@@ -211,7 +211,7 @@ function MiniBarChart({ data, prefix = '' }: { data: { label: string; value: num
         <div key={i} className="flex items-center gap-2">
           <span className="w-10 flex-shrink-0 text-[10px] text-gray-400">{d.label}</span>
           <div className="h-4 flex-1 overflow-hidden rounded bg-gray-100">
-            <div className="h-full rounded bg-[#E8704A]" style={{ width: `${Math.max((d.value / max) * 100, 2)}%` }} />
+            <div className="h-full rounded bg-terra" style={{ width: `${Math.max((d.value / max) * 100, 2)}%` }} />
           </div>
           <span className="w-14 flex-shrink-0 text-right text-xs text-gray-600">{prefix}{d.value.toLocaleString()}</span>
         </div>

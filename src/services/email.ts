@@ -1,4 +1,4 @@
-import { resend } from '@/lib/resend';
+import { getResend } from '@/lib/resend';
 
 const FROM_EMAIL = 'Custom Canvas <noreply@customcanvas.art>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
@@ -10,7 +10,7 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
     ? 'Your gallery application is under review. We\'ll notify you once verified.'
     : 'Discover one-of-a-kind pieces from Houston\'s most talented emerging artists.';
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to,
     subject: 'Welcome to Custom Canvas!',
@@ -31,7 +31,7 @@ export async function sendNewMessageEmail(
   preview: string,
   conversationUrl: string
 ): Promise<void> {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to,
     subject: `New message from ${senderName}`,
@@ -50,7 +50,7 @@ export async function sendCommissionRequestEmail(
   artistName: string,
   title: string
 ): Promise<void> {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to,
     subject: `New commission request: ${title}`,
@@ -71,7 +71,7 @@ export async function sendOrderConfirmationEmail(
   amount: string,
   orderId: string
 ): Promise<void> {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to,
     subject: `Order confirmed: ${listingTitle}`,
@@ -97,7 +97,7 @@ export async function sendNewSaleEmail(
   amount: string,
   payoutAmount: string
 ): Promise<void> {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to,
     subject: `You made a sale: ${listingTitle}`,
@@ -130,7 +130,7 @@ export async function sendShippingUpdateEmail(
       </div>`
     : '';
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to,
     subject: `Your order has shipped: ${listingTitle}`,
@@ -154,7 +154,7 @@ export async function sendReviewReceivedEmail(
 ): Promise<void> {
   const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to,
     subject: `New ${rating}-star review from ${reviewerName}`,

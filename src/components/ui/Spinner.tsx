@@ -11,7 +11,7 @@ interface SpinnerProps {
 export function Spinner({ size = 'md' }: SpinnerProps) {
   return (
     <svg
-      className={`animate-spin text-[#E8704A] ${sizes[size]}`}
+      className={`animate-spin text-terra ${sizes[size]}`}
       viewBox="0 0 24 24"
       fill="none"
     >

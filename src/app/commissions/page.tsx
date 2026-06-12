@@ -113,7 +113,7 @@ function CommissionList({ commissions }: { commissions: Commission[] }) {
                 Budget: {formatPrice(c.budget_min_cents)} – {formatPrice(c.budget_max_cents)}
               </p>
               {c.quoted_price_cents && (
-                <p className="mt-1 text-sm font-medium text-[#E8704A]">
+                <p className="mt-1 text-sm font-medium text-terra">
                   Quoted: {formatPrice(c.quoted_price_cents)}
                 </p>
               )}

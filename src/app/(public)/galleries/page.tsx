@@ -50,7 +50,7 @@ export default async function GalleriesPage() {
               </div>
               <div className="p-4">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-gray-900 group-hover:text-[#E8704A]">
+                  <h3 className="font-medium text-gray-900 group-hover:text-terra">
                     {gallery.gallery_name}
                   </h3>
                   {gallery.is_verified && <GalleryBadge />}

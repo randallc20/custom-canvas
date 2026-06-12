@@ -131,7 +131,7 @@ function DisputesContent() {
                   <p className="mt-2 text-sm text-gray-900">
                     Listing:{' '}
                     {report.listing ? (
-                      <Link href={`/listing/${report.listing_id}`} className="font-medium text-[#E8704A] hover:underline">
+                      <Link href={`/listing/${report.listing_id}`} className="font-medium text-terra hover:underline">
                         {report.listing.title}
                       </Link>
                     ) : (
@@ -187,7 +187,7 @@ function DisputesContent() {
               onChange={(e) => setAdminNotes(e.target.value)}
               rows={3}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
-                focus:border-[#E8704A] focus:outline-none focus:ring-2 focus:ring-[#E8704A]/20"
+                focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
               placeholder="Internal notes about this resolution..."
             />
           </div>

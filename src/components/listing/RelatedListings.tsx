@@ -39,7 +39,7 @@ export function RelatedListings({ listings }: RelatedListingsProps) {
               )}
               <div className="p-2">
                 <p className="truncate text-sm font-medium text-gray-900">{listing.title}</p>
-                <p className="text-sm text-[#E8704A]">{formatPrice(listing.price_cents)}</p>
+                <p className="text-sm text-terra">{formatPrice(listing.price_cents)}</p>
               </div>
             </Link>
           );

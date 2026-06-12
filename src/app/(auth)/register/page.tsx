@@ -54,13 +54,13 @@ export default function RegisterPage() {
               Already confirmed?{' '}
               <button
                 onClick={() => router.push(onboardingPath)}
-                className="text-[#E8704A] hover:underline"
+                className="text-terra hover:underline"
               >
                 Continue to setup
               </button>
             </p>
           )}
-          <Link href="/login" className="mt-4 inline-block text-sm text-[#E8704A] hover:underline">
+          <Link href="/login" className="mt-4 inline-block text-sm text-terra hover:underline">
             Go to sign in
           </Link>
         </div>
@@ -87,7 +87,7 @@ export default function RegisterPage() {
                   onClick={() => setRole(r.value)}
                   aria-pressed={role === r.value}
                   className={`rounded-lg border p-3 text-center text-sm transition-colors
-                    ${role === r.value ? 'border-[#E8704A] bg-orange-50 text-[#E8704A]' : 'border-gray-300 hover:bg-gray-50'}`}
+                    ${role === r.value ? 'border-terra bg-orange-50 text-terra' : 'border-gray-300 hover:bg-gray-50'}`}
                 >
                   <div className="font-medium">{r.label}</div>
                   <div className="mt-0.5 text-xs text-gray-500">{r.desc}</div>
@@ -101,7 +101,7 @@ export default function RegisterPage() {
         </form>
         <p className="mt-4 text-center text-sm text-gray-500">
           Already have an account?{' '}
-          <Link href="/login" className="text-[#E8704A] hover:underline">Sign in</Link>
+          <Link href="/login" className="text-terra hover:underline">Sign in</Link>
         </p>
       </div>
     </div>
