@@ -8,11 +8,15 @@ import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { Spinner } from '@/components/ui/Spinner';
 
+import type { PartnerType } from '@/types/gallery';
+
 interface ChatThreadProps {
   conversationId: string;
+  /** Verified-partner type of the other participant, if any. */
+  otherPartnerType?: PartnerType | null;
 }
 
-export function ChatThread({ conversationId }: ChatThreadProps) {
+export function ChatThread({ conversationId, otherPartnerType }: ChatThreadProps) {
   const { user } = useAuth();
   const { messages, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useMessages(conversationId);
   const sendMessage = useSendMessage();
@@ -79,7 +83,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
         )}
         <div className="space-y-2">
           {reversed.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} isOwn={msg.sender_id === user?.id} />
+            <MessageBubble key={msg.id} message={msg} isOwn={msg.sender_id === user?.id} senderPartnerType={otherPartnerType} />
           ))}
         </div>
         <div ref={bottomRef} />

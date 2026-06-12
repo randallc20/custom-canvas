@@ -73,6 +73,8 @@ export async function verifyGallery(galleryId: string, adminId: string): Promise
     .single();
 
   if (error) throw error;
+  // Newly verified partner: link any education entries naming this school.
+  await supabase.rpc('link_education_partners');
   return data;
 }
 

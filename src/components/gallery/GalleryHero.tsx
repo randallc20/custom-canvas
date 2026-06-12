@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import { GalleryProfile } from '@/types/gallery';
-import { GalleryBadge } from './GalleryBadge';
+import { PartnerBadge } from './PartnerBadge';
 
 interface GalleryHeroProps {
   gallery: GalleryProfile;
@@ -26,7 +26,7 @@ export function GalleryHero({ gallery }: GalleryHeroProps) {
         </div>
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold text-gray-900">{gallery.gallery_name}</h1>
-          {gallery.is_verified && <GalleryBadge />}
+          {gallery.is_verified && <PartnerBadge partnerType={gallery.partner_type} />}
         </div>
         {gallery.address && <p className="mt-1 text-sm text-gray-500">{gallery.address}</p>}
         {gallery.bio && <p className="mt-3 text-gray-600">{gallery.bio}</p>}

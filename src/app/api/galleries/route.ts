@@ -40,6 +40,8 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Link education entries naming this newly verified partner.
+    await supabase.rpc('link_education_partners');
     return NextResponse.json(data);
   }
 

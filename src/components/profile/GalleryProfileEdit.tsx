@@ -26,6 +26,7 @@ export function GalleryProfileEdit() {
           setGalleryId(data.id);
           setGallery({
             gallery_name: data.gallery_name,
+            partner_type: data.partner_type ?? 'gallery',
             bio: data.bio ?? '',
             address: data.address ?? '',
             neighborhood: data.neighborhood ?? '',

@@ -1,13 +1,17 @@
 import Image from 'next/image';
 import { Message } from '@/types/message';
 import { formatTime } from '@/utils/formatTime';
+import { PartnerBadge } from '@/components/gallery/PartnerBadge';
+import type { PartnerType } from '@/types/gallery';
 
 interface MessageBubbleProps {
   message: Message;
   isOwn: boolean;
+  /** Set when the sender is a verified partner — renders the shield. */
+  senderPartnerType?: PartnerType | null;
 }
 
-export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
+export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubbleProps) {
   if (message.message_type === 'system') {
     return (
       <div className="py-1 text-center text-xs italic text-gray-400">
@@ -24,7 +28,8 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
         ) : (
           <p className="whitespace-pre-wrap text-sm">{message.content}</p>
         )}
-        <p className={`mt-1 text-right text-[10px] ${isOwn ? 'text-white/70' : 'text-gray-400'}`}>
+        <p className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${isOwn ? 'text-white/70' : 'text-gray-400'}`}>
+          {!isOwn && senderPartnerType != null && <PartnerBadge partnerType={senderPartnerType} compact />}
           {formatTime(message.created_at)}
         </p>
       </div>

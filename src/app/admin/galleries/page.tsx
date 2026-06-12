@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
 import { supabase } from '@/lib/supabase';
-import type { GalleryProfile } from '@/types/gallery';
+import { PARTNER_TYPE_LABELS, type GalleryProfile } from '@/types/gallery';
 
 export default function AdminGalleriesPage() {
   return (
@@ -55,7 +55,7 @@ function GalleriesContent() {
       body: JSON.stringify({ galleryId, action: 'verify' }),
     });
     if (res.ok) {
-      toast('Gallery verified!', 'success');
+      toast('Partner verified!', 'success');
       setGalleries((prev) => prev.filter((g) => g.id !== galleryId));
     } else {
       toast('Failed to verify gallery.', 'error');
@@ -71,7 +71,7 @@ function GalleriesContent() {
       body: JSON.stringify({ galleryId, action: 'reject' }),
     });
     if (res.ok) {
-      toast('Gallery rejected.', 'success');
+      toast('Partner rejected.', 'success');
       setGalleries((prev) => prev.filter((g) => g.id !== galleryId));
     } else {
       toast('Failed to reject gallery.', 'error');
@@ -81,7 +81,7 @@ function GalleriesContent() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Gallery Management</h1>
+      <h1 className="mb-6 text-2xl font-bold text-gray-900">Partner Management</h1>
 
       <div className="mb-6 flex gap-1 rounded-lg bg-gray-100 p-1">
         <button
@@ -106,8 +106,8 @@ function GalleriesContent() {
         <div className="flex justify-center py-16"><Spinner size="lg" /></div>
       ) : galleries.length === 0 ? (
         <EmptyState
-          title={tab === 'pending' ? 'No pending galleries' : 'No verified galleries'}
-          description={tab === 'pending' ? 'All gallery applications have been reviewed.' : 'No galleries have been verified yet.'}
+          title={tab === 'pending' ? 'No pending partners' : 'No verified partners'}
+          description={tab === 'pending' ? 'All partner applications have been reviewed.' : 'No partners have been verified yet.'}
         />
       ) : (
         <div className="space-y-4">
@@ -115,7 +115,10 @@ function GalleriesContent() {
             <div key={gallery.id} className="rounded-lg border border-gray-200 p-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-medium text-gray-900">{gallery.gallery_name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-gray-900">{gallery.gallery_name}</h3>
+                    <Badge>{PARTNER_TYPE_LABELS[gallery.partner_type] ?? gallery.partner_type}</Badge>
+                  </div>
                   <p className="text-sm text-gray-500">
                     {gallery.profile?.full_name ?? gallery.profile?.email}
                   </p>

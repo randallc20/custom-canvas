@@ -47,6 +47,7 @@ export type ArtistWithProfile = ArtistProfile & {
 export interface ArtistEducation {
   id: string;
   artist_id: string;
+  partner_id: string | null;
   institution: string;
   degree: string | null;
   field_of_study: string | null;

@@ -12,7 +12,8 @@ import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { supabase } from '@/lib/supabase';
-import type { GalleryProfile } from '@/types/gallery';
+import { PARTNER_TYPE_LABELS, type GalleryProfile } from '@/types/gallery';
+import { PartnerBadge } from '@/components/gallery/PartnerBadge';
 import type { ArtistProfile } from '@/types/artist';
 
 export function GalleryDashboard() {
@@ -104,16 +105,16 @@ export function GalleryDashboard() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Gallery Dashboard</h1>
+      <h1 className="mb-6 text-2xl font-bold text-gray-900">Partner Dashboard</h1>
 
       <div className="mb-8 rounded-lg border border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-gray-700">Verification:</span>
             {gallery?.is_verified ? (
-              <Badge variant="verified">Verified</Badge>
+              <PartnerBadge partnerType={gallery.partner_type} />
             ) : (
-              <Badge variant="warning">Pending Review</Badge>
+              <Badge variant="warning">Pending Review ({PARTNER_TYPE_LABELS[gallery?.partner_type ?? 'gallery']})</Badge>
             )}
           </div>
           <div className="flex gap-3">
@@ -127,7 +128,7 @@ export function GalleryDashboard() {
         </div>
         {!gallery?.is_verified && (
           <p className="mt-3 text-sm text-gray-500">
-            Your gallery is under review. You can still set up your profile and add represented artists while you wait.
+            Your organization is under review. You can still set up your profile and add artists while you wait.
           </p>
         )}
       </div>

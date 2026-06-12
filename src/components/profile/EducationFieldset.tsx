@@ -14,6 +14,7 @@ export function emptyEducationEntry(order: number): EducationDraft {
     start_year: null,
     end_year: null,
     is_current: false,
+    partner_id: null,
     display_order: order,
   };
 }

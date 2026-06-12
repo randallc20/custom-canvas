@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/utils/slugify';
+import { PARTNER_TYPE_LABELS, type PartnerType } from '@/types/gallery';
 
 export default function GalleryOnboardingPage() {
   const { user, loading } = useAuth();
@@ -20,7 +21,7 @@ export default function GalleryOnboardingPage() {
   const [error, setError] = useState('');
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<GalleryProfileFormData>({
     resolver: zodResolver(galleryProfileSchema),
-    defaultValues: { city: 'Houston' },
+    defaultValues: { city: 'Houston', partner_type: 'gallery' },
   });
 
   if (loading) {
@@ -59,7 +60,7 @@ export default function GalleryOnboardingPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900">Pending Verification</h1>
           <p className="mt-2 text-gray-500">
-            Your gallery profile is under review. We&apos;ll notify you once verified.
+            Your partner profile is under review. We&apos;ll notify you once verified.
           </p>
           <p className="mt-1 text-sm text-gray-400">
             In the meantime, you can browse and discover local artists.
@@ -75,12 +76,20 @@ export default function GalleryOnboardingPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-lg">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">Set Up Your Gallery</h1>
+        <h1 className="mb-6 text-2xl font-bold text-gray-900">Set Up Your Partner Profile</h1>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input label="Gallery Name" id="gallery_name" {...register('gallery_name')} error={errors.gallery_name?.message} />
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">What type of organization are you?</label>
+            <select {...register('partner_type')} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm">
+              {(Object.keys(PARTNER_TYPE_LABELS) as PartnerType[]).map((t) => (
+                <option key={t} value={t}>{PARTNER_TYPE_LABELS[t]}</option>
+              ))}
+            </select>
+          </div>
+          <Input label="Organization Name" id="gallery_name" {...register('gallery_name')} error={errors.gallery_name?.message} />
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Tell artists about your gallery and what you&apos;re looking for.
+              Tell artists about your organization and what you&apos;re looking for.
             </label>
             <textarea {...register('bio')} rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
           </div>

@@ -39,6 +39,8 @@ export async function saveEducation(
     }))
   );
   if (error) throw error;
+  // Auto-link entries whose institution matches a verified partner.
+  await supabase.rpc('link_education_partners');
 }
 
 // --- Personal photos ---

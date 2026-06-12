@@ -11,6 +11,8 @@ import { ChatThread } from '@/components/chat/ChatThread';
 import { Avatar } from '@/components/ui/Avatar';
 import { Spinner } from '@/components/ui/Spinner';
 import { AuthGuard } from '@/components/layout/AuthGuard';
+import { usePartnerStatus } from '@/hooks/usePartnerStatus';
+import { PartnerBadge } from '@/components/gallery/PartnerBadge';
 import { PageShell } from '@/components/layout/PageShell';
 
 export default function ConversationPage() {
@@ -30,6 +32,12 @@ function ConversationContent() {
   const { data: activeConv } = useConversation(conversationId);
   const conversationIds = useMemo(() => conversations?.map((c) => c.id) ?? [], [conversations]);
   const { data: unreadCounts } = useUnreadCounts(user?.id ?? '', conversationIds);
+
+  const otherParticipantId = activeConv
+    ? (activeConv.participant_one === user?.id ? activeConv.participant_two : activeConv.participant_one)
+    : null;
+  const { data: partnerStatus } = usePartnerStatus(otherParticipantId);
+  const otherPartnerType = partnerStatus?.isVerifiedPartner ? partnerStatus.partnerType : null;
 
   if (isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
@@ -68,10 +76,11 @@ function ConversationContent() {
               <span className="text-sm font-medium text-gray-900">
                 {otherParticipant.full_name ?? otherParticipant.email}
               </span>
+              {otherPartnerType != null && <PartnerBadge partnerType={otherPartnerType} />}
             </>
           )}
         </div>
-        <ChatThread conversationId={conversationId} />
+        <ChatThread conversationId={conversationId} otherPartnerType={otherPartnerType} />
       </div>
     </div>
   );

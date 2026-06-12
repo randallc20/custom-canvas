@@ -16,6 +16,8 @@ import { AuthGuard } from '@/components/layout/AuthGuard';
 import { formatPrice } from '@/utils/formatPrice';
 import { supabase } from '@/lib/supabase';
 import type { Commission } from '@/types/commission';
+import { usePartnerStatus } from '@/hooks/usePartnerStatus';
+import { PartnerBadge } from '@/components/gallery/PartnerBadge';
 
 const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger' | 'info'> = {
   pending: 'warning',
@@ -56,6 +58,7 @@ function CommissionDetailContent() {
   const [artistNotes, setArtistNotes] = useState('');
 
   const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const { data: requesterPartner } = usePartnerStatus(commission?.requester_id);
   const [disputeReason, setDisputeReason] = useState('');
 
   useEffect(() => {
@@ -146,7 +149,12 @@ function CommissionDetailContent() {
       <div className="rounded-lg border border-gray-200 p-6">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{commission.title}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-gray-900">{commission.title}</h1>
+              {requesterPartner?.isVerifiedPartner && (
+                <PartnerBadge partnerType={requesterPartner.partnerType} />
+              )}
+            </div>
             <p className="mt-1 text-sm text-gray-500">
               Budget: {formatPrice(commission.budget_min_cents)} – {formatPrice(commission.budget_max_cents)}
             </p>

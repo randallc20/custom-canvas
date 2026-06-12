@@ -66,7 +66,7 @@ export default async function ArtistPage({ params }: Props) {
       .order('display_order'),
     supabase
       .from('artist_education')
-      .select('*')
+      .select('*, partner:gallery_profiles(slug, gallery_name, partner_type, is_verified)')
       .eq('artist_id', artist.id)
       .order('display_order'),
     supabase

@@ -11,6 +11,12 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      // Directory renamed in Phase 4; old links keep working.
+      { source: '/galleries', destination: '/partners', permanent: true },
+    ];
+  },
 };
 
 export default withSentryConfig(nextConfig, {
