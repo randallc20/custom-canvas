@@ -4,7 +4,7 @@ import { Listing, ListingWithImages } from '@/types/listing';
 export async function getListingById(id: string): Promise<ListingWithImages | null> {
   const { data, error } = await supabase
     .from('listings')
-    .select('*, images:listing_images(*), tags:listing_tags(tag:tags(*))')
+    .select('*, images:listing_images(*), tags:listing_tags(tag:tags(*)), artist:artist_profiles(slug, fulfillment_pref)')
     .eq('id', id)
     .single();
 

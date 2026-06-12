@@ -12,6 +12,10 @@ export interface Listing {
   depth_cm: number | null;
   year_created: number | null;
   price_cents: number;
+  shipping_rate_cents: number | null;
+  price_visible: boolean;
+  sold_price_cents: number | null;
+  show_sold_price: boolean;
   status: ListingStatus;
   is_featured: boolean;
   view_count: number;
@@ -38,4 +42,8 @@ export interface Tag {
 export type ListingWithImages = Listing & {
   images: ListingImage[];
   tags: Tag[];
+  artist?: {
+    slug: string;
+    fulfillment_pref: string | null;
+  } | null;
 };

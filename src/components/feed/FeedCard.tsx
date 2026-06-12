@@ -57,7 +57,11 @@ export function FeedCard({ listing, revealDelayMs = 0 }: FeedCardProps) {
           <p className="text-xs text-muted">{listing.medium}</p>
           <div className="mt-1 flex items-center justify-between">
             <span className="text-sm font-semibold text-ink">
-              {formatPrice(listing.price_cents)}
+              {listing.status === 'sold' && listing.show_sold_price && listing.sold_price_cents != null
+                ? `Sold for ${formatPrice(listing.sold_price_cents)}`
+                : listing.price_visible === false
+                ? 'Contact for price'
+                : formatPrice(listing.price_cents)}
             </span>
             {user && (
               <button

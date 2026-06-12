@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { listingSchema, ListingFormData } from '@/schemas/listingSchema';
+import { listingSchema, ListingFormData, toCents } from '@/schemas/listingSchema';
 import { useCreateListing } from '@/hooks/useListings';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
@@ -16,27 +16,41 @@ export default function NewListingPage() {
   const { user } = useAuth();
   const createListing = useCreateListing();
   const [artistId, setArtistId] = useState('');
+  const [isPickupOnly, setIsPickupOnly] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('artist_profiles').select('id').eq('profile_id', user.id).single()
-      .then(({ data }) => { if (data) setArtistId(data.id); });
+    supabase.from('artist_profiles').select('id, fulfillment_pref').eq('profile_id', user.id).single()
+      .then(({ data }) => {
+        if (data) {
+          setArtistId(data.id);
+          setIsPickupOnly(data.fulfillment_pref === 'pickup_only');
+        }
+      });
   }, [user]);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
     resolver: zodResolver(listingSchema),
-    defaultValues: { status: 'available', tags: [] },
+    defaultValues: { status: 'available', tags: [], price_visible: true },
   });
 
+  const priceVisible = watch('price_visible');
+
   const onSubmit = async (data: ListingFormData) => {
-    const { tags, description, width_cm, height_cm, depth_cm, year_created, ...rest } = data;
     await createListing.mutateAsync({
-      ...rest,
-      description: description || null,
-      width_cm: width_cm ?? null,
-      height_cm: height_cm ?? null,
-      depth_cm: depth_cm ?? null,
-      year_created: year_created ?? null,
+      title: data.title,
+      medium: data.medium,
+      status: data.status,
+      description: data.description || null,
+      width_cm: data.width_cm ?? null,
+      height_cm: data.height_cm ?? null,
+      depth_cm: data.depth_cm ?? null,
+      year_created: data.year_created ?? null,
+      price_cents: toCents(data.price_dollars),
+      shipping_rate_cents: isPickupOnly ? 0 : toCents(data.shipping_dollars),
+      price_visible: data.price_visible,
+      sold_price_cents: null,
+      show_sold_price: false,
       artist_id: artistId,
       is_featured: false,
     });
@@ -45,12 +59,12 @@ export default function NewListingPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Create Listing</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Create Listing</h1>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input label="Title" {...register('title')} error={errors.title?.message} />
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
-          <textarea {...register('description')} rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
+          <label className="mb-1 block text-sm font-medium text-ink">Description</label>
+          <textarea {...register('description')} rows={4} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
         </div>
         <Input label="Medium" {...register('medium')} error={errors.medium?.message} />
         <div className="grid grid-cols-3 gap-4">
@@ -59,8 +73,39 @@ export default function NewListingPage() {
           <Input label="Depth (cm)" type="number" step="0.1" {...register('depth_cm', { valueAsNumber: true })} />
         </div>
         <Input label="Year Created" type="number" {...register('year_created', { valueAsNumber: true })} />
-        <Input label="Price ($)" type="number" step="0.01" {...register('price_cents', { setValueAs: (v: string) => Math.round(parseFloat(v) * 100) })} error={errors.price_cents?.message} />
-        <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
+
+        <fieldset className="space-y-4 rounded-xl border border-line p-4">
+          <legend className="px-1 text-sm font-semibold text-ink">Pricing</legend>
+          <Input label="Price ($)" type="number" step="0.01" {...register('price_dollars', { valueAsNumber: true })} error={errors.price_dollars?.message} />
+          <label className="flex items-center gap-2">
+            <input type="checkbox" {...register('price_visible')} className="rounded border-line" />
+            <span className="text-sm text-ink">Show price publicly</span>
+          </label>
+          {!priceVisible && (
+            <p className="text-xs text-muted">Buyers will see &ldquo;Contact for price&rdquo; and can message you to discuss.</p>
+          )}
+        </fieldset>
+
+        <fieldset className="space-y-4 rounded-xl border border-line p-4">
+          <legend className="px-1 text-sm font-semibold text-ink">Shipping</legend>
+          {isPickupOnly ? (
+            <p className="text-sm text-muted">
+              Local pickup only — your fulfillment preference is set to pickup, so buyers
+              won&apos;t be charged shipping. Change this in your profile settings.
+            </p>
+          ) : (
+            <Input
+              label="Shipping rate ($)"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              {...register('shipping_dollars', { valueAsNumber: true })}
+              error={errors.shipping_dollars?.message}
+            />
+          )}
+        </fieldset>
+
+        <div className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">
           Image upload coming soon — add images after creating the listing.
         </div>
         <Button type="submit" loading={isSubmitting} className="w-full">Create Listing</Button>
