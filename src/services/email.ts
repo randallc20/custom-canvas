@@ -1,6 +1,6 @@
 import { getResend } from '@/lib/resend';
 
-const FROM_EMAIL = 'Custom Canvas <noreply@customcanvas.art>';
+const FROM_EMAIL = process.env.EMAIL_FROM ?? 'Custom Canvas <onboarding@resend.dev>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 export async function sendWelcomeEmail(to: string, name: string, role: string): Promise<void> {
