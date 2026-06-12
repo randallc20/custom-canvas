@@ -16,7 +16,7 @@ export const listingSchema = z.object({
   show_sold_price: z.boolean().optional(),
   sold_price_dollars: z.number().min(0).optional().nullable(),
   series_id: z.string().optional().or(z.literal('')),
-  status: z.enum(['available', 'sold', 'commission_only', 'hidden']),
+  status: z.enum(['available', 'sold', 'commission_only', 'hidden', 'draft']),
   tags: z.array(z.string()).max(10),
 });
 

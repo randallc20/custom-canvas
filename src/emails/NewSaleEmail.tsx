@@ -21,7 +21,7 @@ export function NewSaleEmail({ artistName, listingTitle, amount, payoutAmount }:
         Please ship the piece promptly and update the order status.
       </p>
       <a
-        href={`${process.env.NEXT_PUBLIC_APP_URL}/orders`}
+        href={`${process.env.NEXT_PUBLIC_APP_URL}/sales`}
         style={{
           display: 'inline-block',
           padding: '12px 24px',

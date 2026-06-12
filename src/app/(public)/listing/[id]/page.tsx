@@ -71,7 +71,7 @@ export default async function ListingPage({ params }: Props) {
           <ListingDetail listing={processedListing} artist={artist} />
         </div>
         <div>
-          <PurchasePanel listing={processedListing} artistSlug={artist?.slug ?? ''} artistProfileId={artist?.profile_id} fulfillmentPref={artist?.fulfillment_pref} />
+          <PurchasePanel listing={processedListing} artistProfileId={artist?.profile_id} fulfillmentPref={artist?.fulfillment_pref} />
         </div>
       </div>
       <div className="mt-12">

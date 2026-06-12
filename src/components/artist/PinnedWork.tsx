@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { formatPrice } from '@/utils/formatPrice';
+import { listingPriceLabel } from '@/utils/formatPrice';
 import type { ListingWithImages } from '@/types/listing';
 
 interface PinnedWorkProps {
@@ -35,15 +35,7 @@ export function PinnedWork({ listings }: PinnedWorkProps) {
                 )}
                 <div className="p-4">
                   <h3 className="truncate font-medium text-ink">{listing.title}</h3>
-                  <p className="text-sm text-muted">
-                    {listing.status === 'sold'
-                      ? listing.show_sold_price && listing.sold_price_cents != null
-                        ? `Sold for ${formatPrice(listing.sold_price_cents)}`
-                        : 'Sold'
-                      : listing.price_visible === false
-                      ? 'Contact for price'
-                      : formatPrice(listing.price_cents)}
-                  </p>
+                  <p className="text-sm text-muted">{listingPriceLabel(listing)}</p>
                 </div>
               </div>
             </Link>

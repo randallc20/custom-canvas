@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { numberOrNull } from '@/utils/formNumber';
+import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useSeries } from '@/hooks/useArtistContent';
 
 export default function NewListingPage() {
@@ -25,7 +27,7 @@ export default function NewListingPage() {
       .then(({ data }) => {
         if (data) {
           setArtistId(data.id);
-          setIsPickupOnly(data.fulfillment_pref === 'pickup_only');
+          setIsPickupOnly(isPickupPref(data.fulfillment_pref));
         }
       });
   }, [user]);
@@ -58,6 +60,8 @@ export default function NewListingPage() {
       artist_id: artistId,
       is_featured: false,
     });
+    // First listing is worth 20 completeness points — refresh canonically.
+    supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
     router.push('/listings');
   };
 
@@ -72,11 +76,11 @@ export default function NewListingPage() {
         </div>
         <Input label="Medium" {...register('medium')} error={errors.medium?.message} />
         <div className="grid grid-cols-3 gap-4">
-          <Input label="Width (cm)" type="number" step="0.1" {...register('width_cm', { valueAsNumber: true })} />
-          <Input label="Height (cm)" type="number" step="0.1" {...register('height_cm', { valueAsNumber: true })} />
-          <Input label="Depth (cm)" type="number" step="0.1" {...register('depth_cm', { valueAsNumber: true })} />
+          <Input label="Width (cm)" type="number" step="0.1" {...register('width_cm', { setValueAs: numberOrNull })} />
+          <Input label="Height (cm)" type="number" step="0.1" {...register('height_cm', { setValueAs: numberOrNull })} />
+          <Input label="Depth (cm)" type="number" step="0.1" {...register('depth_cm', { setValueAs: numberOrNull })} />
         </div>
-        <Input label="Year Created" type="number" {...register('year_created', { valueAsNumber: true })} />
+        <Input label="Year Created" type="number" {...register('year_created', { setValueAs: numberOrNull })} />
         {seriesOptions.length > 0 && (
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Series (optional)</label>
@@ -114,7 +118,7 @@ export default function NewListingPage() {
               type="number"
               step="0.01"
               placeholder="0.00"
-              {...register('shipping_dollars', { valueAsNumber: true })}
+              {...register('shipping_dollars', { setValueAs: numberOrNull })}
               error={errors.shipping_dollars?.message}
             />
           )}

@@ -16,7 +16,10 @@ interface PinnedListingSelectorProps {
 }
 
 export function PinnedListingSelector({ artistId, artistSlug, initialPinnedIds }: PinnedListingSelectorProps) {
-  const { data: listings = [] } = useArtistListings(artistId);
+  const { data: allListings = [] } = useArtistListings(artistId);
+  // Only statuses the public profile renders — pinning a hidden/draft piece
+  // would silently vanish from the visitor view.
+  const listings = allListings.filter((l: { status: string }) => l.status === 'available' || l.status === 'sold');
   const updatePinned = useUpdatePinned();
   const { toast } = useToast();
   const [selected, setSelected] = useState<string[]>(initialPinnedIds);

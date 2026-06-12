@@ -21,8 +21,8 @@ import { useEffect, useState } from 'react';
 import { ArtistProfile } from '@/types/artist';
 import { calculateCompletenessScore } from '@/utils/completenessScore';
 import { useToast } from '@/components/ui/Toast';
-import { useEducation, usePersonalPhotos } from '@/hooks/useArtistContent';
-import { saveEducation } from '@/services/artistContent';
+import { useEducation, usePersonalPhotos, useSaveEducation } from '@/hooks/useArtistContent';
+import { numberOrNull } from '@/utils/formNumber';
 
 export function ArtistProfileEdit() {
   const { user } = useAuth();
@@ -35,6 +35,7 @@ export function ArtistProfileEdit() {
   const { toast } = useToast();
 
   const { data: educationData } = useEducation(artist?.id ?? '');
+  const saveEducationMutation = useSaveEducation();
   const { data: photos = [] } = usePersonalPhotos(artist?.id ?? '');
 
   const { register, handleSubmit, watch, control, formState: { errors, isSubmitting } } = useForm<ArtistProfileFormData>({
@@ -55,7 +56,7 @@ export function ArtistProfileEdit() {
       fulfillment_pref: artist.fulfillment_pref,
       commissions_open: artist.commissions_open,
       commission_desc: artist.commission_desc ?? '',
-      commission_min_cents: artist.commission_min_cents,
+      commission_min_dollars: artist.commission_min_cents != null ? artist.commission_min_cents / 100 : null,
       commission_turnaround: artist.commission_turnaround ?? '',
       accent_color: artist.accent_color,
       bio_layout: artist.bio_layout,
@@ -104,19 +105,43 @@ export function ArtistProfileEdit() {
     if (!user) return;
     const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', user.id);
     if (error) toast('Failed to save profile photo', 'error');
-    else { setAvatarUrl(url); toast('Profile photo updated', 'success'); }
+    else {
+      setAvatarUrl(url);
+      toast('Profile photo updated', 'success');
+      supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
+    }
   };
 
   const handleBannerUploaded = async (url: string) => {
     const { error } = await supabase.from('artist_profiles').update({ banner_image_url: url }).eq('id', artist.id);
     if (error) toast('Failed to save banner', 'error');
-    else { setArtist((a) => (a ? { ...a, banner_image_url: url } : a)); toast('Banner updated', 'success'); }
+    else {
+      setArtist((a) => (a ? { ...a, banner_image_url: url } : a));
+      toast('Banner updated', 'success');
+      supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
+    }
   };
 
   const onSubmit = async (data: ArtistProfileFormData) => {
     try {
-      await saveEducation(artist.id, educationDrafts.filter((e) => e.institution.trim()));
-      await updateProfile.mutateAsync({ id: artist.id, data: { ...data, completeness_score: score } });
+      const entries = educationDrafts.filter((e) => e.institution.trim());
+      const educationChanged =
+        JSON.stringify(entries.map((e) => [e.institution, e.degree, e.field_of_study, e.start_year, e.end_year, e.is_current])) !==
+        JSON.stringify((educationData ?? []).map((e) => [e.institution, e.degree, e.field_of_study, e.start_year, e.end_year, e.is_current]));
+      if (educationChanged) {
+        await saveEducationMutation.mutateAsync({ artistId: artist.id, entries });
+      }
+      const { commission_min_dollars, ...rest } = data;
+      await updateProfile.mutateAsync({
+        id: artist.id,
+        data: {
+          ...rest,
+          commission_min_cents:
+            commission_min_dollars != null ? Math.round(commission_min_dollars * 100) : null,
+        },
+      });
+      // Canonical score is computed server-side from actual data.
+      await supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
       toast('Profile updated successfully!', 'success');
     } catch {
       toast('Failed to update profile. Please try again.', 'error');
@@ -161,7 +186,7 @@ export function ArtistProfileEdit() {
             )}
           />
           <Input label="School" {...register('school')} />
-          <Input label="Graduation Year" type="number" {...register('graduation_year', { valueAsNumber: true })} />
+          <Input label="Graduation Year" type="number" {...register('graduation_year', { setValueAs: numberOrNull })} />
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Status</label>
             <select {...register('status')} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm">
@@ -237,7 +262,7 @@ export function ArtistProfileEdit() {
             <label className="mb-1 block text-sm font-medium text-ink">Commission Description</label>
             <textarea {...register('commission_desc')} rows={3} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
           </div>
-          <Input label="Minimum Price ($)" type="number" {...register('commission_min_cents', { valueAsNumber: true })} />
+          <Input label="Minimum Price ($)" type="number" step="0.01" {...register('commission_min_dollars', { setValueAs: numberOrNull })} />
           <Input label="Turnaround Time" {...register('commission_turnaround')} placeholder="e.g. 2-4 weeks" />
         </fieldset>
 

@@ -1,28 +1,13 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { uploadWithProgress } from './uploadWithProgress';
 
 interface VideoUploadProps {
   /** API route returning { uploadUrl, publicUrl } for the video bucket */
   endpoint: string;
   maxSizeMB?: number;
   onUpload: (video: { videoUrl: string; thumbnailUrl: string | null }) => void | Promise<void>;
-}
-
-function uploadWithProgress(url: string, blob: Blob, contentType: string, onProgress?: (pct: number) => void): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', url);
-    xhr.setRequestHeader('Content-Type', contentType);
-    if (onProgress) {
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-      };
-    }
-    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`)));
-    xhr.onerror = () => reject(new Error('Upload failed'));
-    xhr.send(blob);
-  });
 }
 
 // Seeks 1s into the video in a detached <video> element and captures a JPEG

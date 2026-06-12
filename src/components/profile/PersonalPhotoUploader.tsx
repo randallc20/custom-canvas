@@ -3,7 +3,8 @@
 import Image from 'next/image';
 import { ImageUpload } from '@/components/upload/ImageUpload';
 import { usePersonalPhotos, useInvalidateArtistContent } from '@/hooks/useArtistContent';
-import { addPersonalPhoto, updatePersonalPhoto, deletePersonalPhoto } from '@/services/artistContent';
+import { addPersonalPhotos, updatePersonalPhoto, deletePersonalPhoto } from '@/services/artistContent';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 
 const MAX_PHOTOS = 10;
@@ -18,11 +19,9 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
   const { toast } = useToast();
 
   const handleUpload = async (urls: string[]) => {
-    const allowed = urls.slice(0, MAX_PHOTOS - photos.length);
-    for (let i = 0; i < allowed.length; i++) {
-      await addPersonalPhoto(artistId, allowed[i], photos.length + i);
-    }
-    invalidate(artistId);
+    await addPersonalPhotos(artistId, urls.slice(0, MAX_PHOTOS - photos.length), photos.length);
+    invalidate(artistId, 'personal-photos');
+    supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
   };
 
   const handleCaption = async (id: string, caption: string) => {
@@ -35,7 +34,8 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
 
   const handleDelete = async (id: string) => {
     await deletePersonalPhoto(id);
-    invalidate(artistId);
+    invalidate(artistId, 'personal-photos');
+    supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
   };
 
   const move = async (i: number, dir: -1 | 1) => {
@@ -45,7 +45,7 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
       updatePersonalPhoto(photos[i].id, { display_order: j }),
       updatePersonalPhoto(photos[j].id, { display_order: i }),
     ]);
-    invalidate(artistId);
+    invalidate(artistId, 'personal-photos');
   };
 
   return (

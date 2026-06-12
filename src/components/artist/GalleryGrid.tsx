@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { ListingWithImages } from '@/types/listing';
-import { formatPrice } from '@/utils/formatPrice';
+import { listingPriceLabel } from '@/utils/formatPrice';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 interface GalleryGridProps {
@@ -50,7 +50,7 @@ export function GalleryGrid({ listings }: GalleryGridProps) {
             )}
             <div className="p-3">
               <p className="truncate text-sm font-medium text-gray-900">{listing.title}</p>
-              <p className="mt-0.5 text-sm text-terra">{formatPrice(listing.price_cents)}</p>
+              <p className="mt-0.5 text-sm text-terra">{listingPriceLabel(listing)}</p>
               {listing.medium && (
                 <p className="mt-0.5 truncate text-xs text-gray-400">{listing.medium}</p>
               )}

@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { formatPrice } from '@/utils/formatPrice';
 import { calcSplit } from '@/utils/commissionCalc';
+import { isPickupOnly } from '@/utils/fulfillment';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
 
@@ -42,8 +43,15 @@ function CheckoutContent() {
   if (listing.status !== 'available') {
     return <p className="py-16 text-center text-muted">This piece is no longer available.</p>;
   }
+  if (listing.price_visible === false) {
+    return (
+      <p className="py-16 text-center text-muted">
+        This piece is priced on request — message the artist from the listing page to discuss.
+      </p>
+    );
+  }
 
-  const isPickup = listing.artist?.fulfillment_pref === 'pickup_only';
+  const isPickup = isPickupOnly(listing.artist?.fulfillment_pref);
   const shippingCents = isPickup ? 0 : (listing.shipping_rate_cents ?? 0);
   const split = calcSplit(listing.price_cents, shippingCents);
 

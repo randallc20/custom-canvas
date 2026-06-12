@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { Avatar } from '@/components/ui/Avatar';
 import { ImageUpload } from '@/components/upload/ImageUpload';
 
 interface AvatarBannerSectionProps {
@@ -21,14 +22,8 @@ export function AvatarBannerSection({
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-4">
-        <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-full border border-line bg-sand">
-          {avatarUrl ? (
-            <Image src={avatarUrl} alt={displayName} width={80} height={80} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-muted">
-              {displayName[0]?.toUpperCase() ?? '?'}
-            </div>
-          )}
+        <div className="flex-shrink-0">
+          <Avatar src={avatarUrl} alt={displayName} size="xl" />
         </div>
         <div className="flex-1">
           <p className="mb-2 text-sm font-medium text-ink">Profile photo</p>

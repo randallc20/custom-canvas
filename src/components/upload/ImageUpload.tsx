@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import { uploadWithProgress } from './uploadWithProgress';
 
 interface UploadingFile {
   name: string;
@@ -15,20 +16,6 @@ interface ImageUploadProps {
   accept?: string;
   onUpload: (publicUrls: string[]) => void | Promise<void>;
   label?: string;
-}
-
-function uploadWithProgress(url: string, file: File, onProgress: (pct: number) => void): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', url);
-    xhr.setRequestHeader('Content-Type', file.type);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-    };
-    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`)));
-    xhr.onerror = () => reject(new Error('Upload failed'));
-    xhr.send(file);
-  });
 }
 
 export function ImageUpload({
@@ -58,17 +45,17 @@ export function ImageUpload({
 
       setUploading(files.map((f) => ({ name: f.name, progress: 0 })));
       try {
-        const urls: string[] = [];
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          const res = await fetch(endpoint, { method: 'POST' });
-          if (!res.ok) throw new Error('Could not get upload URL');
-          const { uploadUrl, publicUrl } = await res.json();
-          await uploadWithProgress(uploadUrl, file, (pct) =>
-            setUploading((prev) => prev.map((u, j) => (j === i ? { ...u, progress: pct } : u)))
-          );
-          urls.push(publicUrl);
-        }
+        const urls = await Promise.all(
+          files.map(async (file, i) => {
+            const res = await fetch(endpoint, { method: 'POST' });
+            if (!res.ok) throw new Error('Could not get upload URL');
+            const { uploadUrl, publicUrl } = await res.json();
+            await uploadWithProgress(uploadUrl, file, file.type, (pct) =>
+              setUploading((prev) => prev.map((u, j) => (j === i ? { ...u, progress: pct } : u)))
+            );
+            return publicUrl as string;
+          })
+        );
         await onUpload(urls);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed');

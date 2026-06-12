@@ -1,4 +1,4 @@
-export type ListingStatus = 'available' | 'sold' | 'commission_only' | 'hidden';
+export type ListingStatus = 'available' | 'sold' | 'commission_only' | 'hidden' | 'draft';
 export type TagCategory = 'medium' | 'style' | 'subject' | 'mood';
 
 export interface Listing {

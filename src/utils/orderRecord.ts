@@ -7,7 +7,7 @@ export interface CheckoutSessionLike {
     buyer_id?: string;
     shipping_address?: string;
     shipping_cents?: string;
-    pickup?: string;
+    price_cents?: string;
   } | null;
 }
 
@@ -27,6 +27,9 @@ export interface OrderRecord {
 
 // Pure money math for webhook order creation — kept side-effect-free so the
 // mandatory money tests can exercise it with mocked Stripe sessions.
+// Amounts come from session metadata (locked at session creation), never the
+// live listing row: the artist may have edited the price after the buyer
+// opened checkout, but Stripe charged the session's amounts.
 export function buildOrderRecord(
   session: CheckoutSessionLike,
   listing: { price_cents: number },
@@ -37,14 +40,15 @@ export function buildOrderRecord(
   if (!listingId || !buyerId) return null;
 
   const shippingCents = parseInt(session.metadata?.shipping_cents ?? '0', 10) || 0;
-  const split = calcSplit(listing.price_cents, shippingCents);
+  const priceCents = parseInt(session.metadata?.price_cents ?? '', 10) || listing.price_cents;
+  const split = calcSplit(priceCents, shippingCents);
   const shippingRaw = session.metadata?.shipping_address;
 
   return {
     listing_id: listingId,
     buyer_id: buyerId,
     artist_id: artistId,
-    amount_cents: listing.price_cents,
+    amount_cents: priceCents,
     platform_fee_cents: split.platformRevenue,
     artist_payout_cents: split.artistPayout,
     buyer_fee_cents: split.buyerFee,

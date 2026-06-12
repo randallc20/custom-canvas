@@ -16,7 +16,7 @@ export const artistProfileSchema = z.object({
   fulfillment_pref: z.enum(['ships_national', 'ships_local', 'pickup_only', 'artist_delivered']).optional().nullable(),
   commissions_open: z.boolean(),
   commission_desc: z.string().max(2000).optional().or(z.literal('')),
-  commission_min_cents: z.number().int().positive().optional().nullable(),
+  commission_min_dollars: z.number().min(0).optional().nullable(),
   commission_turnaround: z.string().max(100).optional().or(z.literal('')),
   accent_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
   bio_layout: z.enum(['left', 'center', 'minimal']),

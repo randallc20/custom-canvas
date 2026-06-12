@@ -67,7 +67,7 @@ export default function SeriesPage() {
         });
         toast('Series created', 'success');
       }
-      invalidate(artistId);
+      invalidate(artistId, 'series');
       closeModal();
     } catch {
       toast('Failed to save series', 'error');
@@ -81,7 +81,7 @@ export default function SeriesPage() {
     try {
       await deleteSeries(confirmDelete.id);
       toast('Series deleted — its listings stay in All Work', 'success');
-      invalidate(artistId);
+      invalidate(artistId, 'series');
     } catch {
       toast('Failed to delete series', 'error');
     } finally {
@@ -96,7 +96,7 @@ export default function SeriesPage() {
       updateSeries(series[i].id, { display_order: j }),
       updateSeries(series[j].id, { display_order: i }),
     ]);
-    invalidate(artistId);
+    invalidate(artistId, 'series');
   };
 
   if (loadingArtist || isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;

@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { numberOrNull } from '@/utils/formNumber';
+import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useSeries } from '@/hooks/useArtistContent';
 
 export default function EditListingPage() {
@@ -28,7 +30,7 @@ export default function EditListingPage() {
     supabase.from('artist_profiles').select('id, fulfillment_pref').eq('profile_id', user.id).single()
       .then(({ data }) => {
         if (data) setArtistId(data.id);
-        setIsPickupOnly(data?.fulfillment_pref === 'pickup_only');
+        setIsPickupOnly(isPickupPref(data?.fulfillment_pref));
       });
   }, [user]);
 
@@ -92,9 +94,9 @@ export default function EditListingPage() {
         </div>
         <Input label="Medium" {...register('medium')} error={errors.medium?.message} />
         <div className="grid grid-cols-3 gap-4">
-          <Input label="Width (cm)" type="number" step="0.1" {...register('width_cm', { valueAsNumber: true })} />
-          <Input label="Height (cm)" type="number" step="0.1" {...register('height_cm', { valueAsNumber: true })} />
-          <Input label="Depth (cm)" type="number" step="0.1" {...register('depth_cm', { valueAsNumber: true })} />
+          <Input label="Width (cm)" type="number" step="0.1" {...register('width_cm', { setValueAs: numberOrNull })} />
+          <Input label="Height (cm)" type="number" step="0.1" {...register('height_cm', { setValueAs: numberOrNull })} />
+          <Input label="Depth (cm)" type="number" step="0.1" {...register('depth_cm', { setValueAs: numberOrNull })} />
         </div>
 
         {seriesOptions.length > 0 && (
@@ -133,7 +135,7 @@ export default function EditListingPage() {
               label="Shipping rate ($)"
               type="number"
               step="0.01"
-              {...register('shipping_dollars', { valueAsNumber: true })}
+              {...register('shipping_dollars', { setValueAs: numberOrNull })}
               error={errors.shipping_dollars?.message}
             />
           )}
@@ -150,7 +152,7 @@ export default function EditListingPage() {
               label="Sold price ($)"
               type="number"
               step="0.01"
-              {...register('sold_price_dollars', { valueAsNumber: true })}
+              {...register('sold_price_dollars', { setValueAs: numberOrNull })}
               error={errors.sold_price_dollars?.message}
             />
           </fieldset>
@@ -161,6 +163,7 @@ export default function EditListingPage() {
           <option value="hidden">Hidden</option>
           <option value="commission_only">Commission Only</option>
           {isSold && <option value="sold">Sold</option>}
+          {listing?.status === 'draft' && <option value="draft">Draft</option>}
         </select>
         <Button type="submit" loading={isSubmitting} className="w-full">Save Changes</Button>
       </form>

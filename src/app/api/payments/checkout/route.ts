@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { getStripe } from '@/lib/stripe';
 import { calcSplit, BUYER_FEE_CENTS } from '@/utils/commissionCalc';
+import { isPickupOnly } from '@/utils/fulfillment';
 
 export async function POST(request: NextRequest) {
   const supabase = createServerSupabaseClient();
@@ -12,7 +14,7 @@ export async function POST(request: NextRequest) {
 
   const { data: listing } = await supabase
     .from('listings')
-    .select('*, artist:artist_profiles(stripe_account_id, slug, fulfillment_pref)')
+    .select('*, artist:artist_profiles(stripe_account_id, slug, fulfillment_pref, profile_id)')
     .eq('id', listingId)
     .single();
 
@@ -28,14 +30,18 @@ export async function POST(request: NextRequest) {
     stripe_account_id: string | null;
     slug: string;
     fulfillment_pref: string | null;
+    profile_id: string;
   };
+  if (artist.profile_id === user.id) {
+    return NextResponse.json({ error: 'You cannot purchase your own listing' }, { status: 400 });
+  }
   if (!artist.stripe_account_id) {
     return NextResponse.json({ error: 'Artist has not set up payments' }, { status: 400 });
   }
 
-  const isPickup = artist.fulfillment_pref === 'pickup_only';
-  const shippingCents = isPickup ? 0 : (listing.shipping_rate_cents ?? 0);
-  if (!isPickup && !shipping) {
+  const pickup = isPickupOnly(artist.fulfillment_pref);
+  const shippingCents = pickup ? 0 : (listing.shipping_rate_cents ?? 0);
+  if (!pickup && !shipping) {
     return NextResponse.json({ error: 'Shipping address is required' }, { status: 400 });
   }
 
@@ -70,26 +76,40 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const session = await getStripe().checkout.sessions.create({
-    mode: 'payment',
-    line_items: lineItems,
-    automatic_tax: { enabled: true },
-    payment_intent_data: {
-      // Commission + buyer fee stay with the platform; price - commission
-      // + shipping flows to the artist.
-      application_fee_amount: split.platformRevenue,
-      transfer_data: { destination: artist.stripe_account_id },
-    },
-    metadata: {
-      listing_id: listingId,
-      buyer_id: user.id,
-      shipping_address: shipping ? JSON.stringify(shipping) : '',
-      shipping_cents: String(shippingCents),
-      pickup: isPickup ? 'true' : 'false',
-    },
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/orders?success=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/listing/${listingId}`,
-  });
+  try {
+    const session = await getStripe().checkout.sessions.create({
+      mode: 'payment',
+      line_items: lineItems,
+      automatic_tax: { enabled: true },
+      payment_intent_data: {
+        // A fixed transfer amount (rather than application_fee_amount) keeps
+        // Stripe Tax money with the platform: the artist receives exactly
+        // price - commission + shipping, and the platform retains the
+        // commission, the buyer fee, and all collected tax for remittance.
+        transfer_data: {
+          destination: artist.stripe_account_id,
+          amount: split.artistPayout,
+        },
+      },
+      metadata: {
+        listing_id: listingId,
+        buyer_id: user.id,
+        shipping_address: shipping ? JSON.stringify(shipping) : '',
+        shipping_cents: String(shippingCents),
+        // Lock the economics at session creation; the webhook records these
+        // instead of re-reading the listing, which may have changed price.
+        price_cents: String(listing.price_cents),
+      },
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/orders?success=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/listing/${listingId}`,
+    });
 
-  return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    Sentry.captureException(err);
+    return NextResponse.json(
+      { error: 'We could not start checkout. Please try again in a moment.' },
+      { status: 502 }
+    );
+  }
 }

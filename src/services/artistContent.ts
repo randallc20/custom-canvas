@@ -53,10 +53,11 @@ export async function getPersonalPhotos(artistId: string): Promise<ArtistPersona
   return data ?? [];
 }
 
-export async function addPersonalPhoto(artistId: string, imageUrl: string, displayOrder: number): Promise<void> {
-  const { error } = await supabase
-    .from('artist_personal_photos')
-    .insert({ artist_id: artistId, image_url: imageUrl, display_order: displayOrder });
+export async function addPersonalPhotos(artistId: string, imageUrls: string[], startOrder: number): Promise<void> {
+  if (imageUrls.length === 0) return;
+  const { error } = await supabase.from('artist_personal_photos').insert(
+    imageUrls.map((url, i) => ({ artist_id: artistId, image_url: url, display_order: startOrder + i }))
+  );
   if (error) throw error;
 }
 

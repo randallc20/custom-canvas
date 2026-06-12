@@ -111,7 +111,7 @@ export async function sendNewSaleEmail(
           <p style="margin:4px 0 0;color:#E8704A;font-weight:bold">Your payout: ${payoutAmount}</p>
         </div>
         <p style="color:#666;font-size:14px">Please ship the piece promptly and update the order status.</p>
-        <a href="${APP_URL}/orders" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View Order</a>
+        <a href="${APP_URL}/sales" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View Order</a>
       </div>
     `,
   });

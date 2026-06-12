@@ -45,13 +45,17 @@ export function useSeries(artistId: string) {
   });
 }
 
+type ContentResource = 'personal-photos' | 'artist-videos' | 'series' | 'education';
+
 export function useInvalidateArtistContent() {
   const queryClient = useQueryClient();
-  return (artistId: string) => {
-    queryClient.invalidateQueries({ queryKey: ['personal-photos', artistId] });
-    queryClient.invalidateQueries({ queryKey: ['artist-videos', artistId] });
-    queryClient.invalidateQueries({ queryKey: ['series', artistId] });
-    queryClient.invalidateQueries({ queryKey: ['education', artistId] });
+  return (artistId: string, resource?: ContentResource) => {
+    const resources: ContentResource[] = resource
+      ? [resource]
+      : ['personal-photos', 'artist-videos', 'series', 'education'];
+    for (const key of resources) {
+      queryClient.invalidateQueries({ queryKey: [key, artistId] });
+    }
   };
 }
 

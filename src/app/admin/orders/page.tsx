@@ -61,6 +61,7 @@ function OrdersContent() {
 
   const totalRevenue = orders.reduce((sum, o) => sum + o.amount_cents, 0);
   const totalFees = orders.reduce((sum, o) => sum + o.platform_fee_cents, 0);
+  const totalPayouts = orders.reduce((sum, o) => sum + o.artist_payout_cents, 0);
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
@@ -79,7 +80,7 @@ function OrdersContent() {
         </div>
         <div className="rounded-lg border border-gray-200 p-4">
           <p className="text-sm text-gray-500">Artist Payouts</p>
-          <p className="text-2xl font-bold text-gray-900">{formatPrice(totalRevenue - totalFees)}</p>
+          <p className="text-2xl font-bold text-gray-900">{formatPrice(totalPayouts)}</p>
         </div>
       </div>
 
