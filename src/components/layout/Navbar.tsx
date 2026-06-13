@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useUnread } from '@/context/UnreadContext';
 import { NotificationDropdown } from '@/components/notification/NotificationDropdown';
+import { NavSearch } from '@/components/layout/NavSearch';
 
 export function Navbar() {
   const { user, signOut } = useAuth();
@@ -19,13 +20,7 @@ export function Navbar() {
         </Link>
 
         <div className="hidden flex-1 justify-center px-8 md:flex">
-          <input
-            type="text"
-            placeholder="Search art, artists, styles..."
-            className="w-full max-w-md rounded-full border border-line bg-surface px-4 py-2 text-sm text-ink
-              placeholder:text-muted/70
-              focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
-          />
+          <NavSearch className="w-full max-w-md" />
         </div>
 
         <div className="hidden items-center gap-4 md:flex">
@@ -117,11 +112,9 @@ export function Navbar() {
 
       {menuOpen && (
         <div className="border-t border-line bg-cream px-4 pb-4 md:hidden">
-          <input
-            type="text"
-            placeholder="Search..."
-            className="mt-3 w-full rounded-full border border-line bg-surface px-4 py-2 text-sm text-ink placeholder:text-muted/70"
-          />
+          <div className="mt-3">
+            <NavSearch />
+          </div>
           <div className="mt-3 space-y-1">
             {user ? (
               <>

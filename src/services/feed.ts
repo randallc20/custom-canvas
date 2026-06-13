@@ -1,14 +1,22 @@
 import { supabase } from '@/lib/supabase';
 import { ListingWithImages } from '@/types/listing';
+import type { ArtistProfile } from '@/types/artist';
 
-interface FeedParams {
+export type FeedSort = 'recent' | 'price_asc' | 'price_desc' | 'popular';
+export type Availability = 'available' | 'commission';
+
+export interface FeedParams {
   cursor?: string;
   limit?: number;
   medium?: string;
   minPrice?: number;
   maxPrice?: number;
   search?: string;
-  sort?: 'recent' | 'price_asc' | 'price_desc' | 'popular';
+  sort?: FeedSort;
+  neighborhoods?: string[];
+  schools?: string[];
+  commissionsOpen?: boolean;
+  availability?: Availability;
 }
 
 interface FeedResult {
@@ -17,31 +25,39 @@ interface FeedResult {
 }
 
 export async function getFeedListings(params: FeedParams = {}): Promise<FeedResult> {
-  const { cursor, limit = 20, medium, minPrice, maxPrice, search, sort = 'recent' } = params;
+  const {
+    cursor, limit = 20, medium, minPrice, maxPrice, search, sort = 'recent',
+    neighborhoods, schools, commissionsOpen, availability = 'available',
+  } = params;
 
+  // Inner-join artist_profiles so artist-attribute filters apply and we can
+  // surface the artist on each card.
   let query = supabase
     .from('listings')
-    .select('*, images:listing_images(*), tags:listing_tags(tag:tags(*))')
-    .eq('status', 'available');
+    .select('*, images:listing_images(*), tags:listing_tags(tag:tags(*)), artist:artist_profiles!inner(slug, display_name, neighborhood, school, commissions_open)');
+
+  // Availability: "Commission Only" shows pieces from artists open to
+  // commissions; default shows available-for-purchase work.
+  if (availability === 'commission') {
+    query = query.eq('artist_profiles.commissions_open', true);
+  } else {
+    query = query.eq('status', 'available');
+  }
 
   if (medium) query = query.eq('medium', medium);
   if (minPrice !== undefined) query = query.gte('price_cents', minPrice);
   if (maxPrice !== undefined) query = query.lte('price_cents', maxPrice);
-  if (search) query = query.textSearch('search_vector', search);
+  if (search) query = query.textSearch('search_vector', search, { type: 'websearch' });
+  if (neighborhoods?.length) query = query.in('artist_profiles.neighborhood', neighborhoods);
+  if (schools?.length) query = query.in('artist_profiles.school', schools);
+  if (commissionsOpen) query = query.eq('artist_profiles.commissions_open', true);
   if (cursor) query = query.lt('created_at', cursor);
 
   switch (sort) {
-    case 'price_asc':
-      query = query.order('price_cents', { ascending: true });
-      break;
-    case 'price_desc':
-      query = query.order('price_cents', { ascending: false });
-      break;
-    case 'popular':
-      query = query.order('save_count', { ascending: false });
-      break;
-    default:
-      query = query.order('created_at', { ascending: false });
+    case 'price_asc': query = query.order('price_cents', { ascending: true }); break;
+    case 'price_desc': query = query.order('price_cents', { ascending: false }); break;
+    case 'popular': query = query.order('save_count', { ascending: false }); break;
+    default: query = query.order('created_at', { ascending: false });
   }
 
   query = query.limit(limit + 1);
@@ -53,9 +69,78 @@ export async function getFeedListings(params: FeedParams = {}): Promise<FeedResu
   const listings = (hasMore ? data.slice(0, limit) : data).map((item) => ({
     ...item,
     tags: item.tags?.map((lt: { tag: unknown }) => lt.tag) ?? [],
-  })) as ListingWithImages[];
+  })) as unknown as ListingWithImages[];
 
   const nextCursor = hasMore ? listings[listings.length - 1].created_at : null;
 
   return { listings, nextCursor };
+}
+
+export interface ArtistsResult {
+  artists: (ArtistProfile & { avatar_url: string | null })[];
+  nextCursor: string | null;
+}
+
+export async function getFeedArtists(params: { cursor?: string; limit?: number; search?: string } = {}): Promise<ArtistsResult> {
+  const { cursor, limit = 24, search } = params;
+
+  let query = supabase
+    .from('artist_profiles')
+    .select('*, profile:profiles(avatar_url)')
+    .order('created_at', { ascending: false });
+
+  if (search) query = query.textSearch('search_vector', search, { type: 'websearch' });
+  if (cursor) query = query.lt('created_at', cursor);
+
+  query = query.limit(limit + 1);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const hasMore = data.length > limit;
+  const rows = hasMore ? data.slice(0, limit) : data;
+  const artists = rows.map((a: Record<string, unknown>) => ({
+    ...(a as unknown as ArtistProfile),
+    avatar_url: (a.profile as { avatar_url: string | null } | null)?.avatar_url ?? null,
+  }));
+
+  const nextCursor = hasMore ? (rows[rows.length - 1] as { created_at: string }).created_at : null;
+
+  return { artists, nextCursor };
+}
+
+export interface SearchSuggestions {
+  artists: { slug: string; display_name: string }[];
+  listings: { id: string; title: string }[];
+}
+
+export async function getSearchSuggestions(term: string): Promise<SearchSuggestions> {
+  if (!term.trim()) return { artists: [], listings: [] };
+  const [artistsRes, listingsRes] = await Promise.all([
+    supabase.from('artist_profiles').select('slug, display_name')
+      .textSearch('search_vector', term, { type: 'websearch' }).limit(3),
+    supabase.from('listings').select('id, title').eq('status', 'available')
+      .textSearch('search_vector', term, { type: 'websearch' }).limit(3),
+  ]);
+  return {
+    artists: artistsRes.data ?? [],
+    listings: listingsRes.data ?? [],
+  };
+}
+
+/** Distinct neighborhood/school values for the filter multi-selects. */
+export async function getFilterOptions(): Promise<{ neighborhoods: string[]; schools: string[] }> {
+  const { data } = await supabase
+    .from('artist_profiles')
+    .select('neighborhood, school');
+  const neighborhoods = new Set<string>();
+  const schools = new Set<string>();
+  for (const row of data ?? []) {
+    if (row.neighborhood) neighborhoods.add(row.neighborhood);
+    if (row.school) schools.add(row.school);
+  }
+  return {
+    neighborhoods: Array.from(neighborhoods).sort(),
+    schools: Array.from(schools).sort(),
+  };
 }
