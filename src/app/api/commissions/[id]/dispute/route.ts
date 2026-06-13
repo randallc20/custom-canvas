@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = createServerSupabaseClient();
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const { reason } = await request.json();
 
-  const { data, error } = await supabase
+  const { data, error } = await createAdminSupabaseClient()
     .from('commissions')
     .update({ status: 'disputed', artist_notes: reason })
     .eq('id', params.id)

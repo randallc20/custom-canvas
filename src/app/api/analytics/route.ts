@@ -59,20 +59,29 @@ export async function GET(request: NextRequest) {
   });
 }
 
+const ALLOWED_EVENTS = ['profile_view', 'listing_view', 'listing_save'];
+
 export async function POST(request: NextRequest) {
   const supabase = createServerSupabaseClient();
   const body = await request.json();
-  const { artist_id, event_type, listing_id, viewer_id } = body;
+  const { artist_id, event_type, listing_id } = body;
 
   if (!artist_id || !event_type) {
     return NextResponse.json({ error: 'artist_id and event_type are required' }, { status: 400 });
   }
+  if (!ALLOWED_EVENTS.includes(event_type)) {
+    return NextResponse.json({ error: 'invalid event_type' }, { status: 400 });
+  }
+
+  // viewer_id is derived from the session, never the client — prevents
+  // attributing a view to an arbitrary user (guests record as null).
+  const { data: { user } } = await supabase.auth.getUser();
 
   const { error } = await supabase.from('analytics_events').insert({
     artist_id,
     event_type,
     listing_id: listing_id ?? null,
-    viewer_id: viewer_id ?? null,
+    viewer_id: user?.id ?? null,
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

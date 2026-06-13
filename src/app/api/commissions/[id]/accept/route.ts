@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { commissionQuoteSchema } from '@/schemas/commissionSchema';
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const parsed = commissionQuoteSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { data, error } = await supabase
+  const { data, error } = await createAdminSupabaseClient()
     .from('commissions')
     .update({ status: 'quoted', ...parsed.data })
     .eq('id', params.id)

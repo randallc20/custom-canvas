@@ -32,9 +32,21 @@ export async function PATCH(request: NextRequest, { params }: { params: { slug: 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  // Allowlist editable columns — never trust the body to set trust/ranking
+  // fields (is_houston_verified, is_featured, completeness_score, stripe_*).
+  const EDITABLE = [
+    'display_name', 'bio', 'artist_statement', 'story', 'primary_mediums',
+    'influences', 'school', 'graduation_year', 'status', 'neighborhood', 'city',
+    'website_url', 'fulfillment_pref', 'commissions_open', 'commission_desc',
+    'commission_min_cents', 'commission_turnaround', 'accent_color', 'bio_layout',
+    'banner_image_url',
+  ] as const;
+  const updates: Record<string, unknown> = {};
+  for (const key of EDITABLE) if (key in body) updates[key] = body[key];
+
   const { data, error } = await supabase
     .from('artist_profiles')
-    .update(body)
+    .update(updates)
     .eq('slug', params.slug)
     .select()
     .single();

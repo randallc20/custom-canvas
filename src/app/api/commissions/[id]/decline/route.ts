@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
 export async function POST(_request: Request, { params }: { params: { id: string } }) {
   const supabase = createServerSupabaseClient();
@@ -27,7 +28,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await createAdminSupabaseClient()
     .from('commissions')
     .update({ status: 'cancelled' })
     .eq('id', params.id)

@@ -34,9 +34,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 
   const body = await request.json();
+  // Allowlist editable columns — block artist_id reassignment and counters.
+  const EDITABLE = [
+    'title', 'description', 'medium', 'width_cm', 'height_cm', 'depth_cm',
+    'year_created', 'price_cents', 'shipping_rate_cents', 'price_visible',
+    'sold_price_cents', 'show_sold_price', 'series_id', 'status',
+  ] as const;
+  const updates: Record<string, unknown> = {};
+  for (const key of EDITABLE) if (key in body) updates[key] = body[key];
+
   const { data, error } = await supabase
     .from('listings')
-    .update(body)
+    .update(updates)
     .eq('id', params.id)
     .select()
     .single();
