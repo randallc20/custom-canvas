@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/Badge';
 import { PARTNER_TYPE_LABELS, type PartnerType } from '@/types/gallery';
 
 interface PartnerBadgeProps {
@@ -7,14 +8,8 @@ interface PartnerBadgeProps {
   className?: string;
 }
 
-function shieldTitle(partnerType?: PartnerType | null) {
-  return `Verified ${PARTNER_TYPE_LABELS[partnerType ?? 'gallery']}`;
-}
-
-export function PartnerBadge({ partnerType, compact = false, className = '' }: PartnerBadgeProps) {
-  const label = shieldTitle(partnerType);
-
-  const shield = (
+function Shield({ compact }: { compact: boolean }) {
+  return (
     <svg className={compact ? 'h-3.5 w-3.5' : 'h-3 w-3'} fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
       <path
         fillRule="evenodd"
@@ -23,21 +18,25 @@ export function PartnerBadge({ partnerType, compact = false, className = '' }: P
       />
     </svg>
   );
+}
+
+export function PartnerBadge({ partnerType, compact = false, className = '' }: PartnerBadgeProps) {
+  const label = `Verified ${PARTNER_TYPE_LABELS[partnerType ?? 'gallery']}`;
 
   if (compact) {
     return (
       <span className={`inline-flex items-center text-sage ${className}`} title={label} aria-label={label}>
-        {shield}
+        <Shield compact />
       </span>
     );
   }
 
+  // success variant = the design system's sage pill; shield replaces the
+  // generic check that the 'verified' variant would add.
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full bg-sage/15 px-2.5 py-0.5 text-xs font-medium text-sage ${className}`}
-    >
-      {shield}
+    <Badge variant="success" className={className}>
+      <Shield compact={false} />
       {label}
-    </span>
+    </Badge>
   );
 }

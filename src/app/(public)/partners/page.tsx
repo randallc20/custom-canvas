@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { PartnerBadge } from '@/components/gallery/PartnerBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FilterChip } from '@/components/ui/FilterChip';
 import { PARTNER_TYPE_LABELS, type PartnerType } from '@/types/gallery';
 
 export const metadata: Metadata = {
@@ -17,16 +18,16 @@ interface Props {
 
 export default async function PartnersPage({ searchParams }: Props) {
   const supabase = createServerSupabaseClient();
-  const activeType =
-    searchParams.type && searchParams.type in PARTNER_TYPE_LABELS
-      ? (searchParams.type as PartnerType)
-      : null;
+  const activeType = Object.prototype.hasOwnProperty.call(PARTNER_TYPE_LABELS, searchParams.type ?? '')
+    ? (searchParams.type as PartnerType)
+    : null;
 
   let query = supabase
     .from('gallery_profiles')
-    .select('*')
+    .select('id, slug, gallery_name, partner_type, banner_image_url, neighborhood, city, bio')
     .eq('is_verified', true)
-    .order('gallery_name', { ascending: true });
+    .order('gallery_name', { ascending: true })
+    .limit(100);
   if (activeType) query = query.eq('partner_type', activeType);
 
   const { data: partners } = await query;
@@ -39,28 +40,17 @@ export default async function PartnersPage({ searchParams }: Props) {
       </p>
 
       <div className="mb-8 flex flex-wrap gap-2">
-        <Link
-          href="/partners"
-          className={`rounded-full px-3 py-1 text-sm font-medium transition-colors duration-150
-            ${!activeType ? 'bg-ink text-cream' : 'bg-sand text-muted hover:text-ink'}`}
-        >
-          All
-        </Link>
+        <FilterChip href="/partners" active={!activeType}>All</FilterChip>
         {(Object.keys(PARTNER_TYPE_LABELS) as PartnerType[]).map((t) => (
-          <Link
-            key={t}
-            href={`/partners?type=${t}`}
-            className={`rounded-full px-3 py-1 text-sm font-medium transition-colors duration-150
-              ${activeType === t ? 'bg-ink text-cream' : 'bg-sand text-muted hover:text-ink'}`}
-          >
+          <FilterChip key={t} href={`/partners?type=${t}`} active={activeType === t}>
             {PARTNER_TYPE_LABELS[t]}
-          </Link>
+          </FilterChip>
         ))}
       </div>
 
       {!partners || partners.length === 0 ? (
         <EmptyState
-          title={activeType ? `No verified ${PARTNER_TYPE_LABELS[activeType].toLowerCase()}s yet` : 'No partners yet'}
+          title={activeType ? `No verified ${PARTNER_TYPE_LABELS[activeType].toLowerCase()} partners yet` : 'No partners yet'}
           description="Verified partners will appear here."
         />
       ) : (

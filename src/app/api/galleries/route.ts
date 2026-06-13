@@ -41,7 +41,8 @@ export async function PATCH(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     // Link education entries naming this newly verified partner.
-    await supabase.rpc('link_education_partners');
+    const { error: linkError } = await supabase.rpc('link_education_partners');
+    if (linkError) console.error('education link failed after verify:', linkError.message);
     return NextResponse.json(data);
   }
 

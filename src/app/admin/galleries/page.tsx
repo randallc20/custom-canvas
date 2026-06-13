@@ -58,7 +58,7 @@ function GalleriesContent() {
       toast('Partner verified!', 'success');
       setGalleries((prev) => prev.filter((g) => g.id !== galleryId));
     } else {
-      toast('Failed to verify gallery.', 'error');
+      toast('Failed to verify partner.', 'error');
     }
     setActionLoading(null);
   };
@@ -74,7 +74,7 @@ function GalleriesContent() {
       toast('Partner rejected.', 'success');
       setGalleries((prev) => prev.filter((g) => g.id !== galleryId));
     } else {
-      toast('Failed to reject gallery.', 'error');
+      toast('Failed to reject partner.', 'error');
     }
     setActionLoading(null);
   };

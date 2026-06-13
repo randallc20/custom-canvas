@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { GalleryGrid } from '@/components/artist/GalleryGrid';
+import { FilterChip } from '@/components/ui/FilterChip';
 import type { ListingWithImages } from '@/types/listing';
 import type { ListingSeries } from '@/types/artist';
 
@@ -52,14 +53,9 @@ export function SeriesTabs({ listings, series, accentColor = '#E8704A' }: Series
 
       <div className="mb-4 flex gap-2">
         {(['available', 'sold', 'all'] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setStatusFilter(f)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors duration-150
-              ${statusFilter === f ? 'bg-ink text-cream' : 'bg-sand text-muted hover:text-ink'}`}
-          >
+          <FilterChip key={f} active={statusFilter === f} onClick={() => setStatusFilter(f)}>
             {f === 'available' ? 'Available' : f === 'sold' ? 'Sold' : 'All'}
-          </button>
+          </FilterChip>
         ))}
       </div>
 

@@ -35,12 +35,15 @@ export async function saveEducation(
       start_year: e.start_year ?? null,
       end_year: e.end_year ?? null,
       is_current: e.is_current ?? false,
+      // Preserved across the replace-all; the rpc below re-links fresh names.
+      partner_id: e.partner_id ?? null,
       display_order: i,
     }))
   );
   if (error) throw error;
   // Auto-link entries whose institution matches a verified partner.
-  await supabase.rpc('link_education_partners');
+  const { error: linkError } = await supabase.rpc('link_education_partners', { p_artist_id: artistId });
+  if (linkError) throw linkError;
 }
 
 // --- Personal photos ---
