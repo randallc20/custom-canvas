@@ -72,18 +72,18 @@ export function GalleryDashboard() {
 
   const handleAddArtist = async (artistId: string) => {
     if (!gallery) return;
-    try {
-      await supabase
-        .from('gallery_artists')
-        .insert({ gallery_id: gallery.id, artist_id: artistId });
-      toast('Artist added to your gallery.', 'success');
-      setShowAddModal(false);
-      setSearchQuery('');
-      setSearchResults([]);
-      loadGalleryData();
-    } catch {
+    const { error } = await supabase
+      .from('gallery_artists')
+      .insert({ gallery_id: gallery.id, artist_id: artistId });
+    if (error) {
       toast('Failed to add artist.', 'error');
+      return;
     }
+    toast('Artist added to your gallery.', 'success');
+    setShowAddModal(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    loadGalleryData();
   };
 
   const handleRemoveArtist = async (artistId: string) => {

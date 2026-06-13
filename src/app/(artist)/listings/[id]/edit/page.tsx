@@ -113,7 +113,7 @@ export default function EditListingPage() {
 
         <fieldset className="space-y-4 rounded-xl border border-line p-4">
           <legend className="px-1 text-sm font-semibold text-ink">Pricing</legend>
-          <Input label="Price ($)" type="number" step="0.01" {...register('price_dollars', { valueAsNumber: true })} error={errors.price_dollars?.message} />
+          <Input label="Price ($)" type="number" step="0.01" {...register('price_dollars', { setValueAs: numberOrNull })} error={errors.price_dollars?.message} />
           <label className="flex items-center gap-2">
             <input type="checkbox" {...register('price_visible')} className="rounded border-line" />
             <span className="text-sm text-ink">Show price publicly</span>

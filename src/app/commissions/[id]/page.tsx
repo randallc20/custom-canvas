@@ -62,19 +62,23 @@ function CommissionDetailContent() {
   const [disputeReason, setDisputeReason] = useState('');
 
   useEffect(() => {
-    supabase
-      .from('commissions')
-      .select('*')
-      .eq('id', id)
-      .single()
-      .then(({ data, error }) => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('commissions')
+          .select('*')
+          .eq('id', id)
+          .single();
         if (error || !data) {
           router.push('/commissions');
           return;
         }
         setCommission(data);
         setLoading(false);
-      });
+      } catch {
+        router.push('/commissions');
+      }
+    })();
   }, [id, router]);
 
   useEffect(() => {

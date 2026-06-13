@@ -8,6 +8,8 @@ export type EducationDraft = Omit<ArtistEducation, 'id' | 'artist_id' | 'created
 
 export function emptyEducationEntry(order: number): EducationDraft {
   return {
+    // Temporary client id for stable React keys; saveEducation ignores it.
+    id: crypto.randomUUID(),
     institution: '',
     degree: null,
     field_of_study: null,
@@ -41,7 +43,7 @@ export function EducationFieldset({ entries, onChange }: EducationFieldsetProps)
   return (
     <div className="space-y-4">
       {entries.map((entry, i) => (
-        <div key={i} className="space-y-3 rounded-xl border border-line bg-surface p-4">
+        <div key={entry.id ?? i} className="space-y-3 rounded-xl border border-line bg-surface p-4">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-muted">Entry {i + 1}</p>
             <div className="flex items-center gap-1">

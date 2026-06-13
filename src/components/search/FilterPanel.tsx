@@ -33,7 +33,7 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
             type="number"
             placeholder="Min"
             value={filters.minPrice ? filters.minPrice / 100 : ''}
-            onChange={(e) => onFilterChange({ ...filters, minPrice: e.target.value ? parseInt(e.target.value, 10) * 100 : undefined })}
+            onChange={(e) => onFilterChange({ ...filters, minPrice: e.target.value ? Math.round(parseFloat(e.target.value) * 100) : undefined })}
             className="w-24 rounded-lg border border-gray-300 px-2 py-1 text-sm"
           />
           <span className="text-gray-400">—</span>
@@ -41,7 +41,7 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
             type="number"
             placeholder="Max"
             value={filters.maxPrice ? filters.maxPrice / 100 : ''}
-            onChange={(e) => onFilterChange({ ...filters, maxPrice: e.target.value ? parseInt(e.target.value, 10) * 100 : undefined })}
+            onChange={(e) => onFilterChange({ ...filters, maxPrice: e.target.value ? Math.round(parseFloat(e.target.value) * 100) : undefined })}
             className="w-24 rounded-lg border border-gray-300 px-2 py-1 text-sm"
           />
         </div>
