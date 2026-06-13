@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe';
 
 export async function POST() {
@@ -25,7 +26,10 @@ export async function POST() {
     });
     accountId = account.id;
 
-    await supabase
+    // stripe_account_id is a guard-frozen column (00009) — write it with the
+    // service-role client. Ownership is already established above (this is the
+    // caller's own artist row).
+    await createAdminSupabaseClient()
       .from('artist_profiles')
       .update({ stripe_account_id: accountId })
       .eq('id', artist.id);
