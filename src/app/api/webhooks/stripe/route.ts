@@ -54,25 +54,44 @@ export async function POST(request: NextRequest) {
       );
       if (!order) break;
 
-      // Oversell: a second buyer completed a session opened before the first
-      // sale closed. Record the payment (it happened) but alert for refund.
-      const oversold = listing.status === 'sold';
+      // Claim the listing with a live order. The partial unique index
+      // (one live order per listing) makes a concurrent second sale fail here.
+      const { data: inserted, error: insertError } = await supabase
+        .from('orders')
+        .insert(order)
+        .select('id')
+        .single();
 
-      const { error: insertError } = await supabase.from('orders').insert(order);
       if (insertError) {
-        if (insertError.code === '23505') break; // raced with a duplicate delivery
+        if (insertError.code === '23505') {
+          // Either a redelivery of this same payment (already recorded) or an
+          // oversell (another live order holds this listing). Distinguish:
+          const { data: samePayment } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('stripe_payment_intent_id', paymentIntentId)
+            .maybeSingle();
+          if (samePayment) break; // redelivery — already handled
+
+          // Oversell: refund this buyer and reverse the artist transfer.
+          try {
+            await getStripe().refunds.create({ payment_intent: paymentIntentId, reverse_transfer: true });
+          } catch (refundErr) {
+            Sentry.captureException(refundErr);
+          }
+          // Record the refunded order for the buyer's history / audit trail.
+          await supabase.from('orders').insert({ ...order, status: 'refunded' });
+          Sentry.captureMessage(
+            `Oversell auto-refunded: listing ${listingId}, payment ${paymentIntentId}`,
+            'warning'
+          );
+          break;
+        }
         Sentry.captureException(new Error(`Order insert failed for ${paymentIntentId}: ${insertError.message}`));
         // Non-2xx makes Stripe retry — the order must not be silently lost.
         return NextResponse.json({ error: 'Order insert failed' }, { status: 500 });
       }
-
-      if (oversold) {
-        Sentry.captureMessage(
-          `Oversell: listing ${listingId} sold twice — payment ${paymentIntentId} needs a refund`,
-          'error'
-        );
-        break;
-      }
+      if (!inserted) break;
 
       await supabase
         .from('listings')
@@ -90,7 +109,7 @@ export async function POST(request: NextRequest) {
           buyer.full_name ?? 'Collector',
           listing.title,
           formatPrice(order.amount_cents + order.buyer_fee_cents + order.shipping_cents),
-          listing.id
+          inserted.id
         ).catch(() => {});
       }
 
@@ -104,6 +123,49 @@ export async function POST(request: NextRequest) {
           formatPrice(order.artist_payout_cents)
         ).catch(() => {});
       }
+      break;
+    }
+
+    case 'charge.refunded': {
+      // Refund issued (admin dispute resolution, or our oversell auto-refund).
+      const charge = event.data.object;
+      const paymentIntentId = charge.payment_intent as string | null;
+      if (!paymentIntentId) break;
+
+      const { data: order } = await supabase
+        .from('orders')
+        .select('id, listing_id, status')
+        .eq('stripe_payment_intent_id', paymentIntentId)
+        .maybeSingle();
+      if (!order) break;
+      if (order.status === 'refunded') break; // already reconciled
+
+      await supabase.from('orders').update({ status: 'refunded' }).eq('id', order.id);
+
+      // Return the piece to the market only if no OTHER live order still holds
+      // it (protects the legit buyer when an oversell refund arrives).
+      if (order.listing_id) {
+        const { count } = await supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('listing_id', order.listing_id)
+          .in('status', ['paid', 'shipped', 'delivered'])
+          .neq('id', order.id);
+        if ((count ?? 0) === 0) {
+          await supabase
+            .from('listings')
+            .update({ status: 'available', sold_price_cents: null })
+            .eq('id', order.listing_id);
+        }
+      }
+      break;
+    }
+
+    case 'payment_intent.payment_failed': {
+      // Card checkouts never create a session on failure, so there's usually
+      // no order to touch; record a breadcrumb for async-payment edge cases.
+      const pi = event.data.object;
+      Sentry.captureMessage(`payment_intent.payment_failed: ${pi.id}`, 'info');
       break;
     }
 
