@@ -30,7 +30,7 @@ export default function AnalyticsPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
+        <h1 className="text-2xl font-bold text-ink">Analytics</h1>
         <Link href="/dashboard">
           <Button variant="outline" size="sm">Back to Dashboard</Button>
         </Link>
@@ -45,26 +45,26 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-gray-200 p-6">
-          <h2 className="mb-4 text-sm font-semibold text-gray-700">Views — Last 30 Days</h2>
+        <div className="rounded-lg border border-line p-6">
+          <h2 className="mb-4 text-sm font-semibold text-ink">Views — Last 30 Days</h2>
           {analytics.views_over_time.length > 0 ? (
             <SimpleBarChart
               data={analytics.views_over_time.map((d) => ({ label: formatDateShort(d.date), value: d.count }))}
             />
           ) : (
-            <p className="py-8 text-center text-sm text-gray-400">No view data yet. Views will be tracked as collectors visit your profile and listings.</p>
+            <p className="py-8 text-center text-sm text-muted">No view data yet. Views will be tracked as collectors visit your profile and listings.</p>
           )}
         </div>
 
-        <div className="rounded-lg border border-gray-200 p-6">
-          <h2 className="mb-4 text-sm font-semibold text-gray-700">Earnings — Last 30 Days</h2>
+        <div className="rounded-lg border border-line p-6">
+          <h2 className="mb-4 text-sm font-semibold text-ink">Earnings — Last 30 Days</h2>
           {analytics.earnings_over_time.length > 0 ? (
             <SimpleBarChart
               data={analytics.earnings_over_time.map((d) => ({ label: formatDateShort(d.date), value: d.amount_cents / 100 }))}
               prefix="$"
             />
           ) : (
-            <p className="py-8 text-center text-sm text-gray-400">No earnings data yet. Your sales will appear here once orders come in.</p>
+            <p className="py-8 text-center text-sm text-muted">No earnings data yet. Your sales will appear here once orders come in.</p>
           )}
         </div>
       </div>
@@ -74,9 +74,9 @@ export default function AnalyticsPage() {
 
 function StatCard({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="rounded-lg border border-gray-200 p-4">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className={`text-2xl font-bold ${highlight ? 'text-terra' : 'text-gray-900'}`}>
+    <div className="rounded-lg border border-line p-4">
+      <p className="text-sm text-muted">{label}</p>
+      <p className={`text-2xl font-bold ${highlight ? 'text-terra' : 'text-ink'}`}>
         {value}
       </p>
     </div>
@@ -90,7 +90,7 @@ function SimpleBarChart({ data, prefix = '' }: { data: { label: string; value: n
     <div className="space-y-2">
       {data.map((d, i) => (
         <div key={i} className="flex items-center gap-3">
-          <span className="w-12 flex-shrink-0 text-xs text-gray-400">{d.label}</span>
+          <span className="w-12 flex-shrink-0 text-xs text-muted">{d.label}</span>
           <div className="flex-1">
             <div
               className="h-5 rounded bg-terra/20"
@@ -102,7 +102,7 @@ function SimpleBarChart({ data, prefix = '' }: { data: { label: string; value: n
               />
             </div>
           </div>
-          <span className="w-16 flex-shrink-0 text-right text-xs font-medium text-gray-600">
+          <span className="w-16 flex-shrink-0 text-right text-xs font-medium text-muted">
             {prefix}{d.value.toLocaleString()}
           </span>
         </div>

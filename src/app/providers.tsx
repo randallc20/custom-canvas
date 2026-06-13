@@ -7,6 +7,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import { UnreadProvider } from '@/context/UnreadContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { ToastProvider } from '@/components/ui/Toast';
+import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
 
 export function Providers({ children }: { children: ReactNode }) {
   const queryClient = getQueryClient();
@@ -16,7 +17,9 @@ export function Providers({ children }: { children: ReactNode }) {
       <AuthProvider>
         <UnreadProvider>
           <NotificationProvider>
-            <ToastProvider>{children}</ToastProvider>
+            <ToastProvider>
+              <ConfirmProvider>{children}</ConfirmProvider>
+            </ToastProvider>
           </NotificationProvider>
         </UnreadProvider>
       </AuthProvider>

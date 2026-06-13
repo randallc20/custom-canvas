@@ -89,7 +89,7 @@ function AdminDashboard() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Admin Dashboard</h1>
 
       {/* Stats grid */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -116,29 +116,29 @@ function AdminDashboard() {
 
       {/* Charts */}
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-gray-200 p-6">
-          <h2 className="mb-4 text-sm font-semibold text-gray-700">New Users — Last 30 Days</h2>
+        <div className="rounded-lg border border-line p-6">
+          <h2 className="mb-4 text-sm font-semibold text-ink">New Users — Last 30 Days</h2>
           {stats.users_over_time.length > 0 ? (
             <MiniBarChart data={stats.users_over_time.map((d) => ({ label: shortDate(d.date), value: d.count }))} />
           ) : (
-            <p className="py-6 text-center text-sm text-gray-400">No signups in this period.</p>
+            <p className="py-6 text-center text-sm text-muted">No signups in this period.</p>
           )}
         </div>
-        <div className="rounded-lg border border-gray-200 p-6">
-          <h2 className="mb-4 text-sm font-semibold text-gray-700">Platform Revenue — Last 30 Days</h2>
+        <div className="rounded-lg border border-line p-6">
+          <h2 className="mb-4 text-sm font-semibold text-ink">Platform Revenue — Last 30 Days</h2>
           {stats.revenue_over_time.length > 0 ? (
             <MiniBarChart data={stats.revenue_over_time.map((d) => ({ label: shortDate(d.date), value: d.amount_cents / 100 }))} prefix="$" />
           ) : (
-            <p className="py-6 text-center text-sm text-gray-400">No revenue in this period.</p>
+            <p className="py-6 text-center text-sm text-muted">No revenue in this period.</p>
           )}
         </div>
       </div>
 
       {/* Recent activity */}
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-gray-200 p-6">
+        <div className="rounded-lg border border-line p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700">Recent Orders</h2>
+            <h2 className="text-sm font-semibold text-ink">Recent Orders</h2>
             <Link href="/admin/orders" className="text-xs text-terra hover:underline">View all</Link>
           </div>
           {recentOrders.length > 0 ? (
@@ -146,8 +146,8 @@ function AdminDashboard() {
               {recentOrders.map((o) => (
                 <div key={o.id} className="flex items-center justify-between text-sm">
                   <div>
-                    <span className="font-mono text-xs text-gray-400">#{o.id.slice(0, 8)}</span>
-                    <span className="ml-2 text-gray-700">{o.buyer?.full_name ?? 'Unknown'}</span>
+                    <span className="font-mono text-xs text-muted">#{o.id.slice(0, 8)}</span>
+                    <span className="ml-2 text-ink">{o.buyer?.full_name ?? 'Unknown'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{formatPrice(o.amount_cents)}</span>
@@ -157,26 +157,26 @@ function AdminDashboard() {
               ))}
             </div>
           ) : (
-            <p className="py-4 text-center text-sm text-gray-400">No orders yet.</p>
+            <p className="py-4 text-center text-sm text-muted">No orders yet.</p>
           )}
         </div>
 
-        <div className="rounded-lg border border-gray-200 p-6">
+        <div className="rounded-lg border border-line p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700">Recent Signups</h2>
+            <h2 className="text-sm font-semibold text-ink">Recent Signups</h2>
             <Link href="/admin/users" className="text-xs text-terra hover:underline">View all</Link>
           </div>
           {recentUsers.length > 0 ? (
             <div className="space-y-3">
               {recentUsers.map((u) => (
                 <div key={u.id} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-700">{u.full_name ?? u.email}</span>
+                  <span className="text-ink">{u.full_name ?? u.email}</span>
                   <Badge>{u.role}</Badge>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="py-4 text-center text-sm text-gray-400">No users yet.</p>
+            <p className="py-4 text-center text-sm text-muted">No users yet.</p>
           )}
         </div>
       </div>
@@ -184,9 +184,9 @@ function AdminDashboard() {
       {/* Navigation */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {NAV_LINKS.map((link) => (
-          <Link key={link.href} href={link.href} className="rounded-lg border border-gray-200 p-5 transition-colors hover:border-gray-300 hover:bg-gray-50">
-            <h3 className="font-medium text-gray-900">{link.label}</h3>
-            <p className="mt-1 text-sm text-gray-500">{link.desc}</p>
+          <Link key={link.href} href={link.href} className="rounded-lg border border-line p-5 transition-colors hover:border-line hover:bg-sand/50">
+            <h3 className="font-medium text-ink">{link.label}</h3>
+            <p className="mt-1 text-sm text-muted">{link.desc}</p>
           </Link>
         ))}
       </div>
@@ -196,9 +196,9 @@ function AdminDashboard() {
 
 function StatCard({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="rounded-lg border border-gray-200 p-4">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className={`text-2xl font-bold ${highlight ? 'text-terra' : 'text-gray-900'}`}>{value}</p>
+    <div className="rounded-lg border border-line p-4">
+      <p className="text-sm text-muted">{label}</p>
+      <p className={`text-2xl font-bold ${highlight ? 'text-terra' : 'text-ink'}`}>{value}</p>
     </div>
   );
 }
@@ -209,11 +209,11 @@ function MiniBarChart({ data, prefix = '' }: { data: { label: string; value: num
     <div className="space-y-1.5">
       {data.map((d, i) => (
         <div key={i} className="flex items-center gap-2">
-          <span className="w-10 flex-shrink-0 text-[10px] text-gray-400">{d.label}</span>
-          <div className="h-4 flex-1 overflow-hidden rounded bg-gray-100">
+          <span className="w-10 flex-shrink-0 text-[10px] text-muted">{d.label}</span>
+          <div className="h-4 flex-1 overflow-hidden rounded bg-sand">
             <div className="h-full rounded bg-terra" style={{ width: `${Math.max((d.value / max) * 100, 2)}%` }} />
           </div>
-          <span className="w-14 flex-shrink-0 text-right text-xs text-gray-600">{prefix}{d.value.toLocaleString()}</span>
+          <span className="w-14 flex-shrink-0 text-right text-xs text-muted">{prefix}{d.value.toLocaleString()}</span>
         </div>
       ))}
     </div>

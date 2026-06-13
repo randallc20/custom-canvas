@@ -143,23 +143,23 @@ function CommissionDetailContent() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <Link href="/commissions" className="mb-4 inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
+      <Link href="/commissions" className="mb-4 inline-flex items-center text-sm text-muted hover:text-ink">
         <svg className="mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
         Back to commissions
       </Link>
 
-      <div className="rounded-lg border border-gray-200 p-6">
+      <div className="rounded-lg border border-line p-6">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-gray-900">{commission.title}</h1>
+              <h1 className="text-xl font-bold text-ink">{commission.title}</h1>
               {requesterPartner?.isVerifiedPartner && (
                 <PartnerBadge partnerType={requesterPartner.partnerType} />
               )}
             </div>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-muted">
               Budget: {formatPrice(commission.budget_min_cents)} – {formatPrice(commission.budget_max_cents)}
             </p>
           </div>
@@ -173,8 +173,8 @@ function CommissionDetailContent() {
         </div>
 
         <div className="mt-6">
-          <h3 className="text-sm font-medium text-gray-700">Description</h3>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600">{commission.description}</p>
+          <h3 className="text-sm font-medium text-ink">Description</h3>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-muted">{commission.description}</p>
         </div>
 
         {commission.quoted_price_cents && commission.estimated_completion && (
@@ -203,8 +203,8 @@ function CommissionDetailContent() {
 
         {/* Artist actions */}
         {isArtist && (
-          <div className="mt-8 border-t border-gray-100 pt-6">
-            <h3 className="mb-3 text-sm font-medium text-gray-700">Actions</h3>
+          <div className="mt-8 border-t border-line pt-6">
+            <h3 className="mb-3 text-sm font-medium text-ink">Actions</h3>
             <div className="flex flex-wrap gap-3">
               {status === 'pending' && (
                 <>
@@ -227,8 +227,8 @@ function CommissionDetailContent() {
 
         {/* Requester actions */}
         {isRequester && (
-          <div className="mt-8 border-t border-gray-100 pt-6">
-            <h3 className="mb-3 text-sm font-medium text-gray-700">Actions</h3>
+          <div className="mt-8 border-t border-line pt-6">
+            <h3 className="mb-3 text-sm font-medium text-ink">Actions</h3>
             <div className="flex flex-wrap gap-3">
               {status === 'quoted' && (
                 <>
@@ -260,8 +260,8 @@ function CommissionDetailContent() {
         )}
 
         {showQuoteForm && (
-          <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h4 className="mb-3 text-sm font-medium text-gray-900">Send a Quote</h4>
+          <div className="mt-6 rounded-lg border border-line bg-sand/50 p-4">
+            <h4 className="mb-3 text-sm font-medium text-ink">Send a Quote</h4>
             <div className="space-y-3">
               <Input
                 label="Your Price ($)"
@@ -281,7 +281,7 @@ function CommissionDetailContent() {
                 placeholder="e.g. 2-3 weeks"
               />
               <div>
-                <label htmlFor="artist_notes" className="mb-1 block text-sm font-medium text-gray-700">
+                <label htmlFor="artist_notes" className="mb-1 block text-sm font-medium text-ink">
                   Notes (optional)
                 </label>
                 <textarea
@@ -289,7 +289,7 @@ function CommissionDetailContent() {
                   value={artistNotes}
                   onChange={(e) => setArtistNotes(e.target.value)}
                   rows={3}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm
                     focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
                   placeholder="Any notes about materials, approach, or conditions..."
                 />
@@ -304,10 +304,10 @@ function CommissionDetailContent() {
 
         {showDisputeForm && (
           <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
-            <h4 className="mb-3 text-sm font-medium text-gray-900">Report an Issue</h4>
+            <h4 className="mb-3 text-sm font-medium text-ink">Report an Issue</h4>
             <div className="space-y-3">
               <div>
-                <label htmlFor="dispute_reason" className="mb-1 block text-sm font-medium text-gray-700">
+                <label htmlFor="dispute_reason" className="mb-1 block text-sm font-medium text-ink">
                   What went wrong?
                 </label>
                 <textarea
@@ -315,7 +315,7 @@ function CommissionDetailContent() {
                   value={disputeReason}
                   onChange={(e) => setDisputeReason(e.target.value)}
                   rows={3}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm
                     focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
                   placeholder="Describe the issue..."
                 />

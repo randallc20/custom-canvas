@@ -55,7 +55,7 @@ function UsersContent() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Users ({users.length})</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Users ({users.length})</h1>
 
       <div className="mb-6">
         <Input
@@ -65,34 +65,34 @@ function UsersContent() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-gray-200">
+      <div className="overflow-hidden rounded-lg border border-line">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-gray-200 bg-gray-50">
+          <thead className="border-b border-line bg-sand/50">
             <tr>
-              <th className="px-4 py-3 font-medium text-gray-700">Name</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Email</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Role</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Joined</th>
+              <th className="px-4 py-3 font-medium text-ink">Name</th>
+              <th className="px-4 py-3 font-medium text-ink">Email</th>
+              <th className="px-4 py-3 font-medium text-ink">Role</th>
+              <th className="px-4 py-3 font-medium text-ink">Joined</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-line">
             {filtered.map((u) => (
-              <tr key={u.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">
+              <tr key={u.id} className="hover:bg-sand/50">
+                <td className="px-4 py-3 font-medium text-ink">
                   {u.full_name ?? '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-500">{u.email}</td>
+                <td className="px-4 py-3 text-muted">{u.email}</td>
                 <td className="px-4 py-3">
                   <Badge variant={ROLE_VARIANT[u.role] ?? 'default'}>{u.role}</Badge>
                 </td>
-                <td className="px-4 py-3 text-gray-400">
+                <td className="px-4 py-3 text-muted">
                   {new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={4} className="px-4 py-8 text-center text-muted">
                   No users found.
                 </td>
               </tr>

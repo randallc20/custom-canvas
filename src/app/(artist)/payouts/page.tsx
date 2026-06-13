@@ -44,7 +44,7 @@ export default function PayoutsPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Payouts</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Payouts</h1>
 
       {justSetup && (
         <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
@@ -55,29 +55,29 @@ export default function PayoutsPage() {
       {artist?.stripe_onboarded ? (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-lg border border-gray-200 p-4">
-              <p className="text-sm text-gray-500">Total Earnings</p>
-              <p className="text-2xl font-bold text-gray-900">{formatPrice(totalEarnings)}</p>
+            <div className="rounded-lg border border-line p-4">
+              <p className="text-sm text-muted">Total Earnings</p>
+              <p className="text-2xl font-bold text-ink">{formatPrice(totalEarnings)}</p>
             </div>
-            <div className="rounded-lg border border-gray-200 p-4">
-              <p className="text-sm text-gray-500">Completed Sales</p>
-              <p className="text-2xl font-bold text-gray-900">{totalSales}</p>
+            <div className="rounded-lg border border-line p-4">
+              <p className="text-sm text-muted">Completed Sales</p>
+              <p className="text-2xl font-bold text-ink">{totalSales}</p>
             </div>
-            <div className="rounded-lg border border-gray-200 p-4">
-              <p className="text-sm text-gray-500">Awaiting Shipment</p>
-              <p className="text-2xl font-bold text-gray-900">{pendingShipment}</p>
+            <div className="rounded-lg border border-line p-4">
+              <p className="text-sm text-muted">Awaiting Shipment</p>
+              <p className="text-2xl font-bold text-ink">{pendingShipment}</p>
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 p-6">
+          <div className="rounded-lg border border-line p-6">
             <div className="flex items-center gap-2">
               <Badge variant="success">Connected</Badge>
-              <span className="text-sm text-gray-500">Stripe account is active</span>
+              <span className="text-sm text-muted">Stripe account is active</span>
             </div>
-            <p className="mt-4 text-sm text-gray-500">
+            <p className="mt-4 text-sm text-muted">
               Payouts are handled automatically by Stripe. You receive 85% of each sale.
             </p>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-muted">
               To view your payout schedule, balance, and bank account details, visit your Stripe dashboard.
             </p>
             <Button variant="outline" onClick={handleConnect} className="mt-4">
@@ -86,12 +86,12 @@ export default function PayoutsPage() {
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border border-gray-200 p-6 text-center">
-          <h2 className="text-lg font-medium text-gray-900">Connect with Stripe</h2>
-          <p className="mt-2 text-sm text-gray-500">
+        <div className="rounded-lg border border-line p-6 text-center">
+          <h2 className="text-lg font-medium text-ink">Connect with Stripe</h2>
+          <p className="mt-2 text-sm text-muted">
             Set up your Stripe account to start receiving payouts from sales. The process takes just a few minutes.
           </p>
-          <p className="mt-1 text-xs text-gray-400">You&apos;ll receive 85% of each sale, with payouts deposited directly to your bank account.</p>
+          <p className="mt-1 text-xs text-muted">You&apos;ll receive 85% of each sale, with payouts deposited directly to your bank account.</p>
           <Button onClick={handleConnect} loading={connecting} className="mt-4">Connect with Stripe</Button>
         </div>
       )}

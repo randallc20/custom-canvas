@@ -61,7 +61,7 @@ export function Navbar() {
                     )}
                     {user.role === 'gallery' && (
                       <Link href="/dashboard" className="block px-4 py-2 text-sm text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>
-                        Gallery Dashboard
+                        Partner Dashboard
                       </Link>
                     )}
                     <Link href="/account" className="block px-4 py-2 text-sm text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>

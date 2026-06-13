@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/Toast';
 import { ImageUpload } from '@/components/upload/ImageUpload';
 import { useSeries, useInvalidateArtistContent } from '@/hooks/useArtistContent';
 import { createSeries, updateSeries, deleteSeries } from '@/services/artistContent';
+import { swapDisplayOrder } from '@/utils/reorder';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import type { ListingSeries } from '@/types/artist';
@@ -90,13 +91,8 @@ export default function SeriesPage() {
   };
 
   const move = async (i: number, dir: -1 | 1) => {
-    const j = i + dir;
-    if (j < 0 || j >= series.length) return;
-    await Promise.all([
-      updateSeries(series[i].id, { display_order: j }),
-      updateSeries(series[j].id, { display_order: i }),
-    ]);
-    invalidate(artistId, 'series');
+    const moved = await swapDisplayOrder(series, i, dir, (id, order) => updateSeries(id, { display_order: order }));
+    if (moved) invalidate(artistId, 'series');
   };
 
   if (loadingArtist || isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;

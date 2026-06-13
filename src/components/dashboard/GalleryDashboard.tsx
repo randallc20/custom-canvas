@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -19,6 +20,7 @@ import type { ArtistProfile } from '@/types/artist';
 export function GalleryDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [gallery, setGallery] = useState<GalleryProfile | null>(null);
   const [artists, setArtists] = useState<(ArtistProfile & { gallery_role?: string })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +90,7 @@ export function GalleryDashboard() {
 
   const handleRemoveArtist = async (artistId: string) => {
     if (!gallery) return;
+    if (!(await confirm({ title: 'Remove artist?', message: 'They will no longer appear on your roster.', confirmLabel: 'Remove', destructive: true }))) return;
     try {
       await supabase
         .from('gallery_artists')

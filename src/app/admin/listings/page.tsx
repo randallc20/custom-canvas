@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { formatPrice } from '@/utils/formatPrice';
 import { supabase } from '@/lib/supabase';
 
@@ -36,11 +37,12 @@ const STATUS_VARIANT: Record<string, 'default' | 'success' | 'warning' | 'danger
   available: 'success',
   sold: 'default',
   draft: 'warning',
-  removed: 'danger',
+  hidden: 'danger',
 };
 
 function ListingsContent() {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [listings, setListings] = useState<AdminListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -58,18 +60,19 @@ function ListingsContent() {
   }, []);
 
   const handleRemove = async (id: string) => {
+    if (!(await confirm({ title: 'Hide listing?', message: 'This listing will be hidden from buyers.', confirmLabel: 'Hide', destructive: true }))) return;
     const { error } = await supabase
       .from('listings')
-      .update({ status: 'removed' })
+      .update({ status: 'hidden' })
       .eq('id', id);
 
     if (error) {
-      toast('Failed to remove listing.', 'error');
+      toast('Failed to hide listing.', 'error');
       return;
     }
 
     setListings((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, status: 'removed' } : l))
+      prev.map((l) => (l.id === id ? { ...l, status: 'hidden' } : l))
     );
     toast('Listing removed.', 'success');
   };
@@ -86,7 +89,7 @@ function ListingsContent() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Listings ({listings.length})</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Listings ({listings.length})</h1>
 
       <div className="mb-6">
         <Input
@@ -96,40 +99,40 @@ function ListingsContent() {
         />
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <div className="overflow-x-auto rounded-lg border border-line">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-gray-200 bg-gray-50">
+          <thead className="border-b border-line bg-sand/50">
             <tr>
-              <th className="px-4 py-3 font-medium text-gray-700">Title</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Artist</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Price</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Medium</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Status</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
+              <th className="px-4 py-3 font-medium text-ink">Title</th>
+              <th className="px-4 py-3 font-medium text-ink">Artist</th>
+              <th className="px-4 py-3 font-medium text-ink">Price</th>
+              <th className="px-4 py-3 font-medium text-ink">Medium</th>
+              <th className="px-4 py-3 font-medium text-ink">Status</th>
+              <th className="px-4 py-3 font-medium text-ink">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-line">
             {filtered.map((l) => (
-              <tr key={l.id} className="hover:bg-gray-50">
+              <tr key={l.id} className="hover:bg-sand/50">
                 <td className="px-4 py-3">
-                  <Link href={`/listing/${l.id}`} className="font-medium text-gray-900 hover:text-terra">
+                  <Link href={`/listing/${l.id}`} className="font-medium text-ink hover:text-terra">
                     {l.title}
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-gray-500">
+                <td className="px-4 py-3 text-muted">
                   {l.artist ? (
                     <Link href={`/artist/${l.artist.slug}`} className="hover:text-terra">
                       {l.artist.display_name}
                     </Link>
                   ) : '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-900">{formatPrice(l.price_cents)}</td>
-                <td className="px-4 py-3 text-gray-500">{l.medium ?? '—'}</td>
+                <td className="px-4 py-3 text-ink">{formatPrice(l.price_cents)}</td>
+                <td className="px-4 py-3 text-muted">{l.medium ?? '—'}</td>
                 <td className="px-4 py-3">
                   <Badge variant={STATUS_VARIANT[l.status] ?? 'default'}>{l.status}</Badge>
                 </td>
                 <td className="px-4 py-3">
-                  {l.status !== 'removed' && (
+                  {l.status !== 'hidden' && (
                     <Button size="sm" variant="outline" onClick={() => handleRemove(l.id)}>
                       Remove
                     </Button>
@@ -139,7 +142,7 @@ function ListingsContent() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-400">No listings found.</td>
+                <td colSpan={6} className="px-4 py-8 text-center text-muted">No listings found.</td>
               </tr>
             )}
           </tbody>

@@ -56,14 +56,14 @@ function CommissionsContent() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Commissions</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Commissions</h1>
 
       {isArtist && (
-        <div className="mb-6 flex gap-1 rounded-lg bg-gray-100 p-1">
+        <div className="mb-6 flex gap-1 rounded-lg bg-sand p-1">
           <button
             onClick={() => setTab('received')}
             className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              tab === 'received' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              tab === 'received' ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
             }`}
           >
             Received
@@ -71,7 +71,7 @@ function CommissionsContent() {
           <button
             onClick={() => setTab('sent')}
             className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              tab === 'sent' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              tab === 'sent' ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
             }`}
           >
             Sent
@@ -104,12 +104,12 @@ function CommissionList({ commissions }: { commissions: Commission[] }) {
         <Link
           key={c.id}
           href={`/commissions/${c.id}`}
-          className="block rounded-lg border border-gray-200 p-4 transition-colors hover:border-gray-300 hover:bg-gray-50"
+          className="block rounded-lg border border-line p-4 transition-colors hover:border-line hover:bg-sand/50"
         >
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="font-medium text-gray-900">{c.title}</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="font-medium text-ink">{c.title}</h3>
+              <p className="mt-1 text-sm text-muted">
                 Budget: {formatPrice(c.budget_min_cents)} – {formatPrice(c.budget_max_cents)}
               </p>
               {c.quoted_price_cents && (
@@ -122,7 +122,7 @@ function CommissionList({ commissions }: { commissions: Commission[] }) {
               <Badge variant={statusVariant[c.status] ?? 'default'}>
                 {c.status.replace('_', ' ')}
               </Badge>
-              <span className="text-xs text-gray-400">{formatTime(c.created_at)}</span>
+              <span className="text-xs text-muted">{formatTime(c.created_at)}</span>
             </div>
           </div>
         </Link>

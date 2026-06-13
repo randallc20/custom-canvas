@@ -6,6 +6,8 @@ import { usePersonalPhotos, useInvalidateArtistContent } from '@/hooks/useArtist
 import { addPersonalPhotos, updatePersonalPhoto, deletePersonalPhoto } from '@/services/artistContent';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { swapDisplayOrder } from '@/utils/reorder';
 
 const MAX_PHOTOS = 10;
 
@@ -17,6 +19,7 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
   const { data: photos = [] } = usePersonalPhotos(artistId);
   const invalidate = useInvalidateArtistContent();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const handleUpload = async (urls: string[]) => {
     await addPersonalPhotos(artistId, urls.slice(0, MAX_PHOTOS - photos.length), photos.length);
@@ -33,19 +36,15 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
   };
 
   const handleDelete = async (id: string) => {
+    if (!(await confirm({ title: 'Delete photo?', message: 'This photo will be permanently removed.', confirmLabel: 'Delete', destructive: true }))) return;
     await deletePersonalPhoto(id);
     invalidate(artistId, 'personal-photos');
     supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
   };
 
   const move = async (i: number, dir: -1 | 1) => {
-    const j = i + dir;
-    if (j < 0 || j >= photos.length) return;
-    await Promise.all([
-      updatePersonalPhoto(photos[i].id, { display_order: j }),
-      updatePersonalPhoto(photos[j].id, { display_order: i }),
-    ]);
-    invalidate(artistId, 'personal-photos');
+    const moved = await swapDisplayOrder(photos, i, dir, (id, order) => updatePersonalPhoto(id, { display_order: order }));
+    if (moved) invalidate(artistId, 'personal-photos');
   };
 
   return (

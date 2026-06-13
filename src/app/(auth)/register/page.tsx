@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input';
 const roles = [
   { value: 'artist', label: 'Artist', desc: 'List and sell your art' },
   { value: 'user', label: 'Art Lover', desc: 'Discover and buy art' },
-  { value: 'gallery', label: 'Gallery', desc: 'Connect with artists' },
+  { value: 'gallery', label: 'Partner', desc: 'Galleries, schools & organizations' },
 ];
 
 export default function RegisterPage() {

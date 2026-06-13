@@ -92,13 +92,13 @@ function DisputesContent() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Reports &amp; Disputes</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Reports &amp; Disputes</h1>
 
-      <div className="mb-6 flex gap-1 rounded-lg bg-gray-100 p-1">
+      <div className="mb-6 flex gap-1 rounded-lg bg-sand p-1">
         <button
           onClick={() => { setTab('pending'); setLoading(true); }}
           className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            tab === 'pending' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            tab === 'pending' ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
           }`}
         >
           Pending
@@ -106,7 +106,7 @@ function DisputesContent() {
         <button
           onClick={() => { setTab('resolved'); setLoading(true); }}
           className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            tab === 'resolved' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            tab === 'resolved' ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
           }`}
         >
           Resolved
@@ -121,35 +121,35 @@ function DisputesContent() {
       ) : (
         <div className="space-y-4">
           {filtered.map((report) => (
-            <div key={report.id} className="rounded-lg border border-gray-200 p-4">
+            <div key={report.id} className="rounded-lg border border-line p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <Badge variant={STATUS_VARIANT[report.status]}>{report.status.replace('_', ' ')}</Badge>
                     <Badge>{report.reason}</Badge>
                   </div>
-                  <p className="mt-2 text-sm text-gray-900">
+                  <p className="mt-2 text-sm text-ink">
                     Listing:{' '}
                     {report.listing ? (
                       <Link href={`/listing/${report.listing_id}`} className="font-medium text-terra hover:underline">
                         {report.listing.title}
                       </Link>
                     ) : (
-                      <span className="text-gray-400">Deleted</span>
+                      <span className="text-muted">Deleted</span>
                     )}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted">
                     Reported by: {report.reporter?.full_name ?? report.reporter?.email ?? '—'}
                   </p>
                   {report.description && (
-                    <p className="mt-2 text-sm text-gray-600">{report.description}</p>
+                    <p className="mt-2 text-sm text-muted">{report.description}</p>
                   )}
                   {report.admin_notes && (
-                    <p className="mt-2 rounded bg-gray-50 px-2 py-1 text-sm text-gray-500">
+                    <p className="mt-2 rounded bg-sand/50 px-2 py-1 text-sm text-muted">
                       Admin: {report.admin_notes}
                     </p>
                   )}
-                  <p className="mt-2 text-xs text-gray-400">
+                  <p className="mt-2 text-xs text-muted">
                     {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </p>
                 </div>
@@ -169,11 +169,11 @@ function DisputesContent() {
       >
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Action</label>
+            <label className="mb-1 block text-sm font-medium text-ink">Action</label>
             <select
               value={resolveAction}
               onChange={(e) => setResolveAction(e.target.value as ReportStatus)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-line px-3 py-2 text-sm"
             >
               <option value="dismissed">Dismiss — No action needed</option>
               <option value="action_taken">Action Taken — Listing removed or user warned</option>
@@ -181,12 +181,12 @@ function DisputesContent() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Admin Notes</label>
+            <label className="mb-1 block text-sm font-medium text-ink">Admin Notes</label>
             <textarea
               value={adminNotes}
               onChange={(e) => setAdminNotes(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
+              className="w-full rounded-lg border border-line px-3 py-2 text-sm
                 focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
               placeholder="Internal notes about this resolution..."
             />

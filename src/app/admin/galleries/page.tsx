@@ -81,13 +81,13 @@ function GalleriesContent() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Partner Management</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Partner Management</h1>
 
-      <div className="mb-6 flex gap-1 rounded-lg bg-gray-100 p-1">
+      <div className="mb-6 flex gap-1 rounded-lg bg-sand p-1">
         <button
           onClick={() => setTab('pending')}
           className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            tab === 'pending' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            tab === 'pending' ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
           }`}
         >
           Pending
@@ -95,7 +95,7 @@ function GalleriesContent() {
         <button
           onClick={() => setTab('verified')}
           className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            tab === 'verified' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            tab === 'verified' ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
           }`}
         >
           Verified
@@ -112,23 +112,23 @@ function GalleriesContent() {
       ) : (
         <div className="space-y-4">
           {galleries.map((gallery) => (
-            <div key={gallery.id} className="rounded-lg border border-gray-200 p-4">
+            <div key={gallery.id} className="rounded-lg border border-line p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-gray-900">{gallery.gallery_name}</h3>
+                    <h3 className="font-medium text-ink">{gallery.gallery_name}</h3>
                     <Badge>{PARTNER_TYPE_LABELS[gallery.partner_type] ?? gallery.partner_type}</Badge>
                   </div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted">
                     {gallery.profile?.full_name ?? gallery.profile?.email}
                   </p>
-                  {gallery.address && <p className="text-sm text-gray-400">{gallery.address}</p>}
-                  {gallery.neighborhood && <p className="text-sm text-gray-400">{gallery.neighborhood}, {gallery.city}</p>}
+                  {gallery.address && <p className="text-sm text-muted">{gallery.address}</p>}
+                  {gallery.neighborhood && <p className="text-sm text-muted">{gallery.neighborhood}, {gallery.city}</p>}
                   {gallery.website_url && (
                     <p className="mt-1 text-sm text-terra">{gallery.website_url}</p>
                   )}
                   {gallery.bio && (
-                    <p className="mt-2 text-sm text-gray-600">{gallery.bio}</p>
+                    <p className="mt-2 text-sm text-muted">{gallery.bio}</p>
                   )}
                 </div>
                 <Badge variant={gallery.is_verified ? 'verified' : 'warning'}>

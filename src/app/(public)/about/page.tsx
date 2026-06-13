@@ -8,15 +8,15 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="mb-6 text-3xl font-bold text-gray-900">About Custom Canvas</h1>
+      <h1 className="mb-6 text-3xl font-bold text-ink">About Custom Canvas</h1>
 
-      <div className="space-y-6 text-gray-600">
+      <div className="space-y-6 text-muted">
         <p className="text-lg">
           Custom Canvas is an online art marketplace built to connect emerging Houston artists
           with collectors who believe in supporting local talent.
         </p>
 
-        <h2 className="text-xl font-semibold text-gray-900">Our Mission</h2>
+        <h2 className="text-xl font-semibold text-ink">Our Mission</h2>
         <p>
           We believe every artist deserves a platform to share their work with the world.
           Custom Canvas makes it easy for artists to showcase, sell, and accept commissions —
@@ -24,7 +24,7 @@ export default function AboutPage() {
           Houston&apos;s vibrant creative community.
         </p>
 
-        <h2 className="text-xl font-semibold text-gray-900">How It Works</h2>
+        <h2 className="text-xl font-semibold text-ink">How It Works</h2>
         <ul className="list-inside list-disc space-y-2">
           <li>Artists create profiles, upload their work, and set their own prices.</li>
           <li>Collectors browse, save, and purchase art directly from artists.</li>
@@ -32,13 +32,13 @@ export default function AboutPage() {
           <li>Commission requests let collectors work with artists on custom pieces.</li>
         </ul>
 
-        <h2 className="text-xl font-semibold text-gray-900">For Artists</h2>
+        <h2 className="text-xl font-semibold text-ink">For Artists</h2>
         <p>
           Keep 85% of every sale. We handle payments, provide a storefront, and connect
           you with collectors who are looking for exactly what you create.
         </p>
 
-        <h2 className="text-xl font-semibold text-gray-900">Contact</h2>
+        <h2 className="text-xl font-semibold text-ink">Contact</h2>
         <p>
           Questions or feedback? Reach us at{' '}
           <span className="font-medium text-terra">hello@customcanvas.art</span>

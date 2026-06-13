@@ -5,6 +5,8 @@ import { VideoUpload } from '@/components/upload/VideoUpload';
 import { useVideos, useInvalidateArtistContent } from '@/hooks/useArtistContent';
 import { addVideo, updateVideo, deleteVideo } from '@/services/artistContent';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { swapDisplayOrder } from '@/utils/reorder';
 
 const MAX_VIDEOS = 5;
 
@@ -16,6 +18,7 @@ export function VideoUploaderSection({ artistId }: VideoUploaderSectionProps) {
   const { data: videos = [] } = useVideos(artistId);
   const invalidate = useInvalidateArtistContent();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const handleUpload = async ({ videoUrl, thumbnailUrl }: { videoUrl: string; thumbnailUrl: string | null }) => {
     await addVideo(artistId, { video_url: videoUrl, thumbnail_url: thumbnailUrl, display_order: videos.length });
@@ -31,18 +34,14 @@ export function VideoUploaderSection({ artistId }: VideoUploaderSectionProps) {
   };
 
   const handleDelete = async (id: string) => {
+    if (!(await confirm({ title: 'Delete video?', message: 'This video will be permanently removed.', confirmLabel: 'Delete', destructive: true }))) return;
     await deleteVideo(id);
     invalidate(artistId, 'artist-videos');
   };
 
   const move = async (i: number, dir: -1 | 1) => {
-    const j = i + dir;
-    if (j < 0 || j >= videos.length) return;
-    await Promise.all([
-      updateVideo(videos[i].id, { display_order: j }),
-      updateVideo(videos[j].id, { display_order: i }),
-    ]);
-    invalidate(artistId, 'artist-videos');
+    const moved = await swapDisplayOrder(videos, i, dir, (id, order) => updateVideo(id, { display_order: order }));
+    if (moved) invalidate(artistId, 'artist-videos');
   };
 
   return (
