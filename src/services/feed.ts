@@ -39,7 +39,9 @@ export async function getFeedListings(params: FeedParams = {}): Promise<FeedResu
   // Availability: "Commission Only" shows pieces from artists open to
   // commissions; default shows available-for-purchase work.
   if (availability === 'commission') {
-    query = query.eq('artist_profiles.commissions_open', true);
+    // Commission-only: active work from artists open to commissions — never
+    // sold/hidden pieces.
+    query = query.eq('artist_profiles.commissions_open', true).in('status', ['available', 'commission_only']);
   } else {
     query = query.eq('status', 'available');
   }
@@ -87,6 +89,7 @@ export async function getFeedArtists(params: { cursor?: string; limit?: number; 
   let query = supabase
     .from('artist_profiles')
     .select('*, profile:profiles(avatar_url)')
+    .eq('is_live', true)
     .order('created_at', { ascending: false });
 
   if (search) query = query.textSearch('search_vector', search, { type: 'websearch' });
@@ -118,6 +121,7 @@ export async function getSearchSuggestions(term: string): Promise<SearchSuggesti
   if (!term.trim()) return { artists: [], listings: [] };
   const [artistsRes, listingsRes] = await Promise.all([
     supabase.from('artist_profiles').select('slug, display_name')
+      .eq('is_live', true)
       .textSearch('search_vector', term, { type: 'websearch' }).limit(3),
     supabase.from('listings').select('id, title').eq('status', 'available')
       .textSearch('search_vector', term, { type: 'websearch' }).limit(3),

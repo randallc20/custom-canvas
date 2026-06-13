@@ -16,6 +16,13 @@ export function NavSearch({ className = '' }: NavSearchProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
 
+  // Seed from the URL's q param so a shared/search URL shows its query.
+  // Read on mount only (window avoids forcing the whole nav into Suspense).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('q');
+    if (q) setTerm(q);
+  }, []);
+
   const { data: suggestions } = useSearchSuggestions(debounced);
 
   useEffect(() => {
