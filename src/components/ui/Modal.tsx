@@ -32,7 +32,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
       <div className="fixed inset-0 animate-fade-in bg-ink/40 transition-opacity" onClick={onClose} />
       <div className="relative z-10 mx-4 w-full max-w-lg animate-modal-in rounded-xl border border-line bg-surface p-6 shadow-card">
         {title && (

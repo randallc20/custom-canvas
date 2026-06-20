@@ -235,3 +235,23 @@ export async function sendReviewRequestEmail(
     `,
   });
 }
+
+export async function sendArtistDripEmail(to: string, name: string, stage: string): Promise<void> {
+  const content: Record<string, { subject: string; heading: string; body: string }> = {
+    artist_day1: { subject: 'Your Custom Canvas profile is waiting', heading: 'Let\'s get your work seen', body: 'Finish your profile and upload your first piece — Houston is waiting to discover you.' },
+    artist_day3: { subject: 'Houston is waiting to see your work', heading: 'A few minutes to go live', body: 'Add your story, a couple of photos, and your first listing to publish your profile.' },
+    artist_day7: { subject: 'Your profile is almost ready', heading: 'One last nudge', body: 'Complete your profile to start selling and taking commissions on Custom Canvas.' },
+  };
+  const c = content[stage] ?? content.artist_day1;
+  await getResend().emails.send({
+    from: FROM_EMAIL, to, subject: c.subject,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><h2 style="color:#111">${c.heading}</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${name}, ${c.body}</p><a href="${APP_URL}/dashboard" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Finish my profile</a></div>`,
+  });
+}
+
+export async function sendBuyerDripEmail(to: string, name: string): Promise<void> {
+  await getResend().emails.send({
+    from: FROM_EMAIL, to, subject: 'Meet some of Houston\'s artists',
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><h2 style="color:#111">Discover Houston art</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${name}, there's a whole community of Houston artists to explore on Custom Canvas. Find a piece — or an artist — you love.</p><a href="${APP_URL}/" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Explore art</a></div>`,
+  });
+}
