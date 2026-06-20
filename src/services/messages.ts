@@ -17,7 +17,7 @@ export async function getMessages(conversationId: string, params: MessageParams 
 
   let query = supabase
     .from('messages')
-    .select('*')
+    .select('*, attachments:message_attachments(*)')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: false })
     .limit(limit + 1);
@@ -28,7 +28,7 @@ export async function getMessages(conversationId: string, params: MessageParams 
   if (error) throw error;
 
   const hasMore = data.length > limit;
-  const messages = hasMore ? data.slice(0, limit) : data;
+  const messages = (hasMore ? data.slice(0, limit) : data) as Message[];
   const nextCursor = hasMore ? messages[messages.length - 1].created_at : null;
 
   return { messages, nextCursor };
@@ -39,6 +39,11 @@ export async function sendMessage(data: {
   sender_id: string;
   content: string;
   message_type?: string;
+  attachment?: {
+    attachment_type: string;
+    url: string | null;
+    metadata?: Record<string, unknown>;
+  };
 }): Promise<Message> {
   const { data: message, error } = await supabase
     .from('messages')
@@ -52,6 +57,16 @@ export async function sendMessage(data: {
     .single();
 
   if (error) throw error;
+
+  if (data.attachment) {
+    const { error: attErr } = await supabase.from('message_attachments').insert({
+      message_id: message.id,
+      attachment_type: data.attachment.attachment_type,
+      url: data.attachment.url,
+      metadata: data.attachment.metadata ?? {},
+    });
+    if (attErr) throw attErr;
+  }
 
   await updateLastMessage(data.conversation_id, data.content);
   return message;

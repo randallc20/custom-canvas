@@ -9,6 +9,7 @@ export interface Message {
   message_type: MessageType;
   is_read: boolean;
   created_at: string;
+  attachments?: MessageAttachment[];
 }
 
 export interface MessageAttachment {

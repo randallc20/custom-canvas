@@ -10,7 +10,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const { data: commission } = await supabase
     .from('commissions')
-    .select('artist_id')
+    .select('artist_id, conversation_id')
     .eq('id', params.id)
     .single();
 
@@ -30,7 +30,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const parsed = commissionQuoteSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { data, error } = await createAdminSupabaseClient()
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin
     .from('commissions')
     .update({ status: 'quoted', ...parsed.data })
     .eq('id', params.id)
@@ -38,5 +39,28 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Post the quote into the linked thread as an accept/decline card.
+  if (commission.conversation_id) {
+    const { data: msg } = await admin
+      .from('messages')
+      .insert({
+        conversation_id: commission.conversation_id,
+        sender_id: user.id,
+        content: 'Sent a commission quote',
+        message_type: 'quote_card',
+      })
+      .select('id')
+      .single();
+    if (msg) {
+      await admin.from('message_attachments').insert({
+        message_id: msg.id,
+        attachment_type: 'quote_card',
+        url: null,
+        metadata: { commission_id: params.id, ...parsed.data },
+      });
+    }
+  }
+
   return NextResponse.json(data);
 }

@@ -61,6 +61,17 @@ export function ChatThread({ conversationId, otherPartnerType }: ChatThreadProps
     });
   };
 
+  const handleSendAttachment = (a: { attachment_type: 'image' | 'file'; url: string; fileName: string }) => {
+    if (!user) return;
+    sendMessage.mutate({
+      conversation_id: conversationId,
+      sender_id: user.id,
+      content: a.attachment_type === 'image' ? '' : a.fileName,
+      message_type: a.attachment_type,
+      attachment: { attachment_type: a.attachment_type, url: a.url },
+    });
+  };
+
   if (isLoading) {
     return <div className="flex flex-1 items-center justify-center"><Spinner /></div>;
   }
@@ -88,7 +99,7 @@ export function ChatThread({ conversationId, otherPartnerType }: ChatThreadProps
         </div>
         <div ref={bottomRef} />
       </div>
-      <MessageInput onSend={handleSend} disabled={sendMessage.isPending} />
+      <MessageInput onSend={handleSend} onSendAttachment={handleSendAttachment} disabled={sendMessage.isPending} />
     </div>
   );
 }
