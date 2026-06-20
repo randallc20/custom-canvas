@@ -18,6 +18,7 @@ import { supabase } from '@/lib/supabase';
 import type { Commission } from '@/types/commission';
 import { usePartnerStatus } from '@/hooks/usePartnerStatus';
 import { PartnerBadge } from '@/components/gallery/PartnerBadge';
+import { CommissionUpdates } from '@/components/commission/CommissionUpdates';
 
 const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger' | 'info'> = {
   pending: 'warning',
@@ -199,6 +200,14 @@ function CommissionDetailContent() {
               Open conversation
             </Link>
           </div>
+        )}
+
+        {['accepted', 'in_progress', 'completed', 'delivered', 'confirmed', 'disputed'].includes(status) && (
+          <CommissionUpdates
+            commissionId={commission.id}
+            isArtist={isArtist}
+            canPost={status === 'accepted' || status === 'in_progress'}
+          />
         )}
 
         {/* Artist actions */}

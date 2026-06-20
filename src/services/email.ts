@@ -172,3 +172,25 @@ export async function sendReviewReceivedEmail(
     `,
   });
 }
+
+export async function sendCommissionUpdateEmail(
+  to: string,
+  buyerName: string,
+  artistName: string,
+  note: string,
+  commissionId: string
+): Promise<void> {
+  await getResend().emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `${artistName} posted an update on your commission`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <h2 style="color:#111">New commission update</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${buyerName}, <strong>${artistName}</strong> shared progress on your commission:</p>
+        <blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #E8704A;color:#444">${note}</blockquote>
+        <a href="${APP_URL}/commissions/${commissionId}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View Update</a>
+      </div>
+    `,
+  });
+}
