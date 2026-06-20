@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Fraunces, DM_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
+import { CookieConsent } from '@/components/layout/CookieConsent';
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -58,7 +59,10 @@ export default function RootLayout({
         <meta name="theme-color" content="#E8704A" />
       </head>
       <body className={`${fraunces.variable} ${dmSans.variable} font-sans antialiased`}>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <CookieConsent />
+        </Providers>
       </body>
     </html>
   );

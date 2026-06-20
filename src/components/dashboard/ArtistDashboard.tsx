@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { PinnedListingSelector } from '@/components/dashboard/PinnedListingSelector';
 import { AwayModeToggle } from '@/components/dashboard/AwayModeToggle';
+import { HoustonVerifiedCard } from '@/components/dashboard/HoustonVerifiedCard';
 
 export function ArtistDashboard() {
   const { user } = useAuth();
@@ -93,7 +94,8 @@ export function ArtistDashboard() {
         </div>
       )}
 
-      <div className="mt-8">
+      <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <HoustonVerifiedCard />
         <AwayModeToggle />
       </div>
     </div>
