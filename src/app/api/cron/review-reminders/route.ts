@@ -30,7 +30,8 @@ export async function GET(request: NextRequest) {
     }
     const { data: buyer } = await supabase.from('profiles').select('email, full_name, email_preferences').eq('id', o.buyer_id).single();
     const title = (o.listing as unknown as { title: string } | null)?.title ?? 'your purchase';
-    if (buyer?.email) {
+    const optedOut = (buyer?.email_preferences as { marketing?: boolean } | null)?.marketing === false;
+    if (buyer?.email && !optedOut) {
       sendReviewRequestEmail(buyer.email, buyer.full_name ?? 'there', title, o.id).catch(() => {});
     }
     await supabase.from('orders').update({ review_requested_at: new Date().toISOString() }).eq('id', o.id);

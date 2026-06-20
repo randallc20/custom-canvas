@@ -31,11 +31,13 @@ export function AwayModeToggle() {
 
   const enable = async () => {
     setSaving(true);
+    // Read the current commission state fresh so we restore the right value later.
+    const { data: fresh } = await supabase.from('artist_profiles').select('commissions_open').eq('id', artist.id).single();
     const { error } = await supabase.from('artist_profiles').update({
       away_mode: true,
       away_message: message || null,
       away_until: until || null,
-      commissions_open_before_away: artist.commissions_open,
+      commissions_open_before_away: fresh?.commissions_open ?? artist.commissions_open,
       commissions_open: false,
     }).eq('id', artist.id);
     if (error) toast('Could not enable away mode', 'error');

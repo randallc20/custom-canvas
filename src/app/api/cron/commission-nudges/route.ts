@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   const { data: commissions } = await supabase
     .from('commissions')
-    .select('id, title, created_at, last_nudge_at, requester_id, artist:artist_profiles!inner(display_name, profile:profiles(email, full_name))')
+    .select('id, title, created_at, last_nudge_at, requester_id, artist:artist_profiles!inner(display_name, profile:profiles(email, full_name, email_preferences))')
     .in('status', ['accepted', 'in_progress'])
     .or(`last_nudge_at.is.null,last_nudge_at.lt.${cutoff}`);
 
@@ -34,9 +34,9 @@ export async function GET(request: NextRequest) {
     const lastActivity = lastUpdate?.created_at ?? c.created_at;
     if (new Date(lastActivity).getTime() > Date.now() - FOURTEEN_DAYS_MS) continue;
 
-    const artist = c.artist as unknown as { display_name: string; profile: { email: string | null; full_name: string | null } | null };
+    const artist = c.artist as unknown as { display_name: string; profile: { email: string | null; full_name: string | null; email_preferences: { marketing?: boolean } | null } | null };
     const email = artist.profile?.email;
-    if (email) {
+    if (email && artist.profile?.email_preferences?.marketing !== false) {
       const { data: buyer } = await supabase.from('profiles').select('full_name').eq('id', c.requester_id).single();
       sendCommissionNudgeEmail(email, artist.display_name, buyer?.full_name ?? 'your buyer', c.title, c.id).catch(() => {});
     }
