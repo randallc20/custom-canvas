@@ -30,9 +30,11 @@ export function PurchasePanel({ listing, artistProfileId, fulfillmentPref }: Pur
 
   const handleMessage = () => {
     if (!user || !artistProfileId) return;
+    const priceText = listing.price_visible === false ? '' : ` — ${formatPrice(listing.price_cents)}`;
+    const prefill = `Hi, I'm interested in "${listing.title}"${priceText}. Is this still available?`;
     findOrCreate.mutate(
       { userId: user.id, otherUserId: artistProfileId, contextType: 'listing', contextId: listing.id },
-      { onSuccess: (conversation) => router.push(`/messages/${conversation.id}`) }
+      { onSuccess: (conversation) => router.push(`/messages/${conversation.id}?prefill=${encodeURIComponent(prefill)}`) }
     );
   };
 
