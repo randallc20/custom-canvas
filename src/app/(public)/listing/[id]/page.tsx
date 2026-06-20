@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { ListingDetail } from '@/components/listing/ListingDetail';
 import { PurchasePanel } from '@/components/listing/PurchasePanel';
+import { ShareButton } from '@/components/ui/ShareButton';
 import { RelatedListings } from '@/components/listing/RelatedListings';
 import { TrackView } from '@/components/analytics/TrackView';
 import { notFound } from 'next/navigation';
@@ -71,7 +72,10 @@ export default async function ListingPage({ params }: Props) {
           <ListingDetail listing={processedListing} artist={artist} />
         </div>
         <div>
-          <PurchasePanel listing={processedListing} artistProfileId={artist?.profile_id} fulfillmentPref={artist?.fulfillment_pref} />
+          <PurchasePanel listing={processedListing} artistProfileId={artist?.profile_id} fulfillmentPref={artist?.fulfillment_pref} awayMode={artist?.away_mode} awayUntil={artist?.away_until} />
+          <div className="mt-4">
+            <ShareButton title={processedListing.title} text={`Check out "${processedListing.title}" on Custom Canvas`} path={`/listing/${processedListing.id}`} className="w-full justify-center" />
+          </div>
         </div>
       </div>
       <div className="mt-12">

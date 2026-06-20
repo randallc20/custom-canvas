@@ -15,14 +15,17 @@ interface PurchasePanelProps {
   listing: Listing;
   artistProfileId?: string;
   fulfillmentPref?: string | null;
+  awayMode?: boolean;
+  awayUntil?: string | null;
 }
 
-export function PurchasePanel({ listing, artistProfileId, fulfillmentPref }: PurchasePanelProps) {
+export function PurchasePanel({ listing, artistProfileId, fulfillmentPref, awayMode, awayUntil }: PurchasePanelProps) {
   const { user } = useAuth();
   const router = useRouter();
   const findOrCreate = useFindOrCreateConversation();
 
   const pickup = isPickupOnly(fulfillmentPref);
+  const awayDate = awayUntil ? new Date(awayUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null;
   const shippingCents = pickup ? 0 : (listing.shipping_rate_cents ?? 0);
   const split = calcSplit(listing.price_cents, shippingCents);
   const hidePrice = listing.price_visible === false;
@@ -71,6 +74,13 @@ export function PurchasePanel({ listing, artistProfileId, fulfillmentPref }: Pur
           <p className="text-sm text-muted">
             Reach out to the artist to discuss pricing for this piece.
           </p>
+          {messageButton}
+        </div>
+      ) : awayMode ? (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-line bg-sand/50 p-3 text-sm text-ink">
+            This artist is away{awayDate ? ` — back ${awayDate}` : ''}. Save this piece to revisit later.
+          </div>
           {messageButton}
         </div>
       ) : (

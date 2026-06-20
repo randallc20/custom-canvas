@@ -10,6 +10,7 @@ import { formatPrice } from '@/utils/formatPrice';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { PinnedListingSelector } from '@/components/dashboard/PinnedListingSelector';
+import { AwayModeToggle } from '@/components/dashboard/AwayModeToggle';
 
 export function ArtistDashboard() {
   const { user } = useAuth();
@@ -91,6 +92,10 @@ export function ArtistDashboard() {
           />
         </div>
       )}
+
+      <div className="mt-8">
+        <AwayModeToggle />
+      </div>
     </div>
   );
 }

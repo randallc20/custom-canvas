@@ -41,11 +41,11 @@ export default function NewListingPage() {
 
   const priceVisible = watch('price_visible');
 
-  const onSubmit = async (data: ListingFormData) => {
+  const onSubmit = async (data: ListingFormData, asDraft = false) => {
     await createListing.mutateAsync({
       title: data.title,
       medium: data.medium,
-      status: data.status,
+      status: asDraft ? 'draft' : data.status,
       description: data.description || null,
       width_cm: data.width_cm ?? null,
       height_cm: data.height_cm ?? null,
@@ -68,7 +68,7 @@ export default function NewListingPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="mb-6 text-2xl font-bold text-ink">Create Listing</h1>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit((d) => onSubmit(d, false))} className="space-y-4">
         <Input label="Title" {...register('title')} error={errors.title?.message} />
         <div>
           <label className="mb-1 block text-sm font-medium text-ink">Description</label>
@@ -127,7 +127,12 @@ export default function NewListingPage() {
         <div className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">
           Image upload coming soon — add images after creating the listing.
         </div>
-        <Button type="submit" loading={isSubmitting} className="w-full">Create Listing</Button>
+        <div className="flex gap-3">
+          <Button type="button" variant="outline" loading={isSubmitting} className="flex-1" onClick={handleSubmit((d) => onSubmit(d, true))}>
+            Save as draft
+          </Button>
+          <Button type="submit" loading={isSubmitting} className="flex-1">Publish Listing</Button>
+        </div>
       </form>
     </div>
   );

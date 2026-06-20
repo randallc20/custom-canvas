@@ -36,6 +36,9 @@ export interface ArtistProfile {
   story: string | null;
   primary_mediums: string[] | null;
   pinned_listing_ids: string[] | null;
+  away_mode: boolean;
+  away_message: string | null;
+  away_until: string | null;
   created_at: string;
   updated_at: string;
 }

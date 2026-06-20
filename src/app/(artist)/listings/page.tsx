@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 import { useArtistListings } from '@/hooks/useArtist';
-import { useDeleteListing } from '@/hooks/useListings';
+import { useDeleteListing, useUpdateListing } from '@/hooks/useListings';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -19,6 +19,7 @@ export default function ArtistListingsPage() {
   const [artistId, setArtistId] = useState('');
   const { data: listings, isLoading } = useArtistListings(artistId);
   const deleteListing = useDeleteListing();
+  const updateListing = useUpdateListing();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
@@ -63,8 +64,16 @@ export default function ArtistListingsPage() {
                 <p className="truncate font-medium text-gray-900">{listing.title}</p>
                 <p className="text-sm text-gray-500">{formatPrice(listing.price_cents)}</p>
               </div>
-              <Badge variant={listing.status === 'available' ? 'success' : 'default'}>{listing.status}</Badge>
+              <Badge variant={listing.status === 'available' ? 'success' : listing.status === 'draft' ? 'warning' : 'default'}>{listing.status}</Badge>
               <div className="flex gap-2">
+                {listing.status === 'draft' && (
+                  <Button
+                    size="sm"
+                    onClick={() => updateListing.mutate({ id: listing.id, data: { status: 'available' } })}
+                  >
+                    Publish
+                  </Button>
+                )}
                 <Link href={`/listings/${listing.id}/edit`}><Button variant="outline" size="sm">Edit</Button></Link>
                 <Button
                   variant="danger"

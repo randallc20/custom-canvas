@@ -67,6 +67,11 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
               )}
               {artist.status && <Badge>{artist.status.replace(/_/g, ' ')}</Badge>}
               {artist.is_houston_verified && <Badge variant="verified">Houston Verified</Badge>}
+              {artist.away_mode && (
+                <Badge variant="warning">
+                  Away{artist.away_until ? ` — back ${new Date(artist.away_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                </Badge>
+              )}
               {typeof followerCount === 'number' && (
                 <span className="text-sm text-gray-500">
                   {followerCount} {followerCount === 1 ? 'follower' : 'followers'}

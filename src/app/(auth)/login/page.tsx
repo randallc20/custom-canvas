@@ -17,10 +17,17 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      if (user.role === 'artist') router.push('/dashboard');
-      else if (user.role === 'gallery') router.push('/dashboard');
-      else if (user.role === 'admin') router.push('/admin');
-      else router.push('/');
+      // Honor a returnUrl (e.g. mid-checkout) before falling back to role home.
+      const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
+      if (returnUrl && returnUrl.startsWith('/')) {
+        router.push(returnUrl);
+      } else if (user.role === 'artist' || user.role === 'gallery') {
+        router.push('/dashboard');
+      } else if (user.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/');
+      }
     }
   }, [user, router]);
 
