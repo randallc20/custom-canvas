@@ -55,9 +55,10 @@ export function MessageInput({ onSend, onSendAttachment, disabled }: MessageInpu
     try {
       const res = await fetch('/api/storage/chat-attachment', { method: 'POST' });
       if (!res.ok) throw new Error('upload-url');
-      const { uploadUrl, publicUrl } = await res.json();
+      const { uploadUrl, path } = await res.json();
       await uploadWithProgress(uploadUrl, file, file.type);
-      onSendAttachment({ attachment_type: kind, url: publicUrl, fileName: file.name });
+      // Store the object path; rendered via a signed URL (private bucket).
+      onSendAttachment({ attachment_type: kind, url: path, fileName: file.name });
     } catch {
       // surfaced via the disabled state resetting; toast handled by parent on send
     } finally {

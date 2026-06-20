@@ -59,6 +59,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         url: null,
         metadata: { commission_id: params.id, ...parsed.data },
       });
+      await admin
+        .from('conversations')
+        .update({ last_message_text: '💬 Commission quote', last_message_at: new Date().toISOString() })
+        .eq('id', commission.conversation_id);
     }
   }
 

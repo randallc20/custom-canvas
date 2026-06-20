@@ -68,7 +68,15 @@ export async function sendMessage(data: {
     if (attErr) throw attErr;
   }
 
-  await updateLastMessage(data.conversation_id, data.content);
+  // Give media/card messages a readable conversation-list preview.
+  const preview = data.content?.trim()
+    ? data.content
+    : data.message_type === 'image' ? '📷 Photo'
+    : data.message_type === 'quote_card' ? '💬 Commission quote'
+    : data.message_type === 'listing_card' ? '🖼 Shared a listing'
+    : data.attachment?.attachment_type === 'file' ? '📎 Attachment'
+    : '';
+  await updateLastMessage(data.conversation_id, preview);
   return message;
 }
 

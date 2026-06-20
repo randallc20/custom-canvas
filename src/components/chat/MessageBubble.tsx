@@ -3,12 +3,15 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Message } from '@/types/message';
 import { formatTime } from '@/utils/formatTime';
 import { formatPrice } from '@/utils/formatPrice';
 import { PartnerBadge } from '@/components/gallery/PartnerBadge';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { useSignedChatUrl } from '@/hooks/useSignedChatUrl';
 import type { PartnerType } from '@/types/gallery';
 
 interface MessageBubbleProps {
@@ -20,9 +23,15 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubbleProps) {
   const { toast } = useToast();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [acting, setActing] = useState(false);
   const [resolved, setResolved] = useState<string | null>(null);
   const attachment = message.attachments?.[0];
+
+  // Chat media lives in a private bucket — resolve a signed URL by object path.
+  const isChatMedia = message.message_type === 'image' || attachment?.attachment_type === 'file';
+  const { data: signedUrl } = useSignedChatUrl(isChatMedia ? (attachment?.url ?? null) : null);
 
   if (message.message_type === 'system') {
     return <div className="py-1 text-center text-xs italic text-muted">{message.content}</div>;
@@ -68,6 +77,9 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
         if (!res.ok) throw new Error();
         setResolved(action === 'confirm' ? 'Accepted' : 'Declined');
         toast(action === 'confirm' ? 'Quote accepted' : 'Quote declined', 'success');
+        // Reflect the new commission status across the thread + commission page.
+        queryClient.invalidateQueries({ queryKey: ['messages'] });
+        router.refresh();
       } catch {
         toast('Action failed. Try again.', 'error');
       } finally {
@@ -97,21 +109,24 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
     );
   }
 
-  // Image attachment.
+  // Image attachment (signed URL; show a placeholder until it resolves).
   if (message.message_type === 'image') {
-    const src = attachment?.url ?? message.content;
     return (
       <Wrapper isOwn={isOwn} senderPartnerType={senderPartnerType} createdAt={message.created_at}>
-        <Image src={src} alt="Shared image" width={300} height={300} className="max-w-full rounded-lg" sizes="300px" />
+        {signedUrl ? (
+          <Image src={signedUrl} alt="Shared image" width={300} height={300} className="max-w-full rounded-lg" sizes="300px" />
+        ) : (
+          <div className="flex h-40 w-52 items-center justify-center rounded-lg bg-line/50 text-xs text-muted">Loading image…</div>
+        )}
       </Wrapper>
     );
   }
 
-  // File attachment.
-  if (attachment?.attachment_type === 'file' && attachment.url) {
+  // File attachment (signed URL).
+  if (attachment?.attachment_type === 'file') {
     return (
       <Wrapper isOwn={isOwn} senderPartnerType={senderPartnerType} createdAt={message.created_at}>
-        <a href={attachment.url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 text-sm underline ${isOwn ? 'text-white' : 'text-terra'}`}>
+        <a href={signedUrl ?? '#'} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 text-sm underline ${isOwn ? 'text-white' : 'text-terra'} ${signedUrl ? '' : 'pointer-events-none opacity-60'}`}>
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
           {message.content || 'Attachment'}
         </a>

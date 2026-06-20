@@ -32,6 +32,7 @@ export function ContextBanner({ contextType, contextId }: ContextBannerProps) {
   const [ctx, setCtx] = useState<Ctx | null>(null);
 
   useEffect(() => {
+    setCtx(null); // reset when switching threads so a stale banner never shows
     if (!contextId) return;
     let active = true;
     (async () => {
