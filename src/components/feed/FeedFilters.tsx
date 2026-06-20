@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { FilterDrawer } from './FilterDrawer';
 import { useFilterOptions } from '@/hooks/useFeed';
 
@@ -39,7 +39,12 @@ export function FeedFilters({ filters, onFilterChange }: FeedFiltersProps) {
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
   const { data: options } = useFilterOptions();
 
+  // Controlled so the box reflects external changes (navbar search, Clear).
+  const [searchInput, setSearchInput] = useState(filters.search ?? '');
+  useEffect(() => { setSearchInput(filters.search ?? ''); }, [filters.search]);
+
   const handleSearch = (value: string) => {
+    setSearchInput(value);
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
       onFilterChange({ ...filters, search: value || undefined });
@@ -62,7 +67,7 @@ export function FeedFilters({ filters, onFilterChange }: FeedFiltersProps) {
         </svg>
         <input
           type="text"
-          defaultValue={filters.search ?? ''}
+          value={searchInput}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder="Search art, artists, styles..."
           className="w-full rounded-full border border-line bg-surface py-2 pl-10 pr-4 text-sm text-ink placeholder:text-muted/70 focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"

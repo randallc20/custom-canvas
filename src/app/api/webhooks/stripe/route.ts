@@ -80,7 +80,12 @@ export async function POST(request: NextRequest) {
             Sentry.captureException(refundErr);
           }
           // Record the refunded order for the buyer's history / audit trail.
-          await supabase.from('orders').insert({ ...order, status: 'refunded' });
+          const { error: auditError } = await supabase.from('orders').insert({ ...order, status: 'refunded' });
+          if (auditError) {
+            Sentry.captureException(
+              new Error(`Oversell audit insert failed for ${paymentIntentId}: ${auditError.message}`)
+            );
+          }
           Sentry.captureMessage(
             `Oversell auto-refunded: listing ${listingId}, payment ${paymentIntentId}`,
             'warning'

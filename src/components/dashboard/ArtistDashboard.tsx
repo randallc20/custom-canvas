@@ -28,7 +28,7 @@ export function ArtistDashboard() {
 
   const listingCount = listings?.length ?? 0;
   const totalSales = orders?.filter((o) => o.status !== 'refunded').length ?? 0;
-  const totalRevenue = orders?.reduce((sum, o) => sum + o.artist_payout_cents, 0) ?? 0;
+  const totalRevenue = orders?.filter((o) => o.status !== 'refunded').reduce((sum, o) => sum + o.artist_payout_cents, 0) ?? 0;
   const pendingShipment = orders?.filter((o) => o.status === 'paid').length ?? 0;
 
   return (

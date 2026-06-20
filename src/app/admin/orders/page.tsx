@@ -59,9 +59,11 @@ function OrdersContent() {
     ? orders
     : orders.filter((o) => o.status === statusFilter);
 
-  const totalRevenue = orders.reduce((sum, o) => sum + o.amount_cents, 0);
-  const totalFees = orders.reduce((sum, o) => sum + o.platform_fee_cents, 0);
-  const totalPayouts = orders.reduce((sum, o) => sum + o.artist_payout_cents, 0);
+  // Refunded orders had their charge reversed — exclude from financial totals.
+  const settled = orders.filter((o) => o.status !== 'refunded');
+  const totalRevenue = settled.reduce((sum, o) => sum + o.amount_cents, 0);
+  const totalFees = settled.reduce((sum, o) => sum + o.platform_fee_cents, 0);
+  const totalPayouts = settled.reduce((sum, o) => sum + o.artist_payout_cents, 0);
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 

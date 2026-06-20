@@ -42,7 +42,10 @@ export function NavSearch({ className = '' }: NavSearchProps) {
 
   const go = (q: string) => {
     setOpen(false);
-    router.push(`/?q=${encodeURIComponent(q)}`);
+    // Preserve any active feed params (view, filters) and just set q.
+    const sp = new URLSearchParams(window.location.search);
+    sp.set('q', q);
+    router.push(`/?${sp.toString()}`);
   };
 
   const hasSuggestions =

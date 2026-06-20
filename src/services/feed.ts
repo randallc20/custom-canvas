@@ -6,7 +6,7 @@ export type FeedSort = 'recent' | 'price_asc' | 'price_desc' | 'popular';
 export type Availability = 'available' | 'commission';
 
 export interface FeedParams {
-  cursor?: string;
+  page?: number;
   limit?: number;
   medium?: string;
   minPrice?: number;
@@ -21,12 +21,12 @@ export interface FeedParams {
 
 interface FeedResult {
   listings: ListingWithImages[];
-  nextCursor: string | null;
+  nextPage: number | null;
 }
 
 export async function getFeedListings(params: FeedParams = {}): Promise<FeedResult> {
   const {
-    cursor, limit = 20, medium, minPrice, maxPrice, search, sort = 'recent',
+    page = 0, limit = 20, medium, minPrice, maxPrice, search, sort = 'recent',
     neighborhoods, schools, commissionsOpen, availability = 'available',
   } = params;
 
@@ -53,16 +53,21 @@ export async function getFeedListings(params: FeedParams = {}): Promise<FeedResu
   if (neighborhoods?.length) query = query.in('artist_profiles.neighborhood', neighborhoods);
   if (schools?.length) query = query.in('artist_profiles.school', schools);
   if (commissionsOpen) query = query.eq('artist_profiles.commissions_open', true);
-  if (cursor) query = query.lt('created_at', cursor);
 
+  // Stable ordering across arbitrary sorts: the sort column plus a unique
+  // tiebreaker (id) so offset paging never skips/dupes on ties.
   switch (sort) {
     case 'price_asc': query = query.order('price_cents', { ascending: true }); break;
     case 'price_desc': query = query.order('price_cents', { ascending: false }); break;
     case 'popular': query = query.order('save_count', { ascending: false }); break;
     default: query = query.order('created_at', { ascending: false });
   }
+  query = query.order('id', { ascending: false });
 
-  query = query.limit(limit + 1);
+  // Offset paging works for every sort column (price/save_count aren't unique,
+  // so keyset cursors can't).
+  const from = page * limit;
+  query = query.range(from, from + limit);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -73,29 +78,28 @@ export async function getFeedListings(params: FeedParams = {}): Promise<FeedResu
     tags: item.tags?.map((lt: { tag: unknown }) => lt.tag) ?? [],
   })) as unknown as ListingWithImages[];
 
-  const nextCursor = hasMore ? listings[listings.length - 1].created_at : null;
-
-  return { listings, nextCursor };
+  return { listings, nextPage: hasMore ? page + 1 : null };
 }
 
 export interface ArtistsResult {
   artists: (ArtistProfile & { avatar_url: string | null })[];
-  nextCursor: string | null;
+  nextPage: number | null;
 }
 
-export async function getFeedArtists(params: { cursor?: string; limit?: number; search?: string } = {}): Promise<ArtistsResult> {
-  const { cursor, limit = 24, search } = params;
+export async function getFeedArtists(params: { page?: number; limit?: number; search?: string } = {}): Promise<ArtistsResult> {
+  const { page = 0, limit = 24, search } = params;
 
   let query = supabase
     .from('artist_profiles')
     .select('*, profile:profiles(avatar_url)')
     .eq('is_live', true)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false });
 
   if (search) query = query.textSearch('search_vector', search, { type: 'websearch' });
-  if (cursor) query = query.lt('created_at', cursor);
 
-  query = query.limit(limit + 1);
+  const from = page * limit;
+  query = query.range(from, from + limit);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -107,9 +111,7 @@ export async function getFeedArtists(params: { cursor?: string; limit?: number; 
     avatar_url: (a.profile as { avatar_url: string | null } | null)?.avatar_url ?? null,
   }));
 
-  const nextCursor = hasMore ? (rows[rows.length - 1] as { created_at: string }).created_at : null;
-
-  return { artists, nextCursor };
+  return { artists, nextPage: hasMore ? page + 1 : null };
 }
 
 export interface SearchSuggestions {

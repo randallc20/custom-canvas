@@ -38,7 +38,7 @@ export default function PayoutsPage() {
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
-  const totalEarnings = orders?.reduce((sum, o) => sum + o.artist_payout_cents, 0) ?? 0;
+  const totalEarnings = orders?.filter((o) => o.status !== 'refunded').reduce((sum, o) => sum + o.artist_payout_cents, 0) ?? 0;
   const totalSales = orders?.filter((o) => o.status !== 'refunded').length ?? 0;
   const pendingShipment = orders?.filter((o) => o.status === 'paid').length ?? 0;
 

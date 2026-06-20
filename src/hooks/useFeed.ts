@@ -8,15 +8,15 @@ import {
 } from '@/services/feed';
 import { ListingWithImages } from '@/types/listing';
 
-export type FeedFilters = Omit<FeedParams, 'cursor' | 'limit'>;
+export type FeedFilters = Omit<FeedParams, 'page' | 'limit'>;
 
 export function useFeed(filters: FeedFilters = {}) {
   const query = useInfiniteQuery({
     queryKey: ['feed', filters],
     queryFn: ({ pageParam }) =>
-      getFeedListings({ ...filters, cursor: pageParam as string | undefined }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+      getFeedListings({ ...filters, page: pageParam as number }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
   });
 
   const listings: ListingWithImages[] =
@@ -36,9 +36,9 @@ export function useArtistsFeed(search?: string) {
   const query = useInfiniteQuery({
     queryKey: ['artists-feed', search ?? null],
     queryFn: ({ pageParam }) =>
-      getFeedArtists({ search, cursor: pageParam as string | undefined }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+      getFeedArtists({ search, page: pageParam as number }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
   });
 
   const artists = query.data?.pages.flatMap((page) => page.artists) ?? [];
