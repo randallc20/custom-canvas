@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useBuyerOrders } from '@/hooks/useOrders';
 import { useCreateReview } from '@/hooks/useReviews';
@@ -11,6 +12,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ReviewForm } from '@/components/review/ReviewForm';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { formatPrice } from '@/utils/formatPrice';
 import type { Order, OrderStatus } from '@/types/order';
 
@@ -31,11 +34,35 @@ export default function OrdersPage() {
   const createReview = useCreateReview();
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null);
   const [reviewedOrders, setReviewedOrders] = useState<Set<string>>(new Set());
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const confirm = useConfirm();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   if (isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
   const handleReviewSubmit = async (data: { order_id: string; reviewer_id: string; rating: number; comment?: string }) => {
     await createReview.mutateAsync(data);
+  };
+
+  const handleCancel = async (orderId: string) => {
+    const ok = await confirm({
+      title: 'Cancel this order?',
+      message: 'You\'ll be fully refunded (artwork, shipping, and service fee). This can\'t be undone.',
+      confirmLabel: 'Cancel order', destructive: true,
+    });
+    if (!ok) return;
+    setCancelling(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/cancel`, { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      toast('Order cancelled — your refund is on the way.', 'success');
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not cancel order', 'error');
+    } finally {
+      setCancelling(null);
+    }
   };
 
   return (
@@ -86,7 +113,14 @@ export default function OrdersPage() {
                   </div>
                 )}
                 {reviewedOrders.has(order.id) && (
-                  <p className="mt-3 text-xs text-green-600">Review submitted — thank you!</p>
+                  <p className="mt-3 text-xs text-sage">Review submitted — thank you!</p>
+                )}
+                {order.status === 'paid' && (
+                  <div className="mt-3">
+                    <Button size="sm" variant="ghost" loading={cancelling === order.id} onClick={() => handleCancel(order.id)}>
+                      Cancel &amp; refund
+                    </Button>
+                  </div>
                 )}
               </div>
             );

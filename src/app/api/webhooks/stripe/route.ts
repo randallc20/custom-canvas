@@ -105,8 +105,38 @@ export async function POST(request: NextRequest) {
 
       const [{ data: buyer }, { data: artistProf }] = await Promise.all([
         supabase.from('profiles').select('email, full_name').eq('id', order.buyer_id).single(),
-        supabase.from('artist_profiles').select('display_name, profile:profiles(email)').eq('id', artistObj.id).single(),
+        supabase.from('artist_profiles').select('display_name, profile_id, profile:profiles(email)').eq('id', artistObj.id).single(),
       ]);
+
+      // Local pickup: open/find the buyer↔artist thread and post a system
+      // note so they can coordinate handoff.
+      if (session.metadata?.pickup === 'true' && artistProf?.profile_id) {
+        const artistUserId = artistProf.profile_id as string;
+        const { data: existingConv } = await supabase
+          .from('conversations')
+          .select('id')
+          .or(`and(participant_one.eq.${order.buyer_id},participant_two.eq.${artistUserId}),and(participant_one.eq.${artistUserId},participant_two.eq.${order.buyer_id})`)
+          .limit(1)
+          .maybeSingle();
+        let convId = existingConv?.id;
+        if (!convId) {
+          const { data: newConv } = await supabase
+            .from('conversations')
+            .insert({ participant_one: order.buyer_id, participant_two: artistUserId, context_type: 'listing', context_id: listingId })
+            .select('id')
+            .single();
+          convId = newConv?.id;
+        }
+        if (convId) {
+          await supabase.from('messages').insert({
+            conversation_id: convId,
+            sender_id: artistUserId,
+            content: `Order for "${listing.title}" is ready to coordinate for local pickup.`,
+            message_type: 'system',
+          });
+          await supabase.from('conversations').update({ last_message_text: 'Pickup coordination', last_message_at: new Date().toISOString() }).eq('id', convId);
+        }
+      }
 
       if (buyer?.email) {
         sendOrderConfirmationEmail(

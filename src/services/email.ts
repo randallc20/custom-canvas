@@ -215,3 +215,23 @@ export async function sendCommissionNudgeEmail(
     `,
   });
 }
+
+export async function sendReviewRequestEmail(
+  to: string,
+  buyerName: string,
+  listingTitle: string,
+  orderId: string
+): Promise<void> {
+  await getResend().emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `How was ${listingTitle}?`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <h2 style="color:#111">Share your experience</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${buyerName}, we'd love to hear how <strong>${listingTitle}</strong> turned out. A quick review helps the artist and other collectors.</p>
+        <a href="${APP_URL}/orders?review=${orderId}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Leave a review</a>
+      </div>
+    `,
+  });
+}
