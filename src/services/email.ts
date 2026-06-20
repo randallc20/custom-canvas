@@ -194,3 +194,24 @@ export async function sendCommissionUpdateEmail(
     `,
   });
 }
+
+export async function sendCommissionNudgeEmail(
+  to: string,
+  artistName: string,
+  buyerName: string,
+  commissionTitle: string,
+  commissionId: string
+): Promise<void> {
+  await getResend().emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `Buyers love progress updates — post one for ${buyerName}?`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <h2 style="color:#111">Keep ${buyerName} in the loop</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${artistName}, it's been a couple of weeks since the last update on <strong>${commissionTitle}</strong>. A quick note or WIP photo goes a long way.</p>
+        <a href="${APP_URL}/commissions/${commissionId}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Post an update</a>
+      </div>
+    `,
+  });
+}

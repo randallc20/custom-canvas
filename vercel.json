@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/cron/commission-nudges", "schedule": "0 15 * * *" }
+  ]
+}
