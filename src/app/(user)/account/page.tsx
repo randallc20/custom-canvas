@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Avatar } from '@/components/ui/Avatar';
+import { EmailPreferences } from '@/components/account/EmailPreferences';
 import { supabase } from '@/lib/supabase';
 
 export default function AccountPage() {
@@ -99,6 +100,8 @@ export default function AccountPage() {
           <Button onClick={handleSave} loading={saving}>Save Changes</Button>
         </div>
       </div>
+
+      <EmailPreferences />
 
       {/* Password section */}
       <div className="mb-8 rounded-lg border border-gray-200 p-6">

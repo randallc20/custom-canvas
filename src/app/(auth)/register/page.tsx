@@ -21,12 +21,17 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const { signUp } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!acceptedTerms) {
+      setError('Please accept the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
     setLoading(true);
     try {
       await signUp(email, password, role, fullName);
@@ -96,8 +101,23 @@ export default function RegisterPage() {
             </div>
           </div>
 
+          <label className="flex items-start gap-2 text-sm text-muted">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="mt-0.5 rounded border-line"
+            />
+            <span>
+              I agree to the{' '}
+              <Link href="/terms" target="_blank" className="text-terra hover:underline">Terms of Service</Link>{' '}
+              and{' '}
+              <Link href="/privacy" target="_blank" className="text-terra hover:underline">Privacy Policy</Link>.
+            </span>
+          </label>
+
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <Button type="submit" loading={loading} className="w-full">Create Account</Button>
+          <Button type="submit" loading={loading} disabled={!acceptedTerms} className="w-full">Create Account</Button>
         </form>
         <p className="mt-4 text-center text-sm text-gray-500">
           Already have an account?{' '}
