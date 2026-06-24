@@ -17,13 +17,18 @@ h3 {
     text-wrap: balance;
   }
 
-  /* Scroll-reveal: elements start hidden, .is-revealed plays the rise. */
+  /* Scroll-reveal: hidden until .is-revealed. Uses transitions (not a keyframe)
+     so it can't break if Tailwind purges an unreferenced @keyframes in prod. */
   .reveal {
     opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 400ms ease-out, transform 400ms ease-out;
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
   }
   .reveal.is-revealed {
-    animation: rise-in 400ms ease-out both;
-    animation-delay: var(--reveal-delay, 0ms);
+    opacity: 1;
+    transform: none;
   }
 
   .card-hover {
@@ -45,5 +50,6 @@ h3 {
   }
   .reveal {
     opacity: 1;
+    transform: none;
   }
 }
