@@ -92,11 +92,9 @@ function ArtView({ filters }: { filters: FeedFilters }) {
 
   return (
     <>
-      <div className="columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
         {listings.map((listing, i) => (
-          <div key={listing.id} className="mb-4 break-inside-avoid">
-            <FeedCard listing={listing} revealDelayMs={(i % 8) * 50} />
-          </div>
+          <FeedCard key={listing.id} listing={listing} revealDelayMs={(i % 8) * 50} />
         ))}
       </div>
       <div ref={sentinelRef} className="py-4">

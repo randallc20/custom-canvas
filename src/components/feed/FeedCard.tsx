@@ -39,14 +39,15 @@ export function FeedCard({ listing, revealDelayMs = 0 }: FeedCardProps) {
         style={{ '--reveal-delay': `${revealDelayMs}ms` } as React.CSSProperties}
       >
         {primaryImage ? (
-          <Image
-            src={primaryImage.image_url}
-            alt={listing.title}
-            width={400}
-            height={500}
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="w-full object-cover"
-          />
+          <div className="relative aspect-[4/5] w-full">
+            <Image
+              src={primaryImage.image_url}
+              alt={listing.title}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-cover"
+            />
+          </div>
         ) : (
           <div className="flex aspect-[4/5] items-center justify-center bg-sand">
             <span className="text-sm text-muted">No image</span>
