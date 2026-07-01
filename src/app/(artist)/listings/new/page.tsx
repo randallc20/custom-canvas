@@ -13,6 +13,10 @@ import { supabase } from '@/lib/supabase';
 import { numberOrNull } from '@/utils/formNumber';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useSeries } from '@/hooks/useArtistContent';
+import { ImageUpload } from '@/components/upload/ImageUpload';
+import { ImageThumbGrid } from '@/components/upload/ImageThumbGrid';
+import { MAX_LISTING_IMAGES } from '@/components/listing/ListingImagesManager';
+import { addListingImages } from '@/services/listings';
 
 export default function NewListingPage() {
   const router = useRouter();
@@ -20,6 +24,15 @@ export default function NewListingPage() {
   const createListing = useCreateListing();
   const [artistId, setArtistId] = useState('');
   const [isPickupOnly, setIsPickupOnly] = useState(false);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+
+  const moveImage = (i: number, dir: -1 | 1) => {
+    setImageUrls((prev) => {
+      const next = [...prev];
+      [next[i], next[i + dir]] = [next[i + dir], next[i]];
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -42,7 +55,7 @@ export default function NewListingPage() {
   const priceVisible = watch('price_visible');
 
   const onSubmit = async (data: ListingFormData, asDraft = false) => {
-    await createListing.mutateAsync({
+    const listing = await createListing.mutateAsync({
       title: data.title,
       medium: data.medium,
       status: asDraft ? 'draft' : data.status,
@@ -60,6 +73,9 @@ export default function NewListingPage() {
       artist_id: artistId,
       is_featured: false,
     });
+    if (imageUrls.length > 0) {
+      await addListingImages(listing.id, imageUrls, 0);
+    }
     // First listing is worth 20 completeness points — refresh canonically.
     supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
     router.push('/listings');
@@ -124,9 +140,24 @@ export default function NewListingPage() {
           )}
         </fieldset>
 
-        <div className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">
-          Image upload coming soon — add images after creating the listing.
-        </div>
+        <fieldset className="space-y-4 rounded-xl border border-line p-4">
+          <legend className="px-1 text-sm font-semibold text-ink">Images</legend>
+          <ImageThumbGrid
+            items={imageUrls.map((url) => ({ key: url, url }))}
+            onMove={moveImage}
+            onRemove={(i) => setImageUrls((prev) => prev.filter((_, j) => j !== i))}
+          />
+          {imageUrls.length < MAX_LISTING_IMAGES && (
+            <ImageUpload
+              endpoint="/api/storage/listing-image"
+              maxFiles={MAX_LISTING_IMAGES - imageUrls.length}
+              maxSizeMB={5}
+              label="Add photos of this piece"
+              onUpload={(urls) => setImageUrls((prev) => [...prev, ...urls].slice(0, MAX_LISTING_IMAGES))}
+            />
+          )}
+          <p className="text-xs text-muted">{imageUrls.length}/{MAX_LISTING_IMAGES} images. The first image is the cover shown in the feed.</p>
+        </fieldset>
         <div className="flex gap-3">
           <Button type="button" variant="outline" loading={isSubmitting} className="flex-1" onClick={handleSubmit((d) => onSubmit(d, true))}>
             Save as draft

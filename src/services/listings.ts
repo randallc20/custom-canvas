@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { Listing, ListingWithImages } from '@/types/listing';
+import { Listing, ListingImage, ListingWithImages } from '@/types/listing';
 
 export async function getListingById(id: string): Promise<ListingWithImages | null> {
   const { data, error } = await supabase
@@ -45,6 +45,39 @@ export async function updateListing(id: string, updates: Partial<Listing>): Prom
 export async function deleteListing(id: string): Promise<void> {
   const { error } = await supabase
     .from('listings')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function addListingImages(listingId: string, urls: string[], startOrder: number): Promise<ListingImage[]> {
+  const { data, error } = await supabase
+    .from('listing_images')
+    .insert(urls.map((url, i) => ({
+      listing_id: listingId,
+      image_url: url,
+      display_order: startOrder + i,
+      is_primary: startOrder + i === 0,
+    })))
+    .select();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateListingImage(id: string, updates: Partial<Pick<ListingImage, 'display_order' | 'is_primary'>>): Promise<void> {
+  const { error } = await supabase
+    .from('listing_images')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function deleteListingImage(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('listing_images')
     .delete()
     .eq('id', id);
 

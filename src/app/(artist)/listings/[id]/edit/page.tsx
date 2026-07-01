@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { numberOrNull } from '@/utils/formNumber';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useSeries } from '@/hooks/useArtistContent';
+import { ListingImagesManager } from '@/components/listing/ListingImagesManager';
 
 export default function EditListingPage() {
   const { id } = useParams<{ id: string }>();
@@ -110,6 +111,8 @@ export default function EditListingPage() {
             </select>
           </div>
         )}
+
+        {listing && <ListingImagesManager listingId={id} images={listing.images} />}
 
         <fieldset className="space-y-4 rounded-xl border border-line p-4">
           <legend className="px-1 text-sm font-semibold text-ink">Pricing</legend>
