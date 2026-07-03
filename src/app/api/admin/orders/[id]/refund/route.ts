@@ -25,7 +25,16 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   if (order.status === 'refunded') return NextResponse.json({ error: 'Already refunded' }, { status: 400 });
 
   const fullAmount = order.amount_cents + order.buyer_fee_cents + order.shipping_cents;
-  const refundAmount = amountCents && amountCents > 0 && amountCents < fullAmount ? amountCents : undefined;
+  // A partial amount at or above the order total is almost always a
+  // dollars-vs-cents slip — reject it instead of silently escalating to a
+  // full refund with a full transfer reversal. (Full refund = omit amount.)
+  if (amountCents != null && (amountCents <= 0 || amountCents >= fullAmount)) {
+    return NextResponse.json(
+      { error: `Partial refund must be between 1 and ${fullAmount - 1} cents; omit amount for a full refund.` },
+      { status: 400 }
+    );
+  }
+  const refundAmount = amountCents ?? undefined;
 
   try {
     await getStripe().refunds.create({

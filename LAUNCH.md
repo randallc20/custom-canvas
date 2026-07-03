@@ -2,6 +2,18 @@
 
 Everything needed to take the staging build to production. Work top to bottom.
 
+## 0. Staging catch-up (Build 3)
+- [ ] Apply migrations 00024–00026 to the **DEV** project (same psql loop as §1,
+      IPv4 session pooler host):
+  ```bash
+  for f in supabase/migrations/00024_featured_listings.sql \
+           supabase/migrations/00025_publish_notifications.sql \
+           supabase/migrations/00026_partner_picks.sql; do
+    psql "$DEV_DB_URL" -f "$f"; done
+  ```
+- [ ] Verify on staging: homepage shelves render, `/admin/featured` curation works,
+      partner picks manager + shelves work, and one publish-email fan-out arrives.
+
 ## 1. Production Supabase project
 - [ ] Create `custom-canvas-prod` (separate from `custom-canvas-staging`).
 - [ ] Apply all migrations in order:
@@ -61,6 +73,8 @@ Everything needed to take the staging build to production. Work top to bottom.
 - [ ] Artist creates a listing with an image.
 - [ ] Buyer purchases with a real card (small amount) → order created, artist
       payout shows in Stripe, tax collected, both emails arrive.
+- [ ] Fee model verified: 5% service fee (capped at $15) shows on the listing
+      page, checkout breakdown, order record, and both confirmation emails.
 - [ ] Buyer cancels a fresh order → full refund lands.
 - [ ] Commission request → quote (in-thread) → accept → progress update → notify.
 - [ ] `npx playwright test` (set `E2E_BASE_URL`) — smoke specs green.
@@ -68,7 +82,7 @@ Everything needed to take the staging build to production. Work top to bottom.
 ## Known follow-ups (post-launch, non-blocking)
 - Wire listing-image upload into the create-listing form (ImageUpload exists; the
   form still shows a placeholder).
-- Email fan-out for follower/price-drop alerts (in-app works today; email needs
-  the listing writes routed through API routes).
+- Email fan-out for follower/price-drop alerts shipped in Build 3; future item is
+  a deliverability upgrade (move batch sends to a queue).
 - Move rate limiting to Upstash; expand Playwright critical-path coverage.
 - Cover the backlog in `docs/UPDATE_PLAN.md` (collections, "view in a room", etc.).

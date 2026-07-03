@@ -64,7 +64,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     type: 'commission_update',
     title: 'Commission update',
     body: `${artist.display_name} posted an update on "${commission.title}".`,
-    link: `/commissions/${params.id}`,
+    link: commission.conversation_id ? `/messages/${commission.conversation_id}` : `/commissions/${params.id}`,
   });
 
   const { data: buyer } = await admin.from('profiles').select('email, full_name').eq('id', commission.requester_id).single();

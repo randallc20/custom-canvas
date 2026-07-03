@@ -78,7 +78,7 @@ export default function NewListingPage() {
     }
     // First listing is worth 20 completeness points — refresh canonically.
     supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
-    router.push('/listings');
+    router.push('/studio/work');
   };
 
   return (

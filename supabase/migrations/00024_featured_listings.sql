@@ -40,6 +40,8 @@ CREATE POLICY "Admins remove featured listings" ON featured_listings
 CREATE OR REPLACE FUNCTION enforce_featured_cap()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
+  -- Serialize concurrent inserts so the COUNT can't race past the cap.
+  PERFORM pg_advisory_xact_lock(hashtext('featured_listings_cap'));
   IF (SELECT COUNT(*) FROM featured_listings) >= 10 THEN
     RAISE EXCEPTION 'The Featured shelf is limited to 10 pieces';
   END IF;

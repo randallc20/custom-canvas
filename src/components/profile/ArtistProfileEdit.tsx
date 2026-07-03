@@ -151,9 +151,9 @@ export function ArtistProfileEdit() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-ink">Edit Profile</h1>
+        <h1 className="text-2xl font-bold text-ink">Your Public Page</h1>
         <a href={`/artist/${artist.slug}?preview=1`} target="_blank" rel="noopener noreferrer">
-          <Button type="button" variant="outline" size="sm">Preview as visitor</Button>
+          <Button type="button">Preview as visitor</Button>
         </a>
       </div>
       <div className="mb-6">

@@ -81,7 +81,7 @@ export default function EditListingPage() {
         status: data.status,
       },
     });
-    router.push('/listings');
+    router.push('/studio/work');
   };
 
   return (

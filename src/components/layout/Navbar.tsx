@@ -115,6 +115,16 @@ export function Navbar() {
           <div className="mt-3 space-y-1">
             {user ? (
               <>
+                {user.role === 'artist' && (
+                  <Link href="/studio" className="block rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>
+                    Studio
+                  </Link>
+                )}
+                {user.role === 'gallery' && (
+                  <Link href="/dashboard" className="block rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>
+                    Partner Dashboard
+                  </Link>
+                )}
                 <Link href="/messages" className="block rounded-lg px-3 py-2 text-sm text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>
                   Messages {unreadCount > 0 && `(${unreadCount})`}
                 </Link>

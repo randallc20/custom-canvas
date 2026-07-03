@@ -78,6 +78,10 @@ export async function POST(request: NextRequest) {
             await getStripe().refunds.create({ payment_intent: paymentIntentId, reverse_transfer: true });
           } catch (refundErr) {
             Sentry.captureException(refundErr);
+            // Do NOT ack: Stripe retries the event, the insert 23505s again,
+            // and we re-attempt the refund. Acking here would record a
+            // "refunded" order for money the buyer never got back.
+            return NextResponse.json({ error: 'Oversell refund failed' }, { status: 500 });
           }
           // Record the refunded order for the buyer's history / audit trail.
           const { error: auditError } = await supabase.from('orders').insert({ ...order, status: 'refunded' });
@@ -143,7 +147,7 @@ export async function POST(request: NextRequest) {
           buyer.email,
           buyer.full_name ?? 'Collector',
           listing.title,
-          formatPrice(order.amount_cents + order.buyer_fee_cents + order.shipping_cents),
+          formatPrice(session.amount_total ?? (order.amount_cents + order.buyer_fee_cents + order.shipping_cents)),
           inserted.id
         ).catch(() => {});
       }
@@ -163,9 +167,12 @@ export async function POST(request: NextRequest) {
 
     case 'charge.refunded': {
       // Refund issued (admin dispute resolution, or our oversell auto-refund).
+      // Stripe fires this for PARTIAL refunds too — only a full refund closes
+      // the order and returns the piece to market.
       const charge = event.data.object;
       const paymentIntentId = charge.payment_intent as string | null;
       if (!paymentIntentId) break;
+      if (charge.amount_refunded < charge.amount) break;
 
       const { data: order } = await supabase
         .from('orders')

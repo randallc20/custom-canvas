@@ -20,6 +20,10 @@ CREATE POLICY "Verified partners add picks" ON partner_picks
     gallery_id IN (
       SELECT id FROM gallery_profiles WHERE profile_id = auth.uid() AND is_verified
     )
+    -- Only listings the partner can actually see as live: blocks picking
+    -- drafts/hidden work and probing foreign listing UUIDs (the subquery
+    -- runs under the caller's listings RLS).
+    AND EXISTS (SELECT 1 FROM listings WHERE id = listing_id AND status = 'available')
   );
 CREATE POLICY "Verified partners update picks" ON partner_picks
   FOR UPDATE USING (
@@ -42,6 +46,8 @@ CREATE POLICY "Verified partners remove picks" ON partner_picks
 CREATE OR REPLACE FUNCTION enforce_partner_picks_cap()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
+  -- Serialize per-gallery inserts so the COUNT can't race past the cap.
+  PERFORM pg_advisory_xact_lock(hashtext('partner_picks_' || NEW.gallery_id::text));
   IF (SELECT COUNT(*) FROM partner_picks WHERE gallery_id = NEW.gallery_id) >= 6 THEN
     RAISE EXCEPTION 'Partners can pick up to 6 pieces';
   END IF;

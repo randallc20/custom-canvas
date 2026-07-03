@@ -61,14 +61,14 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
     expect(order!.artist_payout_cents + order!.platform_fee_cents).toBe(buyerTotal);
   });
 
-  it('falls back to the current fee formula when metadata lacks buyer_fee_cents (legacy sessions)', () => {
+  it('records the legacy flat $10 when metadata lacks buyer_fee_cents (pre-deploy sessions)', () => {
     const order = buildOrderRecord(
       mockSession({ price_cents: '5000', shipping_cents: '0', buyer_fee_cents: '' }),
       { price_cents: 5000 },
       'artist-1'
     );
-    expect(order!.buyer_fee_cents).toBe(250); // 5% of $50
-    expect(order!.platform_fee_cents).toBe(1000);
+    expect(order!.buyer_fee_cents).toBe(1000); // what those sessions charged
+    expect(order!.platform_fee_cents).toBe(750 + 1000);
   });
 
   it('falls back to the listing price when metadata lacks price_cents (legacy sessions)', () => {

@@ -71,7 +71,7 @@ export default function ArtistOnboardingPage() {
       return;
     }
 
-    router.push('/dashboard');
+    router.push('/studio');
   };
 
   return (

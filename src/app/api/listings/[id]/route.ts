@@ -64,7 +64,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   // event is claimed with an atomic conditional stamp update (service role —
   // the stamps are frozen for user sessions), so concurrent requests and
   // retries can't double-send. Pre-migration-00025 the claims fail soft.
-  if (data.status === 'available') {
+  const publishedNow = 'status' in updates && listing.status !== 'available' && data.status === 'available';
+  if (publishedNow) {
     const admin = createAdminSupabaseClient();
     const { data: claim } = await admin
       .from('listings')

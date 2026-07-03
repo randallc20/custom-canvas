@@ -29,6 +29,8 @@ const nextConfig = {
       // Directory renamed in Phase 4; old links keep working.
       { source: '/galleries', destination: '/partners', permanent: true },
       // Build 3 Phase 4: artist console consolidated into /studio.
+      // LOAD-BEARING: old notification/email deep links resolve through
+      // these — do not prune.
       // (/listings/new and /listings/[id]/edit still exist and are NOT
       // redirected — sources match exact paths only.)
       { source: '/listings', destination: '/studio/work', permanent: false },

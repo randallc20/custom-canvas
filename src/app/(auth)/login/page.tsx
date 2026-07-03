@@ -21,7 +21,9 @@ export default function LoginPage() {
       const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
       if (returnUrl && returnUrl.startsWith('/')) {
         router.push(returnUrl);
-      } else if (user.role === 'artist' || user.role === 'gallery') {
+      } else if (user.role === 'artist') {
+        router.push('/studio');
+      } else if (user.role === 'gallery') {
         router.push('/dashboard');
       } else if (user.role === 'admin') {
         router.push('/admin');

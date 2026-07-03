@@ -45,9 +45,11 @@ export function buildOrderRecord(
   const split = calcSplit(priceCents, shippingCents);
   // The fee Stripe actually charged is locked in metadata at session creation;
   // recomputing here would mis-record any session that straddles a fee-formula
-  // deploy. Legacy sessions without the key fall back to the current formula.
+  // deploy. Sessions without the key predate the 5%-cap deploy and charged
+  // the old flat $10 — record what was actually charged.
+  const LEGACY_FLAT_FEE_CENTS = 1000;
   const lockedFee = parseInt(session.metadata?.buyer_fee_cents ?? '', 10);
-  const buyerFee = Number.isNaN(lockedFee) ? split.buyerFee : lockedFee;
+  const buyerFee = Number.isNaN(lockedFee) ? LEGACY_FLAT_FEE_CENTS : lockedFee;
   const shippingRaw = session.metadata?.shipping_address;
 
   return {

@@ -20,14 +20,20 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 
   const { reason } = await request.json();
+  if (typeof reason !== 'string' || !reason.trim() || reason.length > 2000) {
+    return NextResponse.json({ error: 'Please describe the issue (up to 2000 characters).' }, { status: 400 });
+  }
 
   const { data, error } = await createAdminSupabaseClient()
     .from('commissions')
     .update({ status: 'disputed', artist_notes: reason })
     .eq('id', params.id)
+    // Disputes only make sense on active or delivered work.
+    .in('status', ['in_progress', 'delivered'])
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: 'Only active or delivered commissions can be disputed.' }, { status: 409 });
   return NextResponse.json(data);
 }

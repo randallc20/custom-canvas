@@ -141,3 +141,23 @@ Partners graduate from trust decor to a discovery engine.
 - 1 and 2 are quick wins and can land in either order; 3 must precede 4 (Studio builds on the API write path); 5 is independent of 4 but lands after so the artist nav settles once; 6 is last and deferrable without harming the rest.
 - Each phase = one PR against master, staging-verified with the seeded demo accounts before the next begins (Build 2 rhythm).
 - Deferred debt untouched by this plan (still open from §16): Upstash rate limiting, skipped Playwright critical-path suite, remaining inline-Supabase files beyond the listing write path, create/edit form duplication if not absorbed in Phase 4.
+
+---
+
+## Build log — deviations & addenda (2026-07-03)
+
+All 6 phases implemented on master. Deviations from the plan above, and items that fell out of the build:
+
+- **Commission state machine changed (deliberate deviation from Phase 5's "no state-machine change").** Review found quote-acceptance jumped straight to terminal `confirmed`, making WIP updates unreachable. Action routes now enforce guarded transitions (409 on out-of-order calls): quote accept goes `quoted → in_progress` (`accepted` is legacy-only for new data), receipt confirm goes `delivered → confirmed`, decline/cancel only from `pending`/`quoted` (writes `cancelled` — `declined` was never a DB status), deliver only from `accepted`/`in_progress`, quote only from `pending`, dispute only from `in_progress`/`delivered` (reason ≤2000 chars). Commission creation now fails hard if its conversation can't be created.
+- **7-day stat strip omits follower count** (plan said views/saves/followers/earnings; shipped views/saves/orders/earnings). Analytics events don't track follows per-artist cheaply — deferred.
+- **Systemic pre-existing auth bug fixed en route:** the browser Supabase client kept sessions in localStorage, so ALL authed API routes 401'd in real browsers. Now cookie-backed via `@supabase/ssr` `createBrowserClient`.
+- **Money-path hardening beyond plan scope:** admin partial refunds reject out-of-range amounts (400) instead of escalating to full; `charge.refunded` ignores partial refunds (only full refunds close the order/relist); oversell refund failure now 500s so Stripe retries; confirmation email total uses Stripe's tax-inclusive `amount_total`; legacy sessions without fee metadata record the old flat $10.
+- **Environment-blocked:** migrations 00024–00026 (`00024_featured_listings`, `00025_publish_notifications` — email claim stamps + guard only, `followers_notified_at` came from 00022 — and `00026_partner_picks`) are **not applied to the DEV/staging database** (no DB credentials in the build environment). Until applied: shelves hide themselves, the picks manager errors, alert emails silently skip (claims fail soft). Staging E2E of the fee model, emails, and shelves is pending that. Apply via the IPv4 session pooler:
+
+  ```bash
+  for f in supabase/migrations/00024_featured_listings.sql \
+           supabase/migrations/00025_publish_notifications.sql \
+           supabase/migrations/00026_partner_picks.sql; do
+    psql "postgresql://postgres.<dev-ref>:<password>@aws-1-<region>.pooler.supabase.com:5432/postgres" -f "$f"
+  done
+  ```
