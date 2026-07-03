@@ -19,36 +19,37 @@ export async function getListingById(id: string): Promise<ListingWithImages | nu
   return null;
 }
 
-export async function createListing(listing: Omit<Listing, 'id' | 'view_count' | 'save_count' | 'search_vector' | 'created_at' | 'updated_at'>): Promise<Listing> {
-  const { data, error } = await supabase
-    .from('listings')
-    .insert(listing)
-    .select()
-    .single();
+// Listing writes go through API routes (not the client SDK) so the server
+// sees publish/price events and can fan out follower/saver emails. RLS
+// remains the safety net underneath.
+async function listingApi<T>(path: string, init: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(typeof body.error === 'string' ? body.error : 'Listing request failed');
+  }
+  return res.json();
+}
 
-  if (error) throw error;
-  return data;
+export async function createListing(listing: Omit<Listing, 'id' | 'view_count' | 'save_count' | 'search_vector' | 'created_at' | 'updated_at'>): Promise<Listing> {
+  return listingApi<Listing>('/api/listings', {
+    method: 'POST',
+    body: JSON.stringify(listing),
+  });
 }
 
 export async function updateListing(id: string, updates: Partial<Listing>): Promise<Listing> {
-  const { data, error } = await supabase
-    .from('listings')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+  return listingApi<Listing>(`/api/listings/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  });
 }
 
 export async function deleteListing(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('listings')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
+  await listingApi<{ success: boolean }>(`/api/listings/${id}`, { method: 'DELETE' });
 }
 
 export async function addListingImages(listingId: string, urls: string[], startOrder: number): Promise<ListingImage[]> {

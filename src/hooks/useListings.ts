@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getListingById, createListing, updateListing, deleteListing } from '@/services/listings';
 import { Listing } from '@/types/listing';
+import { useToast } from '@/components/ui/Toast';
 
 export function useListing(id: string) {
   return useQuery({
@@ -10,8 +11,17 @@ export function useListing(id: string) {
   });
 }
 
+// Listing writes go over HTTP now (rate-limitable, can fail with 429/401),
+// so every mutation surfaces its error as a toast — callers that .mutate()
+// without onError no longer fail silently.
+function toastError(toast: ReturnType<typeof useToast>['toast']) {
+  return (err: unknown) =>
+    toast(err instanceof Error ? err.message : 'Something went wrong', 'error');
+}
+
 export function useCreateListing() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   return useMutation({
     mutationFn: createListing,
@@ -19,11 +29,13 @@ export function useCreateListing() {
       queryClient.invalidateQueries({ queryKey: ['listings'] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
     },
+    onError: toastError(toast),
   });
 }
 
 export function useUpdateListing() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Listing> }) =>
@@ -32,11 +44,13 @@ export function useUpdateListing() {
       queryClient.invalidateQueries({ queryKey: ['listing', id] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
     },
+    onError: toastError(toast),
   });
 }
 
 export function useDeleteListing() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   return useMutation({
     mutationFn: deleteListing,
@@ -44,5 +58,6 @@ export function useDeleteListing() {
       queryClient.invalidateQueries({ queryKey: ['listings'] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
     },
+    onError: toastError(toast),
   });
 }

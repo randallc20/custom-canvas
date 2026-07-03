@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Per-route rate limits (requests per minute). Tune as needed.
 const LIMITS: Record<string, number> = {
   '/api/conversations': 60, // messaging
-  '/api/listings': 10,
+  '/api/listings': 30, // catalog cleanup sessions burst above 10
   '/api/commissions': 5,
   '/api/reports': 5,
   '/api/reviews': 5,

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { listingWriteSchema } from '@/schemas/listingSchema';
+import { fanOutNewListingEmails, fanOutPriceDropEmails } from '@/lib/listingAlerts';
+import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = createServerSupabaseClient();
@@ -25,7 +28,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   const { data: listing } = await supabase
     .from('listings')
-    .select('artist_id, artist:artist_profiles(profile_id)')
+    .select('artist_id, title, status, price_cents, last_price_drop_alert_at, artist:artist_profiles(profile_id)')
     .eq('id', params.id)
     .single();
 
@@ -33,7 +36,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+
   const body = await request.json();
+  const parsed = listingWriteSchema.partial().safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid listing data', details: parsed.error.flatten() }, { status: 400 });
+  }
   // Allowlist editable columns — block artist_id reassignment and counters.
   const EDITABLE = [
     'title', 'description', 'medium', 'width_cm', 'height_cm', 'depth_cm',
@@ -41,7 +49,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     'sold_price_cents', 'show_sold_price', 'series_id', 'status',
   ] as const;
   const updates: Record<string, unknown> = {};
-  for (const key of EDITABLE) if (key in body) updates[key] = body[key];
+  for (const key of EDITABLE) if (key in parsed.data) updates[key] = parsed.data[key];
 
   const { data, error } = await supabase
     .from('listings')
@@ -51,6 +59,46 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Mirror the DB triggers' in-app notifications with emails. Each channel
+  // event is claimed with an atomic conditional stamp update (service role —
+  // the stamps are frozen for user sessions), so concurrent requests and
+  // retries can't double-send. Pre-migration-00025 the claims fail soft.
+  if (data.status === 'available') {
+    const admin = createAdminSupabaseClient();
+    const { data: claim } = await admin
+      .from('listings')
+      .update({ publish_email_sent_at: new Date().toISOString() })
+      .eq('id', params.id)
+      .is('publish_email_sent_at', null)
+      .select('id');
+    if (claim?.length) {
+      await fanOutNewListingEmails({ id: data.id, title: data.title, artist_id: data.artist_id });
+    }
+  }
+
+  const priceDropped =
+    typeof updates.price_cents === 'number' &&
+    (updates.price_cents as number) < listing.price_cents;
+  if (priceDropped) {
+    const admin = createAdminSupabaseClient();
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: claim } = await admin
+      .from('listings')
+      .update({ price_drop_email_sent_at: new Date().toISOString() })
+      .eq('id', params.id)
+      .or(`price_drop_email_sent_at.is.null,price_drop_email_sent_at.lt.${dayAgo}`)
+      .select('id');
+    if (claim?.length) {
+      await fanOutPriceDropEmails({
+        id: data.id,
+        title: data.title,
+        newPriceCents: data.price_cents,
+        oldPriceCents: listing.price_cents,
+      });
+    }
+  }
+
   return NextResponse.json(data);
 }
 

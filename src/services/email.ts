@@ -255,3 +255,105 @@ export async function sendBuyerDripEmail(to: string, name: string): Promise<void
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><h2 style="color:#111">Discover Houston art</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${name}, there's a whole community of Houston artists to explore on Custom Canvas. Find a piece — or an artist — you love.</p><a href="${APP_URL}/" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Explore art</a></div>`,
   });
 }
+
+
+// ---- Bulk listing alerts (Build 3 Phase 3) ----
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+const unsubscribeFooter = (unsubscribeUrl: string) =>
+  `<p style="color:#999;font-size:12px;margin-top:24px">You're getting this because you follow artists or save work on Custom Canvas. <a href="${unsubscribeUrl}" style="color:#999">Unsubscribe</a></p>`;
+
+export interface BulkEmail {
+  to: string;
+  subject: string;
+  html: string;
+  headers?: Record<string, string>;
+}
+
+function unsubscribeUrl(token: string): string {
+  return `${APP_URL}/unsubscribe?token=${token}`;
+}
+
+// RFC 8058 one-click unsubscribe — Gmail/Yahoo require these on bulk mail.
+function bulkHeaders(unsubUrl: string): Record<string, string> {
+  return {
+    'List-Unsubscribe': `<${unsubUrl}>`,
+    'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+  };
+}
+
+export function buildNewListingEmail(
+  to: string,
+  name: string,
+  artistName: string,
+  listingTitle: string,
+  listingId: string,
+  unsubscribeToken: string
+): BulkEmail {
+  const artist = escapeHtml(artistName);
+  const title = escapeHtml(listingTitle);
+  const unsub = unsubscribeUrl(unsubscribeToken);
+  return {
+    to,
+    subject: `${artistName} just listed new work`,
+    headers: bulkHeaders(unsub),
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <h2 style="color:#111">New work from ${artist}</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, ${artist} — an artist you follow — just listed <strong>${title}</strong>.</p>
+        <a href="${APP_URL}/listing/${listingId}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">See the piece</a>
+        ${unsubscribeFooter(unsub)}
+      </div>
+    `,
+  };
+}
+
+export function buildPriceDropEmail(
+  to: string,
+  name: string,
+  listingTitle: string,
+  newPrice: string,
+  oldPrice: string,
+  listingId: string,
+  unsubscribeToken: string
+): BulkEmail {
+  const title = escapeHtml(listingTitle);
+  const unsub = unsubscribeUrl(unsubscribeToken);
+  return {
+    to,
+    subject: `Price drop: ${listingTitle}`,
+    headers: bulkHeaders(unsub),
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <h2 style="color:#111">A piece you saved dropped in price</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, <strong>${title}</strong> is now ${newPrice} (was ${oldPrice}).</p>
+        <a href="${APP_URL}/listing/${listingId}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">See the piece</a>
+        ${unsubscribeFooter(unsub)}
+      </div>
+    `,
+  };
+}
+
+// One batch API call per 100 recipients (Resend's batch cap) instead of N
+// individual sends that would trip the per-second rate limit.
+export async function sendBulkEmails(emails: BulkEmail[]): Promise<void> {
+  const resend = getResend();
+  for (let i = 0; i < emails.length; i += 100) {
+    const chunk = emails.slice(i, i + 100);
+    const { error } = await resend.batch.send(
+      chunk.map((e) => ({ from: FROM_EMAIL, ...e }))
+    );
+    if (error) {
+      const Sentry = await import('@sentry/nextjs');
+      Sentry.captureMessage(`Bulk email chunk failed: ${error.message}`, 'warning');
+    }
+  }
+}
