@@ -38,6 +38,7 @@ interface RecentUser {
 }
 
 const NAV_LINKS = [
+  { href: '/admin/featured', label: 'Featured', desc: 'Curate the homepage shelf' },
   { href: '/admin/users', label: 'Users', desc: 'Manage accounts' },
   { href: '/admin/galleries', label: 'Galleries', desc: 'Verify galleries' },
   { href: '/admin/listings', label: 'Listings', desc: 'Review content' },

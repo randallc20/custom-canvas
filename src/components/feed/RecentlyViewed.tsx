@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { FeedCard } from './FeedCard';
+import { ListingShelf } from './ListingShelf';
 import type { ListingWithImages } from '@/types/listing';
 
 // Logged-in only: the last 12 distinct listings the user viewed.
@@ -49,18 +49,7 @@ export function RecentlyViewed() {
     return () => { active = false; };
   }, [user]);
 
-  if (!user || listings.length === 0) return null;
+  if (!user) return null;
 
-  return (
-    <div className="mb-8">
-      <h2 className="mb-4 font-display text-xl font-semibold text-ink">Recently viewed</h2>
-      <div className="flex gap-4 overflow-x-auto pb-2">
-        {listings.map((listing) => (
-          <div key={listing.id} className="w-48 flex-shrink-0">
-            <FeedCard listing={listing} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return <ListingShelf title="Recently viewed" listings={listings} />;
 }
