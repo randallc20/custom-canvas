@@ -38,6 +38,14 @@ export default function AboutPage() {
           you with collectors who are looking for exactly what you create.
         </p>
 
+        <h2 className="text-xl font-semibold text-ink">Fair, Simple Pricing</h2>
+        <p>
+          The price you see is the artist&apos;s price. Buyers pay a 5% service fee, capped
+          at $15 per order — shown on every listing before you check out. That fee, plus a
+          15% share of each sale, is how we keep the lights on while artists keep 85% and
+          all of their shipping.
+        </p>
+
         <h2 className="text-xl font-semibold text-ink">Contact</h2>
         <p>
           Questions or feedback? Reach us at{' '}

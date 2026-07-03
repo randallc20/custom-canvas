@@ -6,7 +6,7 @@ import { Listing } from '@/types/listing';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { formatPrice, listingPriceLabel } from '@/utils/formatPrice';
-import { calcSplit } from '@/utils/commissionCalc';
+import { calcSplit, BUYER_FEE_LABEL } from '@/utils/commissionCalc';
 import { isPickupOnly } from '@/utils/fulfillment';
 import { useAuth } from '@/context/AuthContext';
 import { useFindOrCreateConversation } from '@/hooks/useConversations';
@@ -97,13 +97,14 @@ export function PurchasePanel({ listing, artistProfileId, fulfillmentPref, awayM
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Service fee at checkout</span>
+              <span>{BUYER_FEE_LABEL}</span>
               <span>{formatPrice(split.buyerFee)}</span>
             </div>
             <div className="flex justify-between font-medium text-ink">
               <span>Estimated total</span>
               <span>{formatPrice(split.buyerTotal)}</span>
             </div>
+            <p className="pt-1 text-xs text-muted">The artist keeps 85% of the price, plus all shipping.</p>
           </div>
           <Link href={`/checkout/${listing.id}`} className="block">
             <Button className="w-full">Buy Now</Button>

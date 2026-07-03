@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { formatPrice } from '@/utils/formatPrice';
-import { calcSplit } from '@/utils/commissionCalc';
+import { calcSplit, BUYER_FEE_LABEL } from '@/utils/commissionCalc';
 import { isPickupOnly } from '@/utils/fulfillment';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
@@ -105,7 +105,7 @@ function CheckoutContent() {
             <span>{isPickup ? 'Local pickup — no shipping' : formatPrice(shippingCents)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted">Service fee</span>
+            <span className="text-muted">{BUYER_FEE_LABEL}</span>
             <span>{formatPrice(split.buyerFee)}</span>
           </div>
           <div className="flex justify-between border-t border-line pt-1 font-medium">

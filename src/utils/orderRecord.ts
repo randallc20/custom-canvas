@@ -8,6 +8,7 @@ export interface CheckoutSessionLike {
     shipping_address?: string;
     shipping_cents?: string;
     price_cents?: string;
+    buyer_fee_cents?: string;
   } | null;
 }
 
@@ -42,6 +43,11 @@ export function buildOrderRecord(
   const shippingCents = parseInt(session.metadata?.shipping_cents ?? '0', 10) || 0;
   const priceCents = parseInt(session.metadata?.price_cents ?? '', 10) || listing.price_cents;
   const split = calcSplit(priceCents, shippingCents);
+  // The fee Stripe actually charged is locked in metadata at session creation;
+  // recomputing here would mis-record any session that straddles a fee-formula
+  // deploy. Legacy sessions without the key fall back to the current formula.
+  const lockedFee = parseInt(session.metadata?.buyer_fee_cents ?? '', 10);
+  const buyerFee = Number.isNaN(lockedFee) ? split.buyerFee : lockedFee;
   const shippingRaw = session.metadata?.shipping_address;
 
   return {
@@ -49,9 +55,9 @@ export function buildOrderRecord(
     buyer_id: buyerId,
     artist_id: artistId,
     amount_cents: priceCents,
-    platform_fee_cents: split.platformRevenue,
+    platform_fee_cents: split.platformCommission + buyerFee,
     artist_payout_cents: split.artistPayout,
-    buyer_fee_cents: split.buyerFee,
+    buyer_fee_cents: buyerFee,
     shipping_cents: split.shippingCents,
     stripe_payment_intent_id: session.payment_intent as string,
     shipping_address: shippingRaw ? JSON.parse(shippingRaw) : null,

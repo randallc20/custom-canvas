@@ -9,7 +9,7 @@ export default function TermsPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="mb-6 text-3xl font-bold text-ink">Terms of Service</h1>
-      <p className="mb-4 text-sm text-muted">Last updated: June 2026</p>
+      <p className="mb-4 text-sm text-muted">Last updated: July 2026</p>
 
       <div className="space-y-6 text-sm leading-relaxed text-muted">
         <section>
@@ -40,7 +40,8 @@ export default function TermsPage() {
           <h2 className="mb-2 text-lg font-semibold text-ink">4. Purchases &amp; Payments</h2>
           <p>
             All transactions are processed through Stripe. Custom Canvas charges a 15% platform
-            fee on each sale. Artists receive 85% of the sale price via Stripe Connect payouts.
+            fee on each sale, and buyers pay a 5% service fee capped at $15 per order. Artists
+            receive 85% of the sale price via Stripe Connect payouts.
           </p>
         </section>
 

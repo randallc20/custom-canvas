@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { getStripe } from '@/lib/stripe';
-import { calcSplit, BUYER_FEE_CENTS } from '@/utils/commissionCalc';
+import { calcSplit } from '@/utils/commissionCalc';
 import { isPickupOnly } from '@/utils/fulfillment';
 
 export async function POST(request: NextRequest) {
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       price_data: {
         currency: 'usd',
         product_data: { name: 'Service fee' },
-        unit_amount: BUYER_FEE_CENTS,
+        unit_amount: split.buyerFee,
       },
       quantity: 1,
     },
@@ -96,9 +96,12 @@ export async function POST(request: NextRequest) {
         buyer_id: user.id,
         shipping_address: shipping ? JSON.stringify(shipping) : '',
         shipping_cents: String(shippingCents),
+        pickup: String(pickup),
         // Lock the economics at session creation; the webhook records these
-        // instead of re-reading the listing, which may have changed price.
+        // instead of re-reading the listing (price may change) or re-running
+        // the fee formula (which may change between deploys).
         price_cents: String(listing.price_cents),
+        buyer_fee_cents: String(split.buyerFee),
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/orders?success=true`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/listing/${listingId}`,

@@ -7,6 +7,7 @@ function mockSession(overrides: Partial<{
   shipping_address: string;
   shipping_cents: string;
   price_cents: string;
+  buyer_fee_cents: string;
 }> = {}) {
   return {
     payment_intent: 'pi_test_123',
@@ -16,6 +17,7 @@ function mockSession(overrides: Partial<{
       shipping_address: JSON.stringify({ street: '123 Main St', city: 'Houston', state: 'TX', zip: '77001', country: 'US' }),
       shipping_cents: '2000',
       price_cents: '30000',
+      buyer_fee_cents: '1500',
       ...overrides,
     },
   };
@@ -27,9 +29,9 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
     expect(order).not.toBeNull();
     expect(order!.amount_cents).toBe(30000);
     expect(order!.shipping_cents).toBe(2000);
-    expect(order!.buyer_fee_cents).toBe(1000);
+    expect(order!.buyer_fee_cents).toBe(1500); // 5% of $300, at the cap
     expect(order!.artist_payout_cents).toBe(27500);
-    expect(order!.platform_fee_cents).toBe(5500); // commission + buyer fee
+    expect(order!.platform_fee_cents).toBe(6000); // commission + buyer fee
     expect(order!.stripe_payment_intent_id).toBe('pi_test_123');
     expect(order!.status).toBe('paid');
     expect(order!.shipping_address).toEqual({
@@ -45,6 +47,30 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
     expect(order!.artist_payout_cents).toBe(27500);
   });
 
+  it('records the session-locked buyer fee, not the current formula', () => {
+    // Session created under the old flat-$10 fee completes after a deploy
+    // that changed the formula: the order must record what Stripe charged.
+    const order = buildOrderRecord(
+      mockSession({ price_cents: '5000', shipping_cents: '0', buyer_fee_cents: '1000' }),
+      { price_cents: 5000 },
+      'artist-1'
+    );
+    expect(order!.buyer_fee_cents).toBe(1000);
+    expect(order!.platform_fee_cents).toBe(750 + 1000); // 15% commission + locked fee
+    const buyerTotal = order!.amount_cents + order!.buyer_fee_cents + order!.shipping_cents;
+    expect(order!.artist_payout_cents + order!.platform_fee_cents).toBe(buyerTotal);
+  });
+
+  it('falls back to the current fee formula when metadata lacks buyer_fee_cents (legacy sessions)', () => {
+    const order = buildOrderRecord(
+      mockSession({ price_cents: '5000', shipping_cents: '0', buyer_fee_cents: '' }),
+      { price_cents: 5000 },
+      'artist-1'
+    );
+    expect(order!.buyer_fee_cents).toBe(250); // 5% of $50
+    expect(order!.platform_fee_cents).toBe(1000);
+  });
+
   it('falls back to the listing price when metadata lacks price_cents (legacy sessions)', () => {
     const order = buildOrderRecord(mockSession({ price_cents: '' }), { price_cents: 15000 }, 'artist-1');
     expect(order!.amount_cents).toBe(15000);
@@ -53,14 +79,14 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
 
   it('handles pickup orders: no shipping, no address', () => {
     const order = buildOrderRecord(
-      mockSession({ shipping_cents: '0', shipping_address: '', price_cents: '15000' }),
+      mockSession({ shipping_cents: '0', shipping_address: '', price_cents: '15000', buyer_fee_cents: '750' }),
       { price_cents: 15000 },
       'artist-1'
     );
     expect(order!.shipping_cents).toBe(0);
     expect(order!.shipping_address).toBeNull();
     expect(order!.artist_payout_cents).toBe(12750);
-    expect(order!.platform_fee_cents).toBe(3250);
+    expect(order!.platform_fee_cents).toBe(3000); // 15% commission + $7.50 fee
   });
 
   it('defaults malformed shipping_cents to 0', () => {

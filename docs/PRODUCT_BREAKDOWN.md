@@ -6,7 +6,7 @@
 
 ## 1. What It Is
 
-**Custom Canvas** is a Houston-focused marketplace for original art. Artists sell finished pieces and take custom commissions; buyers discover local art through a feed, search, and artist profiles; verified partner organizations (galleries, schools, museums) anchor the local-trust story. The platform takes 15% of each sale plus a flat $10 buyer fee; artists keep 85% plus full shipping.
+**Custom Canvas** is a Houston-focused marketplace for original art. Artists sell finished pieces and take custom commissions; buyers discover local art through a feed, search, and artist profiles; verified partner organizations (galleries, schools, museums) anchor the local-trust story. The platform takes 15% of each sale plus a 5% buyer service fee capped at $15 (changed from a flat $10 in Build 3, Phase 1); artists keep 85% plus full shipping.
 
 - **Stack:** Next.js 14 (App Router) + Supabase (Postgres/Auth/Storage/Realtime) + Stripe (Checkout, Connect Express, Tax) + Resend (email) + Sentry, deployed on Vercel.
 - **Staging:** https://custom-canvas-chi.vercel.app (auto-deploys on push to master).
@@ -26,12 +26,12 @@
 
 | Party | Gets / Pays |
 |---|---|
-| Buyer pays | price + $10 service fee + artist-set shipping + sales tax |
+| Buyer pays | price + 5% service fee (capped at $15) + artist-set shipping + sales tax |
 | Artist receives | 85% of price + 100% of shipping (instant Stripe Connect transfer) |
-| Platform keeps | 15% of price + $10 buyer fee |
+| Platform keeps | 15% of price + buyer service fee |
 | Tax | Calculated by Stripe Tax at payment, collected/remitted by platform |
 
-Canonical example: $300 piece + $20 shipping → buyer pays $330 (+tax), artist gets $275, platform keeps $55.
+Canonical example: $300 piece + $20 shipping → buyer pays $335 (+tax), artist gets $275, platform keeps $60. The fee is disclosed on the listing page and locked into Stripe session metadata (like price) so a fee-formula deploy can't mis-record in-flight sessions.
 
 **Mechanics that protect the money path:**
 - Economics are **locked into Stripe session metadata at checkout creation** — a price edit mid-checkout can't change what settles.
