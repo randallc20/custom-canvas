@@ -77,8 +77,11 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
         if (!res.ok) throw new Error();
         setResolved(action === 'confirm' ? 'Accepted' : 'Declined');
         toast(action === 'confirm' ? 'Quote accepted' : 'Quote declined', 'success');
-        // Reflect the new commission status across the thread + commission page.
+        // Reflect the new commission status across the thread, the rail, and
+        // the inbox pills.
         queryClient.invalidateQueries({ queryKey: ['messages'] });
+        queryClient.invalidateQueries({ queryKey: ['commission'] });
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
         router.refresh();
       } catch {
         toast('Action failed. Try again.', 'error');
@@ -102,7 +105,8 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
               <Button size="sm" variant="outline" className="flex-1" onClick={() => act('decline')} disabled={acting}>Decline</Button>
             </div>
           ) : (
-            <Link href={commissionId ? `/commissions/${commissionId}` : '#'} className="mt-3 block text-xs text-terra hover:underline">View commission</Link>
+            // Sender's own quote — live status is in the commission rail.
+            <p className="mt-3 text-xs text-muted">Quote sent</p>
           )}
         </div>
       </Wrapper>

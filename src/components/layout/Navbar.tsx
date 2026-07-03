@@ -71,9 +71,6 @@ export function Navbar() {
                     <Link href="/orders" className="block px-4 py-2 text-sm text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>
                       Orders
                     </Link>
-                    <Link href="/commissions" className="block px-4 py-2 text-sm text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>
-                      Commissions
-                    </Link>
                     <hr className="my-1" />
                     <button
                       onClick={() => { signOut(); setMenuOpen(false); }}
@@ -135,9 +132,6 @@ export function Navbar() {
                 </Link>
                 <Link href="/orders" className="block rounded-lg px-3 py-2 text-sm text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>
                   Orders
-                </Link>
-                <Link href="/commissions" className="block rounded-lg px-3 py-2 text-sm text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>
-                  Commissions
                 </Link>
                 <button onClick={() => { signOut(); setMenuOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-sand/50">
                   Sign Out

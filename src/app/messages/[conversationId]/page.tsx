@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -16,6 +16,7 @@ import { useBlockedIds, useMutedConversationIds } from '@/hooks/useChatSafety';
 import { PartnerBadge } from '@/components/gallery/PartnerBadge';
 import { ThreadMenu } from '@/components/chat/ThreadMenu';
 import { ContextBanner } from '@/components/chat/ContextBanner';
+import { CommissionPanel } from '@/components/commission/CommissionPanel';
 import { PageShell } from '@/components/layout/PageShell';
 
 export default function ConversationPage() {
@@ -31,6 +32,8 @@ export default function ConversationPage() {
 function ConversationContent() {
   const { conversationId } = useParams<{ conversationId: string }>();
   const { user } = useAuth();
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const { data: conversations, isLoading } = useConversations(user?.id ?? '');
   const { data: activeConv } = useConversation(conversationId);
   const conversationIds = useMemo(() => conversations?.map((c) => c.id) ?? [], [conversations]);
@@ -52,6 +55,8 @@ function ConversationContent() {
         : activeConv.participant_one_profile)
     : null;
 
+  const isCommission = activeConv?.context_type === 'commission';
+
   return (
     <div className="mx-auto flex h-[calc(100vh-4rem)] max-w-6xl">
       <div className="hidden w-80 border-r border-line md:block">
@@ -66,7 +71,7 @@ function ConversationContent() {
           />
         )}
       </div>
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-3 border-b border-line px-4 py-2">
           <Link href="/messages" className="text-muted hover:text-ink md:hidden">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -84,23 +89,60 @@ function ConversationContent() {
                 {otherParticipant.full_name ?? otherParticipant.email}
               </span>
               {otherPartnerType != null && <PartnerBadge partnerType={otherPartnerType} />}
-              {otherParticipantId && (
-                <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-2">
+                {isCommission && (
+                  <>
+                    <button
+                      onClick={() => setMobilePanelOpen(true)}
+                      className="rounded-full border border-line px-3 py-1 text-xs font-medium text-ink hover:bg-sand/50 lg:hidden"
+                    >
+                      Commission details
+                    </button>
+                    <button
+                      onClick={() => setPanelOpen((o) => !o)}
+                      className="hidden rounded-full border border-line px-3 py-1 text-xs font-medium text-ink hover:bg-sand/50 lg:block"
+                    >
+                      {panelOpen ? 'Hide details' : 'Commission details'}
+                    </button>
+                  </>
+                )}
+                {otherParticipantId && (
                   <ThreadMenu
                     conversationId={conversationId}
                     otherUserId={otherParticipantId}
                     otherName={otherParticipant.full_name ?? 'this user'}
                   />
-                </div>
-              )}
+                )}
+              </div>
             </>
           )}
         </div>
-        {activeConv && (
+        {activeConv && !isCommission && (
           <ContextBanner contextType={activeConv.context_type} contextId={activeConv.context_id} />
         )}
         <ChatThread conversationId={conversationId} otherPartnerType={otherPartnerType} />
       </div>
+
+      {/* Commission rail: the commission lives in its conversation. */}
+      {isCommission && panelOpen && (
+        <aside className="hidden w-96 overflow-y-auto border-l border-line bg-surface lg:block">
+          <CommissionPanel conversationId={conversationId} />
+        </aside>
+      )}
+      {isCommission && mobilePanelOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-ink/40" onClick={() => setMobilePanelOpen(false)} />
+          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-2xl bg-surface shadow-card">
+            <div className="sticky top-0 flex items-center justify-between border-b border-line bg-surface px-4 py-3">
+              <span className="text-sm font-semibold text-ink">Commission details</span>
+              <button onClick={() => setMobilePanelOpen(false)} className="text-muted hover:text-ink" aria-label="Close">
+                ✕
+              </button>
+            </div>
+            <CommissionPanel conversationId={conversationId} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

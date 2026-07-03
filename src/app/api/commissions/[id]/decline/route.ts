@@ -9,7 +9,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
 
   const { data: commission } = await supabase
     .from('commissions')
-    .select('artist_id, requester_id')
+    .select('artist_id, requester_id, status')
     .eq('id', params.id)
     .single();
 
@@ -28,10 +28,17 @@ export async function POST(_request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  // Only open requests/quotes can be declined or cancelled — accepted work
+  // must go through delivery or dispute.
+  if (commission.status !== 'pending' && commission.status !== 'quoted') {
+    return NextResponse.json({ error: 'This commission can no longer be cancelled.' }, { status: 409 });
+  }
+
   const { data, error } = await createAdminSupabaseClient()
     .from('commissions')
     .update({ status: 'cancelled' })
     .eq('id', params.id)
+    .eq('status', commission.status)
     .select()
     .single();
 

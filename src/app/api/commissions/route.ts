@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   if (!artist) return NextResponse.json({ error: 'Artist not found' }, { status: 404 });
 
-  const { data: conversation } = await supabase
+  const { data: conversation, error: convError } = await supabase
     .from('conversations')
     .insert({
       participant_one: user.id,
@@ -49,6 +49,11 @@ export async function POST(request: NextRequest) {
     })
     .select()
     .single();
+  // The conversation IS the commission's home now — a commission without one
+  // would be unreachable in the UI, so fail the request instead.
+  if (convError || !conversation) {
+    return NextResponse.json({ error: 'Could not start the conversation. Please try again.' }, { status: 500 });
+  }
 
   const { data: commission, error } = await supabase
     .from('commissions')
@@ -56,16 +61,14 @@ export async function POST(request: NextRequest) {
       ...commissionData,
       artist_id,
       requester_id: user.id,
-      conversation_id: conversation?.id ?? null,
+      conversation_id: conversation.id,
     })
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  if (conversation) {
-    await supabase.from('conversations').update({ context_id: commission.id }).eq('id', conversation.id);
-  }
+  await supabase.from('conversations').update({ context_id: commission.id }).eq('id', conversation.id);
 
   const { data: artistProfile } = await supabase
     .from('profiles')

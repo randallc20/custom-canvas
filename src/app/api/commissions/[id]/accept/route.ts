@@ -35,10 +35,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .from('commissions')
     .update({ status: 'quoted', ...parsed.data })
     .eq('id', params.id)
+    .eq('status', 'pending')
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: 'Only new requests can be quoted.' }, { status: 409 });
 
   // Post the quote into the linked thread as an accept/decline card.
   if (commission.conversation_id) {

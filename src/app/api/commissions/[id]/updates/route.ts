@@ -16,7 +16,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const { data: commission } = await supabase
     .from('commissions')
-    .select('id, requester_id, artist_id, title, artist:artist_profiles!inner(profile_id, display_name)')
+    .select('id, requester_id, artist_id, title, conversation_id, artist:artist_profiles!inner(profile_id, display_name)')
     .eq('id', params.id)
     .single();
   if (!commission) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -39,6 +39,24 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // The conversation is the commission's home — mirror the update there so
+  // the thread reads as one story (commission_updates stays canonical).
+  if (commission.conversation_id) {
+    const progress = progressPercent != null ? ` (${progressPercent}% complete)` : '';
+    const { error: msgError } = await admin.from('messages').insert({
+      conversation_id: commission.conversation_id,
+      sender_id: user.id,
+      content: `Progress update${progress}: ${note.trim()}`,
+      message_type: 'system',
+    });
+    if (!msgError) {
+      await admin.from('conversations').update({
+        last_message_text: 'Progress update',
+        last_message_at: new Date().toISOString(),
+      }).eq('id', commission.conversation_id);
+    }
+  }
 
   // Notify the buyer (in-app always; email best-effort).
   await admin.from('notifications').insert({

@@ -1,7 +1,13 @@
 import { supabase } from '@/lib/supabase';
 import { Conversation, ConversationWithParticipants } from '@/types/conversation';
+import type { CommissionStatus } from '@/types/commission';
 
-export async function getConversations(userId: string): Promise<ConversationWithParticipants[]> {
+export type InboxConversation = ConversationWithParticipants & {
+  /** Status of the linked commission, for commission-anchored threads. */
+  commission_status?: CommissionStatus;
+};
+
+export async function getConversations(userId: string): Promise<InboxConversation[]> {
   const { data, error } = await supabase
     .from('conversations')
     .select(
@@ -11,7 +17,29 @@ export async function getConversations(userId: string): Promise<ConversationWith
     .order('last_message_at', { ascending: false });
 
   if (error) throw error;
-  return data as ConversationWithParticipants[];
+  const conversations = data as InboxConversation[];
+
+  // context_id is polymorphic (no FK), so commission statuses come from a
+  // second batched query. Resolved via commissions.conversation_id — always
+  // written at request time, unlike the context_id backfill.
+  const commissionConvIds = conversations
+    .filter((c) => c.context_type === 'commission')
+    .map((c) => c.id);
+  if (commissionConvIds.length) {
+    const { data: commissions } = await supabase
+      .from('commissions')
+      .select('conversation_id, status')
+      .in('conversation_id', commissionConvIds);
+    const statusByConv = new Map(
+      (commissions ?? []).map((c) => [c.conversation_id as string, c.status as CommissionStatus])
+    );
+    for (const conv of conversations) {
+      if (conv.context_type === 'commission') {
+        conv.commission_status = statusByConv.get(conv.id);
+      }
+    }
+  }
+  return conversations;
 }
 
 export async function getConversationById(id: string): Promise<ConversationWithParticipants | null> {

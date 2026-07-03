@@ -54,8 +54,9 @@ export function CommissionForm({ artistId, artistName }: CommissionFormProps) {
 
       if (!res.ok) throw new Error('Failed to submit request');
 
+      const created = await res.json();
       toast('Commission request sent!', 'success');
-      router.push('/commissions');
+      router.push(created?.conversation_id ? `/messages/${created.conversation_id}` : '/messages?tab=commissions');
     } catch {
       toast('Something went wrong. Please try again.', 'error');
       setSubmitting(false);

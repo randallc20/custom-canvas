@@ -35,7 +35,7 @@ export function NeedsAttention({ artistId }: { artistId: string }) {
     items.push({
       key: 'quote',
       text: `${needsQuote.length} commission request${needsQuote.length > 1 ? 's' : ''} waiting for a quote`,
-      href: '/commissions',
+      href: '/messages?tab=commissions',
       cta: 'Quote',
     });
   }
@@ -45,7 +45,7 @@ export function NeedsAttention({ artistId }: { artistId: string }) {
     items.push({
       key: 'wip',
       text: `${delivered.length} commission${delivered.length > 1 ? 's' : ''} in progress — post an update`,
-      href: '/commissions',
+      href: '/messages?tab=commissions',
       cta: 'Update',
     });
   }

@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { ConversationWithParticipants } from '@/types/conversation';
 import { Avatar } from '@/components/ui/Avatar';
+import { Badge } from '@/components/ui/Badge';
 import { formatTime } from '@/utils/formatTime';
+import { commissionDisplayStatus } from '@/utils/commissionDisplay';
+import type { InboxConversation } from '@/services/conversations';
 
 interface ConversationListProps {
-  conversations: ConversationWithParticipants[];
+  conversations: InboxConversation[];
   activeId: string | null;
   currentUserId: string;
   unreadCounts?: Record<string, number>;
@@ -32,6 +34,9 @@ export function ConversationList({
           : conv.participant_one_profile;
         const unread = unreadCounts?.[conv.id] ?? 0;
         const muted = mutedIds.includes(conv.id);
+        const commissionDisplay = conv.commission_status
+          ? commissionDisplayStatus(conv.commission_status)
+          : null;
 
         return (
           <Link
@@ -55,6 +60,11 @@ export function ConversationList({
                   <span className="flex-shrink-0 text-xs text-muted">{formatTime(conv.last_message_at)}</span>
                 )}
               </div>
+              {commissionDisplay && (
+                <div className="mt-0.5">
+                  <Badge variant={commissionDisplay.variant}>{commissionDisplay.label}</Badge>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 {conv.last_message_text && (
                   <p className={`truncate text-xs ${unread > 0 && !muted ? 'font-medium text-ink' : 'text-muted'}`}>

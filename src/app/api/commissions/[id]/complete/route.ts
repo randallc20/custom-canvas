@@ -29,9 +29,11 @@ export async function POST(_request: Request, { params }: { params: { id: string
     .from('commissions')
     .update({ status: 'delivered' })
     .eq('id', params.id)
+    .in('status', ['accepted', 'in_progress'])
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: 'Only in-progress commissions can be delivered.' }, { status: 409 });
   return NextResponse.json(data);
 }
