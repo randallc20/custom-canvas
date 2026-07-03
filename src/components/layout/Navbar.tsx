@@ -50,8 +50,8 @@ export function Navbar() {
                 {menuOpen && (
                   <div className="absolute right-0 mt-2 w-48 animate-fade-in rounded-xl border border-line bg-surface py-1 shadow-card">
                     {user.role === 'artist' && (
-                      <Link href="/dashboard" className="block px-4 py-2 text-sm text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>
-                        Artist Dashboard
+                      <Link href="/studio" className="block px-4 py-2 text-sm text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>
+                        Studio
                       </Link>
                     )}
                     {user.role === 'gallery' && (

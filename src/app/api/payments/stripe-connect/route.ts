@@ -37,8 +37,8 @@ export async function POST() {
 
   const accountLink = await getStripe().accountLinks.create({
     account: accountId,
-    refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/payouts`,
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/payouts?setup=complete`,
+    refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/studio/sales`,
+    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/studio/sales?setup=complete`,
     type: 'account_onboarding',
   });
 

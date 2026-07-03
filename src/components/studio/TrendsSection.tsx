@@ -1,40 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
 import { useArtistAnalytics } from '@/hooks/useAnalytics';
 import { Spinner } from '@/components/ui/Spinner';
-import { Button } from '@/components/ui/Button';
 import { formatPrice } from '@/utils/formatPrice';
-import { supabase } from '@/lib/supabase';
+import { useArtistProfileId } from '@/hooks/useArtistProfileId';
 
-export default function AnalyticsPage() {
-  const { user } = useAuth();
-  const [artistId, setArtistId] = useState('');
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from('artist_profiles').select('id').eq('profile_id', user.id).single()
-      .then(({ data }) => { if (data) setArtistId(data.id); });
-  }, [user]);
-
+export function TrendsSection({ embedded = false }: { embedded?: boolean } = {}) {
+  const { artistId, loading } = useArtistProfileId();
   const { data: analytics, isLoading } = useArtistAnalytics(artistId);
 
-  if (isLoading || !artistId) {
+  if (loading || isLoading) {
     return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
   }
 
   if (!analytics) return null;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-ink">Analytics</h1>
-        <Link href="/dashboard">
-          <Button variant="outline" size="sm">Back to Dashboard</Button>
-        </Link>
-      </div>
+    <div>
+      {!embedded && <h2 className="mb-6 text-xl font-bold text-ink">Trends — last 30 days</h2>}
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Profile Views" value={analytics.total_views.toLocaleString()} />
@@ -45,7 +28,7 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-line p-6">
+        <div className="rounded-xl border border-line bg-surface p-6 shadow-card">
           <h2 className="mb-4 text-sm font-semibold text-ink">Views — Last 30 Days</h2>
           {analytics.views_over_time.length > 0 ? (
             <SimpleBarChart
@@ -56,7 +39,7 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        <div className="rounded-lg border border-line p-6">
+        <div className="rounded-xl border border-line bg-surface p-6 shadow-card">
           <h2 className="mb-4 text-sm font-semibold text-ink">Earnings — Last 30 Days</h2>
           {analytics.earnings_over_time.length > 0 ? (
             <SimpleBarChart
@@ -74,7 +57,7 @@ export default function AnalyticsPage() {
 
 function StatCard({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="rounded-lg border border-line p-4">
+    <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
       <p className="text-sm text-muted">{label}</p>
       <p className={`text-2xl font-bold ${highlight ? 'text-terra' : 'text-ink'}`}>
         {value}

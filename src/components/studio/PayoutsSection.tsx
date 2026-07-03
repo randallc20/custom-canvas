@@ -7,24 +7,17 @@ import { Spinner } from '@/components/ui/Spinner';
 import { createStripeConnectLink } from '@/services/payments';
 import { useArtistOrders } from '@/hooks/useOrders';
 import { formatPrice } from '@/utils/formatPrice';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState } from 'react';
+import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 import { useSearchParams } from 'next/navigation';
 
-export default function PayoutsPage() {
+export function PayoutsSection() {
   const { user } = useAuth();
-  const [artist, setArtist] = useState<{ id: string; stripe_account_id: string | null; stripe_onboarded: boolean } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { artist, loading } = useOwnArtistProfile();
   const [connecting, setConnecting] = useState(false);
   const { data: orders } = useArtistOrders(artist?.id ?? '');
   const searchParams = useSearchParams();
   const justSetup = searchParams.get('setup') === 'complete';
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from('artist_profiles').select('id, stripe_account_id, stripe_onboarded').eq('profile_id', user.id).single()
-      .then(({ data }) => { setArtist(data); setLoading(false); });
-  }, [user]);
 
   const handleConnect = async () => {
     setConnecting(true);
@@ -43,11 +36,11 @@ export default function PayoutsPage() {
   const pendingShipment = orders?.filter((o) => o.status === 'paid').length ?? 0;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-ink">Payouts</h1>
+    <div>
+      <h2 className="mb-6 text-xl font-bold text-ink">Payouts</h2>
 
       {justSetup && (
-        <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+        <div className="mb-6 rounded-xl border border-sage/40 bg-sage/10 p-4 text-sm text-ink">
           Your Stripe account has been connected! You can now receive payments from sales.
         </div>
       )}
@@ -55,21 +48,21 @@ export default function PayoutsPage() {
       {artist?.stripe_onboarded ? (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-lg border border-line p-4">
+            <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
               <p className="text-sm text-muted">Total Earnings</p>
               <p className="text-2xl font-bold text-ink">{formatPrice(totalEarnings)}</p>
             </div>
-            <div className="rounded-lg border border-line p-4">
+            <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
               <p className="text-sm text-muted">Completed Sales</p>
               <p className="text-2xl font-bold text-ink">{totalSales}</p>
             </div>
-            <div className="rounded-lg border border-line p-4">
+            <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
               <p className="text-sm text-muted">Awaiting Shipment</p>
               <p className="text-2xl font-bold text-ink">{pendingShipment}</p>
             </div>
           </div>
 
-          <div className="rounded-lg border border-line p-6">
+          <div className="rounded-xl border border-line bg-surface p-6 shadow-card">
             <div className="flex items-center gap-2">
               <Badge variant="success">Connected</Badge>
               <span className="text-sm text-muted">Stripe account is active</span>
@@ -86,7 +79,7 @@ export default function PayoutsPage() {
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border border-line p-6 text-center">
+        <div className="rounded-xl border border-line bg-surface p-6 shadow-card text-center">
           <h2 className="text-lg font-medium text-ink">Connect with Stripe</h2>
           <p className="mt-2 text-sm text-muted">
             Set up your Stripe account to start receiving payouts from sales. The process takes just a few minutes.

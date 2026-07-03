@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -12,15 +11,13 @@ import { ImageUpload } from '@/components/upload/ImageUpload';
 import { useSeries, useInvalidateArtistContent } from '@/hooks/useArtistContent';
 import { createSeries, updateSeries, deleteSeries } from '@/services/artistContent';
 import { swapDisplayOrder } from '@/utils/reorder';
-import { supabase } from '@/lib/supabase';
+import { useArtistProfileId } from '@/hooks/useArtistProfileId';
 import Image from 'next/image';
 import type { ListingSeries } from '@/types/artist';
 
-export default function SeriesPage() {
-  const { user } = useAuth();
+export function SeriesSection() {
   const { toast } = useToast();
-  const [artistId, setArtistId] = useState('');
-  const [loadingArtist, setLoadingArtist] = useState(true);
+  const { artistId, loading: loadingArtist } = useArtistProfileId();
   const { data: series = [], isLoading } = useSeries(artistId);
   const invalidate = useInvalidateArtistContent();
 
@@ -29,12 +26,6 @@ export default function SeriesPage() {
   const [confirmDelete, setConfirmDelete] = useState<ListingSeries | null>(null);
   const [form, setForm] = useState({ name: '', description: '', cover_image_url: '' });
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from('artist_profiles').select('id').eq('profile_id', user.id).single()
-      .then(({ data }) => { if (data) setArtistId(data.id); setLoadingArtist(false); });
-  }, [user]);
 
   const openCreate = () => {
     setForm({ name: '', description: '', cover_image_url: '' });
@@ -98,14 +89,13 @@ export default function SeriesPage() {
   if (loadingArtist || isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-ink">Series</h1>
+    <div>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <p className="text-sm text-muted">
+          Group your work into collections. Buyers see them as tabs on your profile.
+        </p>
         <Button onClick={openCreate}>New Series</Button>
       </div>
-      <p className="mb-6 text-sm text-muted">
-        Group your work into collections. Buyers see them as tabs on your profile.
-      </p>
 
       {series.length === 0 ? (
         <EmptyState
