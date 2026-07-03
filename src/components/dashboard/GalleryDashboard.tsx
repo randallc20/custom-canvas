@@ -109,12 +109,12 @@ export function GalleryDashboard() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Partner Dashboard</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Partner Dashboard</h1>
 
-      <div className="mb-8 rounded-lg border border-gray-200 p-6">
+      <div className="mb-8 rounded-xl border border-line bg-surface p-6 shadow-card">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-gray-700">Verification:</span>
+            <span className="text-sm font-medium text-ink">Verification:</span>
             {gallery?.is_verified ? (
               <PartnerBadge partnerType={gallery.partner_type} />
             ) : (
@@ -131,15 +131,15 @@ export function GalleryDashboard() {
           </div>
         </div>
         {!gallery?.is_verified && (
-          <p className="mt-3 text-sm text-gray-500">
+          <p className="mt-3 text-sm text-muted">
             Your organization is under review. You can still set up your profile and add artists while you wait.
           </p>
         )}
       </div>
 
-      <div className="rounded-lg border border-gray-200 p-6">
+      <div className="rounded-xl border border-line bg-surface p-6 shadow-card">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-lg font-semibold text-ink">
             Represented Artists ({artists.length})
           </h2>
           <Button size="sm" onClick={() => setShowAddModal(true)}>Add Artist</Button>
@@ -151,15 +151,15 @@ export function GalleryDashboard() {
             description="Search for artists to add them to your gallery's roster."
           />
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-line">
             {artists.map((artist) => (
               <div key={artist.id} className="flex items-center justify-between py-3">
                 <Link href={`/artist/${artist.slug}`} className="flex items-center gap-3 hover:opacity-80">
                   <Avatar src={artist.banner_image_url} alt={artist.display_name} size="sm" />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{artist.display_name}</p>
+                    <p className="text-sm font-medium text-ink">{artist.display_name}</p>
                     {artist.neighborhood && (
-                      <p className="text-xs text-gray-500">{artist.neighborhood}</p>
+                      <p className="text-xs text-muted">{artist.neighborhood}</p>
                     )}
                   </div>
                 </Link>
@@ -167,7 +167,7 @@ export function GalleryDashboard() {
                   <Badge>{artist.gallery_role ?? 'represented'}</Badge>
                   <button
                     onClick={() => handleRemoveArtist(artist.id)}
-                    className="text-xs text-gray-400 hover:text-red-500"
+                    className="text-xs text-muted hover:text-terra"
                   >
                     Remove
                   </button>
@@ -192,19 +192,19 @@ export function GalleryDashboard() {
             <Button onClick={handleSearch} loading={searching}>Search</Button>
           </div>
           {searchResults.length > 0 ? (
-            <div className="max-h-64 divide-y divide-gray-100 overflow-y-auto">
+            <div className="max-h-64 divide-y divide-line overflow-y-auto">
               {searchResults.map((artist) => (
                 <div key={artist.id} className="flex items-center justify-between py-2">
                   <div className="flex items-center gap-2">
                     <Avatar src={artist.banner_image_url} alt={artist.display_name} size="sm" />
-                    <p className="text-sm font-medium text-gray-900">{artist.display_name}</p>
+                    <p className="text-sm font-medium text-ink">{artist.display_name}</p>
                   </div>
                   <Button size="sm" variant="outline" onClick={() => handleAddArtist(artist.id)}>Add</Button>
                 </div>
               ))}
             </div>
           ) : searchQuery && !searching ? (
-            <p className="text-sm text-gray-500">No artists found. Try a different search.</p>
+            <p className="text-sm text-muted">No artists found. Try a different search.</p>
           ) : null}
         </div>
       </Modal>

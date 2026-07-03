@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
   const { data: listing } = await supabase
     .from('listings')
-    .select('*, artist:artist_profiles(stripe_account_id, slug, fulfillment_pref, profile_id)')
+    .select('*, artist:artist_profiles(stripe_account_id, stripe_onboarded, slug, fulfillment_pref, profile_id)')
     .eq('id', listingId)
     .single();
 
@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
 
   const artist = listing.artist as unknown as {
     stripe_account_id: string | null;
+    stripe_onboarded: boolean;
     slug: string;
     fulfillment_pref: string | null;
     profile_id: string;
@@ -35,8 +36,11 @@ export async function POST(request: NextRequest) {
   if (artist.profile_id === user.id) {
     return NextResponse.json({ error: 'You cannot purchase your own listing' }, { status: 400 });
   }
-  if (!artist.stripe_account_id) {
-    return NextResponse.json({ error: 'Artist has not set up payments' }, { status: 400 });
+  // stripe_onboarded is flipped by the account.updated webhook once the
+  // account can take charges — an account id alone can still be mid-KYC,
+  // and Stripe rejects transfers to it with an opaque error.
+  if (!artist.stripe_account_id || !artist.stripe_onboarded) {
+    return NextResponse.json({ error: 'This artist has not finished setting up payments yet' }, { status: 400 });
   }
 
   const pickup = isPickupOnly(artist.fulfillment_pref);
