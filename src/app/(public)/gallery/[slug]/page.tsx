@@ -2,9 +2,11 @@ import type { Metadata } from 'next';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { GalleryHero } from '@/components/gallery/GalleryHero';
 import { ProfileCard } from '@/components/artist/ProfileCard';
+import { ListingShelf } from '@/components/feed/ListingShelf';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { notFound } from 'next/navigation';
 import type { ArtistProfile } from '@/types/artist';
+import type { ListingWithImages } from '@/types/listing';
 
 interface Props {
   params: { slug: string };
@@ -39,7 +41,7 @@ export default async function GalleryPage({ params }: Props) {
 
   // Affiliated artists merge two sources: the partner's curated roster and
   // artists whose education links to this partner (auto: Alumni & Students).
-  const [{ data: galleryArtists }, { data: educationLinks }] = await Promise.all([
+  const [{ data: galleryArtists }, { data: educationLinks }, { data: pickRows }] = await Promise.all([
     supabase
       .from('gallery_artists')
       .select('role, artist:artist_profiles(*, profile:profiles(*))')
@@ -49,7 +51,23 @@ export default async function GalleryPage({ params }: Props) {
       .from('artist_education')
       .select('artist:artist_profiles(*, profile:profiles(*))')
       .eq('partner_id', gallery.id),
+    // Picks only exist publicly while the partner is verified — a revoked
+    // partner's stale curation must not keep trading on the badge.
+    gallery.is_verified
+      ? supabase
+          .from('partner_picks')
+          .select('blurb, display_order, listing:listings!inner(*, images:listing_images(*), artist:artist_profiles(slug, display_name))')
+          .eq('gallery_id', gallery.id)
+          .eq('listings.status', 'available')
+          .order('display_order', { ascending: true })
+      : Promise.resolve({ data: [] }),
   ]);
+
+  const picks = ((pickRows ?? []).map((row: Record<string, unknown>) => row.listing) ?? []) as unknown as ListingWithImages[];
+  const pickBlurbs: Record<string, string> = {};
+  for (const row of (pickRows ?? []) as { blurb?: string | null; listing?: { id?: string } }[]) {
+    if (row.blurb && row.listing?.id) pickBlurbs[row.listing.id] = row.blurb;
+  }
 
   const rosterArtists = (galleryArtists ?? [])
     .map((ga: Record<string, unknown>) => ({
@@ -69,6 +87,17 @@ export default async function GalleryPage({ params }: Props) {
     <div>
       <GalleryHero gallery={gallery} />
       <div className="mx-auto max-w-7xl px-4 py-8">
+        {picks.length > 0 && (
+          <div className="mb-4">
+            <ListingShelf
+              eyebrow="Curated"
+              title="Our picks"
+              subtitle={`Pieces ${gallery.gallery_name} thinks you should see`}
+              listings={picks}
+              captions={pickBlurbs}
+            />
+          </div>
+        )}
         <h2 className="mb-6 text-xl font-bold text-ink">Artists</h2>
         {rosterArtists.length === 0 && alumniArtists.length === 0 ? (
           <EmptyState

@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { supabase } from '@/lib/supabase';
 import { PARTNER_TYPE_LABELS, type GalleryProfile } from '@/types/gallery';
 import { PartnerBadge } from '@/components/gallery/PartnerBadge';
+import { PartnerPicksManager } from '@/components/gallery/PartnerPicksManager';
 import type { ArtistProfile } from '@/types/artist';
 
 export function GalleryDashboard() {
@@ -176,6 +177,8 @@ export function GalleryDashboard() {
           </div>
         )}
       </div>
+
+      {gallery?.is_verified && <PartnerPicksManager galleryId={gallery.id} />}
 
       <Modal isOpen={showAddModal} title="Add Artist" onClose={() => { setShowAddModal(false); setSearchQuery(''); setSearchResults([]); }}>
         <div className="space-y-4">

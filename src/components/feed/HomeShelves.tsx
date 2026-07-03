@@ -1,6 +1,7 @@
 'use client';
 
 import { useFeaturedShelf, useNeighborhoodSpotlight } from '@/hooks/useFeatured';
+import { usePartnerPicksShelf } from '@/hooks/usePartnerPicks';
 import { ListingShelf } from '@/components/feed/ListingShelf';
 
 /** The homepage's curated front room: an admin-picked Featured shelf plus a
@@ -9,6 +10,7 @@ import { ListingShelf } from '@/components/feed/ListingShelf';
 export function HomeShelves() {
   const featured = useFeaturedShelf();
   const spotlight = useNeighborhoodSpotlight();
+  const picks = usePartnerPicksShelf();
 
   return (
     <div>
@@ -26,6 +28,15 @@ export function HomeShelves() {
         title={spotlight.data ? `From ${spotlight.data.neighborhood}` : ''}
         subtitle="A rotating look at one Houston neighborhood"
         listings={spotlight.data?.listings}
+      />
+      {/* Partner picks pop in when ready, same as the spotlight. */}
+      <ListingShelf
+        eyebrow="Partner picks"
+        title={picks.data ? `Picked by ${picks.data.galleryName}` : ''}
+        subtitle="Curated by a verified Houston partner"
+        listings={picks.data?.listings}
+        href={picks.data ? `/gallery/${picks.data.gallerySlug}` : undefined}
+        hrefLabel="Visit partner"
       />
     </div>
   );
