@@ -162,6 +162,18 @@ export async function POST(request: NextRequest) {
           formatPrice(order.artist_payout_cents)
         ).catch(() => {});
       }
+
+      // In-app sale notification — the 'new_order' type existed but was
+      // never wired here (artists only got the email + Studio queue).
+      if (artistProf?.profile_id) {
+        await supabase.from('notifications').insert({
+          user_id: artistProf.profile_id,
+          type: 'new_order',
+          title: 'New sale',
+          body: `"${listing.title}" just sold for ${formatPrice(order.amount_cents)}.`,
+          link: '/studio/sales',
+        });
+      }
       break;
     }
 

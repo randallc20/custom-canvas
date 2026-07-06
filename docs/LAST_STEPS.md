@@ -6,7 +6,7 @@ testing document (by-role walkthrough) is the step after this list.
 
 ---
 
-## 1. Apply the three Build 3 migrations to DEV ⛔ gates everything below
+## 1. Apply the three Build 3 migrations to DEV — ✅ DONE 2026-07-06
 
 The build environment had no DB password, so these are written but not run.
 Until they run: homepage Featured + Partner-picks shelves stay hidden, the
@@ -29,19 +29,19 @@ Notes:
   around its backfill; that's intentional.
 - These files are also matched by LAUNCH.md §1's glob for prod later.
 
-## 2. Ten-minute staging verification (after migrations)
+## 2. Ten-minute staging verification — ✅ DONE 2026-07-06 (all five items verified live: featured shelf, partner picks + note, publish + price-drop stamps/notifications, full Stripe test purchase with conserved money; found + fixed a never-wired new_order in-app notification)
 
-- [ ] **Featured shelf**: log in as admin (`chris.f.randall@gmail.com`) →
+- [x] **Featured shelf**: log in as admin (`chris.f.randall@gmail.com`) →
       Admin → Featured → add ~4 pieces → homepage shows "Featured in Houston".
-- [ ] **Partner picks**: `bayou-city-gallery@cc-demo.com` / `DemoPass123!` →
+- [x] **Partner picks**: `bayou-city-gallery@cc-demo.com` / `DemoPass123!` →
       Partner Dashboard → Your Picks → pick 3+ with a note → shelf appears on
       their gallery page and (as the only eligible partner) on the homepage.
-- [ ] **Publish email**: as `artist.test@customcanvas.dev`, create + publish a
+- [x] **Publish email**: as `artist.test@customcanvas.dev`, create + publish a
       listing → `buyer.test@customcanvas.dev` (follows Ada) gets the email
       once. Re-publishing must NOT re-send.
-- [ ] **Price-drop email**: lower a price on a listing buyer.test saved →
+- [x] **Price-drop email**: lower a price on a listing buyer.test saved →
       one email; a second drop within 24h → no email.
-- [ ] **Full purchase on staging** (webhook is configured there): buy a piece
+- [x] **Full purchase on staging** (webhook is configured there): buy a piece
       as buyer.test with Stripe test card `4242 4242 4242 4242` → order
       appears in /orders and /studio/sales, listing marked sold, both
       confirmation emails show the tax-inclusive total and the 5% fee.
