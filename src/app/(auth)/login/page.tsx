@@ -49,7 +49,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <h1 className="mb-6 text-center text-2xl font-bold text-gray-900">Welcome Back</h1>
+        <h1 className="mb-6 text-center text-2xl font-bold text-ink">Welcome Back</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Email" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <Input label="Password" id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
@@ -61,7 +61,7 @@ export default function LoginPage() {
           </div>
           <Button type="submit" loading={loading} className="w-full">Sign In</Button>
         </form>
-        <p className="mt-4 text-center text-sm text-gray-500">
+        <p className="mt-4 text-center text-sm text-muted">
           Don&apos;t have an account?{' '}
           <Link href="/register" className="text-terra hover:underline">Sign up</Link>
         </p>

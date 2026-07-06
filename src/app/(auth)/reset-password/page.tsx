@@ -42,8 +42,8 @@ export default function ResetPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <h1 className="mb-2 text-2xl font-bold text-gray-900">Set New Password</h1>
-        <p className="mb-6 text-sm text-gray-500">
+        <h1 className="mb-2 text-2xl font-bold text-ink">Set New Password</h1>
+        <p className="mb-6 text-sm text-muted">
           Choose a strong password for your Custom Canvas account.
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">

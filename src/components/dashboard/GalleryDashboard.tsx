@@ -109,7 +109,17 @@ export function GalleryDashboard() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-ink">Partner Dashboard</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-ink">Partner Dashboard</h1>
+        <div className="flex gap-3">
+          <Link href="/profile/edit"><Button variant="outline" size="sm">Edit Profile</Button></Link>
+          {gallery?.slug && (
+            <Link href={`/gallery/${gallery.slug}`}>
+              <Button variant="outline" size="sm">View Public Page</Button>
+            </Link>
+          )}
+        </div>
+      </div>
 
       <div className="mb-8 rounded-xl border border-line bg-surface p-6 shadow-card">
         <div className="flex items-center justify-between">
@@ -119,14 +129,6 @@ export function GalleryDashboard() {
               <PartnerBadge partnerType={gallery.partner_type} />
             ) : (
               <Badge variant="warning">Pending Review ({PARTNER_TYPE_LABELS[gallery?.partner_type ?? 'gallery']})</Badge>
-            )}
-          </div>
-          <div className="flex gap-3">
-            <Link href="/profile/edit"><Button variant="outline" size="sm">Edit Profile</Button></Link>
-            {gallery?.slug && (
-              <Link href={`/gallery/${gallery.slug}`}>
-                <Button variant="outline" size="sm">View Public Page</Button>
-              </Link>
             )}
           </div>
         </div>

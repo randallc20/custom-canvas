@@ -14,14 +14,14 @@ export function ProfileBio({ artist }: ProfileBioProps) {
     <div className="space-y-6">
       {hasStatement && (
         <div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">Artist Statement</h3>
-          <p className="whitespace-pre-line text-gray-600">{artist.artist_statement}</p>
+          <h3 className="mb-2 text-lg font-semibold text-ink">Artist Statement</h3>
+          <p className="whitespace-pre-line text-muted">{artist.artist_statement}</p>
         </div>
       )}
       {hasInfluences && (
         <div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">Influences</h3>
-          <p className="text-gray-600">{artist.influences}</p>
+          <h3 className="mb-2 text-lg font-semibold text-ink">Influences</h3>
+          <p className="text-muted">{artist.influences}</p>
         </div>
       )}
     </div>

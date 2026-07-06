@@ -11,7 +11,7 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="mb-2 text-sm font-medium text-gray-900">Medium</h3>
+        <h3 className="mb-2 text-sm font-medium text-ink">Medium</h3>
         <div className="space-y-1">
           {MEDIUMS.map((m) => (
             <label key={m} className="flex items-center gap-2">
@@ -19,30 +19,30 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
                 type="checkbox"
                 checked={filters.medium === m}
                 onChange={() => onFilterChange({ ...filters, medium: filters.medium === m ? undefined : m })}
-                className="rounded border-gray-300 text-terra focus:ring-terra"
+                className="rounded border-line text-terra focus:ring-terra"
               />
-              <span className="text-sm text-gray-700">{m}</span>
+              <span className="text-sm text-ink">{m}</span>
             </label>
           ))}
         </div>
       </div>
       <div>
-        <h3 className="mb-2 text-sm font-medium text-gray-900">Price Range</h3>
+        <h3 className="mb-2 text-sm font-medium text-ink">Price Range</h3>
         <div className="flex items-center gap-2">
           <input
             type="number"
             placeholder="Min"
             value={filters.minPrice ? filters.minPrice / 100 : ''}
             onChange={(e) => onFilterChange({ ...filters, minPrice: e.target.value ? Math.round(parseFloat(e.target.value) * 100) : undefined })}
-            className="w-24 rounded-lg border border-gray-300 px-2 py-1 text-sm"
+            className="w-24 rounded-lg border border-line px-2 py-1 text-sm"
           />
-          <span className="text-gray-400">—</span>
+          <span className="text-muted">—</span>
           <input
             type="number"
             placeholder="Max"
             value={filters.maxPrice ? filters.maxPrice / 100 : ''}
             onChange={(e) => onFilterChange({ ...filters, maxPrice: e.target.value ? Math.round(parseFloat(e.target.value) * 100) : undefined })}
-            className="w-24 rounded-lg border border-gray-300 px-2 py-1 text-sm"
+            className="w-24 rounded-lg border border-line px-2 py-1 text-sm"
           />
         </div>
       </div>

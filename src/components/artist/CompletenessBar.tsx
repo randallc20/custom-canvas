@@ -22,16 +22,16 @@ export function CompletenessBar({ score }: CompletenessBarProps) {
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-sm">
-        <span className="font-medium text-gray-700">Profile Completeness</span>
-        <span className="font-semibold text-gray-900">{clampedScore}%</span>
+        <span className="font-medium text-ink">Profile Completeness</span>
+        <span className="font-semibold text-ink">{clampedScore}%</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+      <div className="h-2 overflow-hidden rounded-full bg-sand">
         <div
           className={`h-2 rounded-full transition-all duration-500 ${color}`}
           style={{ width: `${clampedScore}%` }}
         />
       </div>
-      <p className="mt-1 text-xs text-gray-500">{label}</p>
+      <p className="mt-1 text-xs text-muted">{label}</p>
     </div>
   );
 }

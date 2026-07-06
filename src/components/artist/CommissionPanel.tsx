@@ -10,18 +10,18 @@ interface CommissionPanelProps {
 export function CommissionPanel({ artist }: CommissionPanelProps) {
   if (!artist.commissions_open) {
     return (
-      <div className="rounded-lg border border-gray-200 p-4">
-        <h3 className="font-medium text-gray-900">Commissions</h3>
-        <p className="mt-1 text-sm text-gray-500">Not accepting commissions at this time.</p>
+      <div className="rounded-lg border border-line p-4">
+        <h3 className="font-medium text-ink">Commissions</h3>
+        <p className="mt-1 text-sm text-muted">Not accepting commissions at this time.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 p-4">
-      <h3 className="font-medium text-gray-900">Commissions Open</h3>
-      {artist.commission_desc && <p className="mt-2 text-sm text-gray-600">{artist.commission_desc}</p>}
-      <div className="mt-3 space-y-1 text-sm text-gray-500">
+    <div className="rounded-lg border border-line p-4">
+      <h3 className="font-medium text-ink">Commissions Open</h3>
+      {artist.commission_desc && <p className="mt-2 text-sm text-muted">{artist.commission_desc}</p>}
+      <div className="mt-3 space-y-1 text-sm text-muted">
         {artist.commission_min_cents && <p>Starting at {formatPrice(artist.commission_min_cents)}</p>}
         {artist.commission_turnaround && <p>Turnaround: {artist.commission_turnaround}</p>}
       </div>

@@ -77,15 +77,15 @@ export default function AccountPage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">My Account</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">My Account</h1>
 
       {/* Profile section */}
-      <div className="mb-8 rounded-lg border border-gray-200 p-6">
+      <div className="mb-8 rounded-lg border border-line p-6">
         <div className="mb-4 flex items-center gap-4">
           <Avatar src={user?.avatar_url} alt={user?.full_name ?? user?.email ?? ''} size="lg" />
           <div>
-            <p className="font-medium text-gray-900">{user?.full_name ?? 'No name set'}</p>
-            <p className="text-sm text-gray-500">{user?.email}</p>
+            <p className="font-medium text-ink">{user?.full_name ?? 'No name set'}</p>
+            <p className="text-sm text-muted">{user?.email}</p>
           </div>
         </div>
 
@@ -104,8 +104,8 @@ export default function AccountPage() {
       <EmailPreferences />
 
       {/* Password section */}
-      <div className="mb-8 rounded-lg border border-gray-200 p-6">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Password</h2>
+      <div className="mb-8 rounded-lg border border-line p-6">
+        <h2 className="mb-4 text-lg font-semibold text-ink">Password</h2>
         {showPasswordForm ? (
           <div className="space-y-4">
             <Input
@@ -140,7 +140,7 @@ export default function AccountPage() {
       {/* Danger zone */}
       <div className="rounded-lg border border-red-200 p-6">
         <h2 className="mb-2 text-lg font-semibold text-red-700">Danger Zone</h2>
-        <p className="mb-4 text-sm text-gray-500">
+        <p className="mb-4 text-sm text-muted">
           Permanently delete your account and all associated data. This action cannot be undone.
         </p>
         <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
@@ -154,12 +154,12 @@ export default function AccountPage() {
         onClose={() => { setShowDeleteModal(false); setDeleteConfirm(''); }}
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted">
             This will permanently delete your account, profile, and all associated data.
             This action cannot be undone.
           </p>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-ink">
               Type <strong>DELETE</strong> to confirm
             </label>
             <Input

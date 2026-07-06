@@ -57,11 +57,11 @@ export function GalleryProfileEdit() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Edit Partner Profile</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Edit Partner Profile</h1>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input label="Organization Name" id="gallery_name" {...register('gallery_name')} error={errors.gallery_name?.message} />
         <div>
-          <label htmlFor="partner_type" className="mb-1 block text-sm font-medium text-gray-700">Organization type</label>
+          <label htmlFor="partner_type" className="mb-1 block text-sm font-medium text-ink">Organization type</label>
           <select id="partner_type" {...register('partner_type')} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm">
             {(Object.keys(PARTNER_TYPE_LABELS) as PartnerType[]).map((t) => (
               <option key={t} value={t}>{PARTNER_TYPE_LABELS[t]}</option>
@@ -69,13 +69,13 @@ export function GalleryProfileEdit() {
           </select>
         </div>
         <div>
-          <label htmlFor="bio" className="mb-1 block text-sm font-medium text-gray-700">Bio</label>
+          <label htmlFor="bio" className="mb-1 block text-sm font-medium text-ink">Bio</label>
           <textarea
             id="bio"
             {...register('bio')}
             rows={4}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
-              placeholder:text-gray-400
+            className="w-full rounded-lg border border-line px-3 py-2 text-sm
+              placeholder:text-muted
               focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
             placeholder="Tell visitors about your organization, your mission, and how you support artists..."
           />
@@ -86,7 +86,7 @@ export function GalleryProfileEdit() {
           <Input label="City" id="city" {...register('city')} error={errors.city?.message} />
         </div>
         <Input label="Website" id="website_url" {...register('website_url')} placeholder="https://" error={errors.website_url?.message} />
-        <Button type="submit" loading={isSubmitting}>Save Changes</Button>
+        <Button type="submit" className="w-full" loading={isSubmitting}>Save Changes</Button>
       </form>
     </div>
   );

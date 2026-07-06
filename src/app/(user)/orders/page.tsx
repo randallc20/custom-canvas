@@ -67,7 +67,7 @@ export default function OrdersPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">My Orders</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">My Orders</h1>
 
       {justPurchased && (
         <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
@@ -83,25 +83,25 @@ export default function OrdersPage() {
             const badge = STATUS_BADGE[order.status];
             const canReview = order.status === 'delivered' && !reviewedOrders.has(order.id);
             return (
-              <div key={order.id} className="rounded-lg border border-gray-200 p-4">
+              <div key={order.id} className="rounded-lg border border-line p-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-xs text-gray-400">Order #{order.id.slice(0, 8)}</p>
-                    <p className="mt-1 font-medium text-gray-900">{formatPrice(order.amount_cents)}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted">Order #{order.id.slice(0, 8)}</p>
+                    <p className="mt-1 font-medium text-ink">{formatPrice(order.amount_cents)}</p>
+                    <p className="text-xs text-muted">
                       {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>
                   <Badge variant={badge.variant}>{badge.label}</Badge>
                 </div>
                 {order.tracking_number && (
-                  <div className="mt-3 rounded-md bg-gray-50 px-3 py-2 text-sm">
-                    <span className="text-gray-500">Tracking: </span>
-                    <span className="font-mono text-gray-900">{order.tracking_number}</span>
+                  <div className="mt-3 rounded-md bg-sand/40 px-3 py-2 text-sm">
+                    <span className="text-muted">Tracking: </span>
+                    <span className="font-mono text-ink">{order.tracking_number}</span>
                   </div>
                 )}
                 {order.shipping_address && (
-                  <p className="mt-2 text-xs text-gray-400">
+                  <p className="mt-2 text-xs text-muted">
                     Ships to: {order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.zip}
                   </p>
                 )}

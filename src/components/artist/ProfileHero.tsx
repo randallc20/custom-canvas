@@ -31,7 +31,7 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
 
   return (
     <div>
-      <div className="relative h-48 w-full bg-gray-200 md:h-64" style={{ backgroundColor: artist.accent_color }}>
+      <div className="relative h-48 w-full bg-sand md:h-64" style={{ backgroundColor: artist.accent_color }}>
         {artist.banner_image_url && (
           <Image
             src={artist.banner_image_url}
@@ -60,10 +60,10 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
         </div>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{artist.display_name}</h1>
+            <h1 className="text-2xl font-bold text-ink">{artist.display_name}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               {artist.neighborhood && (
-                <span className="text-sm text-gray-500">{artist.neighborhood}, {artist.city}</span>
+                <span className="text-sm text-muted">{artist.neighborhood}, {artist.city}</span>
               )}
               {artist.status && <Badge>{artist.status.replace(/_/g, ' ')}</Badge>}
               {artist.is_houston_verified && <Badge variant="verified">Houston Verified</Badge>}
@@ -73,7 +73,7 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
                 </Badge>
               )}
               {typeof followerCount === 'number' && (
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-muted">
                   {followerCount} {followerCount === 1 ? 'follower' : 'followers'}
                 </span>
               )}
@@ -99,7 +99,7 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
             ))}
           </div>
         )}
-        {artist.bio && <p className="mt-3 max-w-2xl text-gray-600">{artist.bio}</p>}
+        {artist.bio && <p className="mt-3 max-w-2xl text-muted">{artist.bio}</p>}
       </div>
     </div>
   );

@@ -63,7 +63,7 @@ export function NotificationDropdown() {
     <div ref={dropdownRef} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="relative text-gray-600 hover:text-gray-900"
+        className="relative text-muted hover:text-ink"
         aria-label="Notifications"
       >
         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -77,9 +77,9 @@ export function NotificationDropdown() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
-          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-            <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-line bg-white shadow-lg">
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <h3 className="text-sm font-semibold text-ink">Notifications</h3>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
@@ -91,7 +91,7 @@ export function NotificationDropdown() {
           </div>
 
           {recent.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-gray-400">
+            <div className="px-4 py-8 text-center text-sm text-muted">
               No notifications yet
             </div>
           ) : (
@@ -106,7 +106,7 @@ export function NotificationDropdown() {
             </div>
           )}
 
-          <div className="border-t border-gray-100 px-4 py-2 text-center">
+          <div className="border-t border-line px-4 py-2 text-center">
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
@@ -126,17 +126,17 @@ function NotificationItem({ notification, onClick }: { notification: Notificatio
 
   const content = (
     <div
-      className={`flex gap-3 px-4 py-3 transition-colors hover:bg-gray-50 ${
+      className={`flex gap-3 px-4 py-3 transition-colors hover:bg-sand/50 ${
         !notification.is_read ? 'bg-orange-50/50' : ''
       }`}
     >
       <span className="flex-shrink-0 text-base">{icon}</span>
       <div className="min-w-0 flex-1">
-        <p className={`text-sm ${!notification.is_read ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+        <p className={`text-sm ${!notification.is_read ? 'font-medium text-ink' : 'text-ink'}`}>
           {notification.title}
         </p>
-        <p className="mt-0.5 truncate text-xs text-gray-500">{notification.body}</p>
-        <p className="mt-1 text-[10px] text-gray-400">{formatTime(notification.created_at)}</p>
+        <p className="mt-0.5 truncate text-xs text-muted">{notification.body}</p>
+        <p className="mt-1 text-[10px] text-muted">{formatTime(notification.created_at)}</p>
       </div>
       {!notification.is_read && (
         <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-terra" />

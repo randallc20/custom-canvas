@@ -169,9 +169,9 @@ export function SeriesSection() {
           &ldquo;{confirmDelete?.name}&rdquo; will be deleted. Listings in this series are kept and
           return to All Work.
         </p>
-        <div className="flex gap-3">
-          <Button variant="outline" className="flex-1" onClick={() => setConfirmDelete(null)}>Cancel</Button>
-          <Button variant="danger" className="flex-1" onClick={handleDelete}>Delete</Button>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+          <Button variant="danger" onClick={handleDelete}>Delete</Button>
         </div>
       </Modal>
     </div>

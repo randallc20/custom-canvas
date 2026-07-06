@@ -10,7 +10,7 @@ export function ProfileCard({ artist }: ProfileCardProps) {
   return (
     <Link
       href={`/artist/${artist.slug}`}
-      className="group block rounded-xl border border-gray-200 p-4 transition-shadow hover:shadow-md"
+      className="group block rounded-xl border border-line p-4 transition-shadow hover:shadow-md"
     >
       <div className="flex items-center gap-3">
         {artist.banner_image_url ? (
@@ -30,16 +30,16 @@ export function ProfileCard({ artist }: ProfileCardProps) {
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium text-gray-900 group-hover:text-terra">
+          <p className="truncate font-medium text-ink group-hover:text-terra">
             {artist.display_name}
           </p>
           {artist.neighborhood && (
-            <p className="truncate text-sm text-gray-500">{artist.neighborhood}, {artist.city || 'Houston'}</p>
+            <p className="truncate text-sm text-muted">{artist.neighborhood}, {artist.city || 'Houston'}</p>
           )}
         </div>
       </div>
       {artist.bio && (
-        <p className="mt-2 line-clamp-2 text-sm text-gray-500">{artist.bio}</p>
+        <p className="mt-2 line-clamp-2 text-sm text-muted">{artist.bio}</p>
       )}
     </Link>
   );

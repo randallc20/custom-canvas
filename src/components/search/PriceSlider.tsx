@@ -12,7 +12,7 @@ interface PriceSliderProps {
 export function PriceSlider({ min, max, value, onChange }: PriceSliderProps) {
   return (
     <div className="space-y-2">
-      <div className="flex justify-between text-xs text-gray-500">
+      <div className="flex justify-between text-xs text-muted">
         <span>{formatPrice(value[0])}</span>
         <span>{formatPrice(value[1])}</span>
       </div>

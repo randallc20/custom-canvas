@@ -12,7 +12,7 @@ export function RelatedListings({ listings }: RelatedListingsProps) {
 
   return (
     <div>
-      <h2 className="mb-4 text-xl font-semibold text-gray-900">More From This Artist</h2>
+      <h2 className="mb-4 text-xl font-semibold text-ink">More From This Artist</h2>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
         {listings.map((listing) => {
           const primary = listing.images.find((img) => img.is_primary) ?? listing.images[0];
@@ -20,7 +20,7 @@ export function RelatedListings({ listings }: RelatedListingsProps) {
             <Link
               key={listing.id}
               href={`/listing/${listing.id}`}
-              className="group block overflow-hidden rounded-lg bg-gray-100"
+              className="group block overflow-hidden rounded-lg bg-sand"
             >
               {primary ? (
                 <div className="relative aspect-square">
@@ -33,12 +33,12 @@ export function RelatedListings({ listings }: RelatedListingsProps) {
                   />
                 </div>
               ) : (
-                <div className="flex aspect-square items-center justify-center bg-gray-200">
-                  <span className="text-xs text-gray-400">No image</span>
+                <div className="flex aspect-square items-center justify-center bg-sand">
+                  <span className="text-xs text-muted">No image</span>
                 </div>
               )}
               <div className="p-2">
-                <p className="truncate text-sm font-medium text-gray-900">{listing.title}</p>
+                <p className="truncate text-sm font-medium text-ink">{listing.title}</p>
                 <p className="text-sm text-terra">{formatPrice(listing.price_cents)}</p>
               </div>
             </Link>

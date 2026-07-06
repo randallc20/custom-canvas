@@ -78,12 +78,12 @@ export default function ArtistOnboardingPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-lg">
         <div className="mb-8">
-          <div className="mb-2 flex justify-between text-sm text-gray-500">
+          <div className="mb-2 flex justify-between text-sm text-muted">
             {STEPS.map((s, i) => (
               <span key={s} className={i <= step ? 'font-medium text-terra' : ''}>{s}</span>
             ))}
           </div>
-          <div className="h-2 rounded-full bg-gray-200">
+          <div className="h-2 rounded-full bg-sand">
             <div className="h-2 rounded-full bg-terra transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
           </div>
         </div>
@@ -93,10 +93,10 @@ export default function ArtistOnboardingPage() {
             <>
               <Input label="Display Name" id="display_name" {...register('display_name')} error={errors.display_name?.message} />
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-ink">
                   What drew you to art? Tell visitors about yourself.
                 </label>
-                <textarea {...register('bio')} rows={4} placeholder="What were you making before you knew it was called art?" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
+                <textarea {...register('bio')} rows={4} placeholder="What were you making before you knew it was called art?" className="w-full rounded-lg border border-line px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
               </div>
               <Input label="School / University" id="school" {...register('school')} />
             </>
@@ -104,8 +104,8 @@ export default function ArtistOnboardingPage() {
           {step === 1 && (
             <>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Artist Statement</label>
-                <textarea {...register('artist_statement')} rows={5} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
+                <label className="mb-1 block text-sm font-medium text-ink">Artist Statement</label>
+                <textarea {...register('artist_statement')} rows={5} className="w-full rounded-lg border border-line px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
               </div>
               <Input label="Influences" id="influences" {...register('influences')} />
             </>
@@ -114,7 +114,7 @@ export default function ArtistOnboardingPage() {
             <>
               <Input label="City" id="city" {...register('city')} error={errors.city?.message} />
               <Input label="Neighborhood" id="neighborhood" {...register('neighborhood')} />
-              <select {...register('fulfillment_pref')} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+              <select {...register('fulfillment_pref')} className="w-full rounded-lg border border-line px-3 py-2 text-sm">
                 <option value="">Select fulfillment preference</option>
                 <option value="ships_national">Ships Nationally</option>
                 <option value="ships_local">Ships Locally</option>
@@ -122,8 +122,8 @@ export default function ArtistOnboardingPage() {
                 <option value="artist_delivered">Artist Delivered</option>
               </select>
               <label className="flex items-center gap-2">
-                <input type="checkbox" {...register('commissions_open')} className="rounded border-gray-300" />
-                <span className="text-sm text-gray-700">Open to commissions</span>
+                <input type="checkbox" {...register('commissions_open')} className="rounded border-line" />
+                <span className="text-sm text-ink">Open to commissions</span>
               </label>
             </>
           )}

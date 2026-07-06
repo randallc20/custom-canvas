@@ -45,7 +45,7 @@ export function ReviewForm({ orderId, onSubmit, reviewerId, onSuccess }: ReviewF
   return (
     <div className="space-y-4">
       <div>
-        <p className="mb-2 text-sm font-medium text-gray-700">How was your experience?</p>
+        <p className="mb-2 text-sm font-medium text-ink">How was your experience?</p>
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
@@ -70,7 +70,7 @@ export function ReviewForm({ orderId, onSubmit, reviewerId, onSuccess }: ReviewF
       </div>
 
       <div>
-        <label htmlFor="review-comment" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="review-comment" className="mb-1 block text-sm font-medium text-ink">
           Comments (optional)
         </label>
         <textarea
@@ -79,8 +79,8 @@ export function ReviewForm({ orderId, onSubmit, reviewerId, onSuccess }: ReviewF
           onChange={(e) => setComment(e.target.value)}
           rows={3}
           maxLength={2000}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
-            placeholder:text-gray-400
+          className="w-full rounded-lg border border-line px-3 py-2 text-sm
+            placeholder:text-muted
             focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
           placeholder="Tell others about your experience with this artist..."
         />

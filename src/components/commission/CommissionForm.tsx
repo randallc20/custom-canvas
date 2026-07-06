@@ -65,8 +65,8 @@ export function CommissionForm({ artistId, artistName }: CommissionFormProps) {
 
   return (
     <div>
-      <h2 className="mb-2 text-xl font-bold text-gray-900">Request a Commission</h2>
-      <p className="mb-6 text-sm text-gray-500">Tell {artistName} what you have in mind.</p>
+      <h2 className="mb-2 text-xl font-bold text-ink">Request a Commission</h2>
+      <p className="mb-6 text-sm text-muted">Tell {artistName} what you have in mind.</p>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <Input
           label="Title"
@@ -76,15 +76,15 @@ export function CommissionForm({ artistId, artistName }: CommissionFormProps) {
           placeholder="e.g. Portrait of my dog in watercolor"
         />
         <div>
-          <label htmlFor="description" className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor="description" className="mb-1 block text-sm font-medium text-ink">
             Description
           </label>
           <textarea
             id="description"
             {...register('description')}
             rows={5}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
-              placeholder:text-gray-400
+            className="w-full rounded-lg border border-line px-3 py-2 text-sm
+              placeholder:text-muted
               focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
             placeholder="Describe the piece you'd like — subject, size, style, colors, timeline, anything that helps the artist understand your vision..."
           />

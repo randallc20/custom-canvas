@@ -28,7 +28,7 @@ function CommissionRequestContent() {
       .then(({ data }) => setArtist(data));
   }, [artistSlug]);
 
-  if (!artist) return <p className="py-16 text-center text-gray-500">Loading artist...</p>;
+  if (!artist) return <p className="py-16 text-center text-muted">Loading artist...</p>;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">

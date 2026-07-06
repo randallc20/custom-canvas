@@ -28,15 +28,15 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
 
   if (sorted.length === 0) {
     return (
-      <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-gray-200">
-        <span className="text-gray-400">No images yet</span>
+      <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-sand">
+        <span className="text-muted">No images yet</span>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="relative overflow-hidden rounded-lg bg-gray-100">
+      <div className="relative overflow-hidden rounded-lg bg-sand">
         <Image
           src={sorted[selectedIndex].image_url}
           alt={`${title} — image ${selectedIndex + 1} of ${sorted.length}`}
@@ -54,7 +54,7 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
               className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow transition-opacity hover:bg-white disabled:opacity-0"
               aria-label="Previous image"
             >
-              <svg className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5 text-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
@@ -64,7 +64,7 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
               className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow transition-opacity hover:bg-white disabled:opacity-0"
               aria-label="Next image"
             >
-              <svg className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5 text-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
@@ -78,7 +78,7 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
               key={image.id}
               onClick={() => setSelectedIndex(index)}
               className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border-2 transition-colors
-                ${index === selectedIndex ? 'border-terra' : 'border-transparent hover:border-gray-300'}`}
+                ${index === selectedIndex ? 'border-terra' : 'border-transparent hover:border-line'}`}
               aria-label={`View image ${index + 1}`}
             >
               <Image

@@ -134,9 +134,7 @@ export function PartnerPicksManager({ galleryId }: { galleryId: string }) {
 
   return (
     <div className="mt-8 rounded-xl border border-line bg-surface p-6 shadow-card">
-      <div className="mb-1 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-ink">Your Picks ({rows.length}/{PARTNER_PICKS_CAP})</h2>
-      </div>
+      <h2 className="mb-1 text-lg font-semibold text-ink">Your Picks ({rows.length}/{PARTNER_PICKS_CAP})</h2>
       <p className="mb-4 text-sm text-muted">
         Curate up to {PARTNER_PICKS_CAP} pieces from Houston artists. They show on your public page —
         and your selection rotates onto the Custom Canvas homepage.

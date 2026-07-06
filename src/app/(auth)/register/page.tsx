@@ -49,13 +49,13 @@ export default function RegisterPage() {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="w-full max-w-sm text-center">
-          <h1 className="mb-4 text-2xl font-bold text-gray-900">Check Your Email</h1>
-          <p className="text-gray-600">
+          <h1 className="mb-4 text-2xl font-bold text-ink">Check Your Email</h1>
+          <p className="text-muted">
             We sent a confirmation link to <span className="font-medium">{email}</span>.
             Click the link to activate your account.
           </p>
           {onboardingPath && (
-            <p className="mt-3 text-sm text-gray-500">
+            <p className="mt-3 text-sm text-muted">
               Already confirmed?{' '}
               <button
                 onClick={() => router.push(onboardingPath)}
@@ -76,14 +76,14 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <h1 className="mb-6 text-center text-2xl font-bold text-gray-900">Create Account</h1>
+        <h1 className="mb-6 text-center text-2xl font-bold text-ink">Create Account</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Full Name" id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
           <Input label="Email" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <Input label="Password" id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">I am a...</label>
+            <label className="mb-2 block text-sm font-medium text-ink">I am a...</label>
             <div className="grid grid-cols-3 gap-2">
               {roles.map((r) => (
                 <button
@@ -92,10 +92,10 @@ export default function RegisterPage() {
                   onClick={() => setRole(r.value)}
                   aria-pressed={role === r.value}
                   className={`rounded-lg border p-3 text-center text-sm transition-colors
-                    ${role === r.value ? 'border-terra bg-orange-50 text-terra' : 'border-gray-300 hover:bg-gray-50'}`}
+                    ${role === r.value ? 'border-terra bg-orange-50 text-terra' : 'border-line hover:bg-sand/50'}`}
                 >
                   <div className="font-medium">{r.label}</div>
-                  <div className="mt-0.5 text-xs text-gray-500">{r.desc}</div>
+                  <div className="mt-0.5 text-xs text-muted">{r.desc}</div>
                 </button>
               ))}
             </div>
@@ -119,7 +119,7 @@ export default function RegisterPage() {
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button type="submit" loading={loading} disabled={!acceptedTerms} className="w-full">Create Account</Button>
         </form>
-        <p className="mt-4 text-center text-sm text-gray-500">
+        <p className="mt-4 text-center text-sm text-muted">
           Already have an account?{' '}
           <Link href="/login" className="text-terra hover:underline">Sign in</Link>
         </p>

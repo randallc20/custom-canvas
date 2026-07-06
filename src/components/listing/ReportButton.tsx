@@ -40,24 +40,24 @@ export function ReportButton({ listingId }: ReportButtonProps) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="text-sm text-gray-400 hover:text-red-500"
+        className="text-sm text-muted hover:text-red-500"
       >
         Report this listing
       </button>
       <Modal isOpen={open} title={submitted ? 'Report Submitted' : 'Report Listing'} onClose={() => { setOpen(false); setSubmitted(false); }}>
           {submitted ? (
             <div className="space-y-3 text-center">
-              <p className="text-gray-600">Thanks for letting us know. We&apos;ll review this listing.</p>
+              <p className="text-muted">Thanks for letting us know. We&apos;ll review this listing.</p>
               <Button onClick={() => { setOpen(false); setSubmitted(false); }}>Close</Button>
             </div>
           ) : (
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Reason</label>
+                <label className="mb-1 block text-sm font-medium text-ink">Reason</label>
                 <select
                   value={reason}
                   onChange={(e) => setReason(e.target.value as ReportReason)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm"
                 >
                   {REASONS.map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
@@ -65,12 +65,12 @@ export function ReportButton({ listingId }: ReportButtonProps) {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Details (optional)</label>
+                <label className="mb-1 block text-sm font-medium text-ink">Details (optional)</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
                   placeholder="Tell us more about what's wrong..."
                 />
               </div>

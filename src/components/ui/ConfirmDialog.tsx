@@ -37,13 +37,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       {children}
       <Modal isOpen={!!opts} title={opts?.title ?? ''} onClose={() => settle(false)}>
         <p className="text-sm text-muted">{opts?.message}</p>
-        <div className="mt-6 flex gap-3">
-          <Button variant="outline" className="flex-1" onClick={() => settle(false)}>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => settle(false)}>
             Cancel
           </Button>
           <Button
             variant={opts?.destructive ? 'danger' : 'primary'}
-            className="flex-1"
             onClick={() => settle(true)}
           >
             {opts?.confirmLabel ?? 'Confirm'}

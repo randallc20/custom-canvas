@@ -13,7 +13,7 @@ export function GalleryGrid({ listings }: GalleryGridProps) {
     return (
       <EmptyState
         icon={
-          <svg className="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-10 w-10 text-line" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         }
@@ -31,7 +31,7 @@ export function GalleryGrid({ listings }: GalleryGridProps) {
           <Link
             key={listing.id}
             href={`/listing/${listing.id}`}
-            className="group block overflow-hidden rounded-lg bg-gray-100"
+            className="group block overflow-hidden rounded-lg bg-sand"
           >
             {primary ? (
               <div className="relative aspect-square">
@@ -44,15 +44,15 @@ export function GalleryGrid({ listings }: GalleryGridProps) {
                 />
               </div>
             ) : (
-              <div className="flex aspect-square items-center justify-center bg-gray-200">
-                <span className="text-sm text-gray-400">No image</span>
+              <div className="flex aspect-square items-center justify-center bg-sand">
+                <span className="text-sm text-muted">No image</span>
               </div>
             )}
             <div className="p-3">
-              <p className="truncate text-sm font-medium text-gray-900">{listing.title}</p>
+              <p className="truncate text-sm font-medium text-ink">{listing.title}</p>
               <p className="mt-0.5 text-sm text-terra">{listingPriceLabel(listing)}</p>
               {listing.medium && (
-                <p className="mt-0.5 truncate text-xs text-gray-400">{listing.medium}</p>
+                <p className="mt-0.5 truncate text-xs text-muted">{listing.medium}</p>
               )}
             </div>
           </Link>

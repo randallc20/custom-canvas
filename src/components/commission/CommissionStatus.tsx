@@ -25,7 +25,7 @@ export function CommissionStatus({ commission }: CommissionStatusProps) {
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
-        <span className="text-sm font-medium text-gray-700">Status:</span>
+        <span className="text-sm font-medium text-ink">Status:</span>
         <Badge variant={statusVariant[commission.status] ?? 'default'}>
           {commission.status.replace('_', ' ')}
         </Badge>
@@ -33,9 +33,9 @@ export function CommissionStatus({ commission }: CommissionStatusProps) {
       <div className="flex items-center gap-1">
         {STEPS.map((step, i) => (
           <div key={step} className="flex items-center">
-            <div className={`h-3 w-3 rounded-full ${i <= currentStep ? 'bg-terra' : 'bg-gray-200'}`} />
+            <div className={`h-3 w-3 rounded-full ${i <= currentStep ? 'bg-terra' : 'bg-sand'}`} />
             {i < STEPS.length - 1 && (
-              <div className={`h-0.5 w-6 ${i < currentStep ? 'bg-terra' : 'bg-gray-200'}`} />
+              <div className={`h-0.5 w-6 ${i < currentStep ? 'bg-terra' : 'bg-sand'}`} />
             )}
           </div>
         ))}

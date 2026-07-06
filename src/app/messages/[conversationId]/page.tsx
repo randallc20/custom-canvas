@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useConversations, useConversation } from '@/hooks/useConversations';
 import { useUnreadCounts } from '@/hooks/useMessages';
@@ -73,11 +72,6 @@ function ConversationContent() {
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-3 border-b border-line px-4 py-2">
-          <Link href="/messages" className="text-muted hover:text-ink md:hidden">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </Link>
           {otherParticipant && (
             <>
               <Avatar

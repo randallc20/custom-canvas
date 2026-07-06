@@ -15,7 +15,7 @@ export default function FollowingPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Following</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Following</h1>
       {!artists || artists.length === 0 ? (
         <EmptyState title="Not following anyone" description="Follow artists to see their work here." />
       ) : (
@@ -24,15 +24,15 @@ export default function FollowingPage() {
             <Link
               key={artist.id}
               href={`/artist/${artist.slug}`}
-              className="flex items-center gap-3 rounded-lg border border-gray-200 p-4 transition-colors hover:border-gray-300 hover:bg-gray-50"
+              className="flex items-center gap-3 rounded-lg border border-line p-4 transition-colors hover:border-line hover:bg-sand/50"
             >
               <Avatar src={artist.banner_image_url} alt={artist.display_name} size="md" />
               <div>
-                <p className="font-medium text-gray-900">{artist.display_name}</p>
+                <p className="font-medium text-ink">{artist.display_name}</p>
                 {artist.neighborhood ? (
-                  <p className="text-sm text-gray-500">{artist.neighborhood}, {artist.city}</p>
+                  <p className="text-sm text-muted">{artist.neighborhood}, {artist.city}</p>
                 ) : (
-                  <p className="text-sm text-gray-500">{artist.city}</p>
+                  <p className="text-sm text-muted">{artist.city}</p>
                 )}
               </div>
             </Link>

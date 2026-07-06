@@ -61,7 +61,7 @@ function NotificationsContent() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
+        <h1 className="text-2xl font-bold text-ink">Notifications</h1>
         {unreadCount > 0 && (
           <Button variant="outline" size="sm" onClick={handleMarkAllRead}>
             Mark all as read
@@ -75,7 +75,7 @@ function NotificationsContent() {
           description="You're all caught up! Notifications about orders, messages, and commissions will appear here."
         />
       ) : (
-        <div className="divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200">
+        <div className="divide-y divide-line overflow-hidden rounded-lg border border-line">
           {notifications.map((n) => (
             <NotificationRow
               key={n.id}
@@ -94,23 +94,23 @@ function NotificationRow({ notification, onMarkRead }: { notification: Notificat
 
   const content = (
     <div
-      className={`flex items-start gap-3 px-4 py-4 transition-colors hover:bg-gray-50 ${
+      className={`flex items-start gap-3 px-4 py-4 transition-colors hover:bg-sand/50 ${
         !notification.is_read ? 'bg-orange-50/40' : ''
       }`}
     >
       <span className="mt-0.5 flex-shrink-0 text-lg">{icon}</span>
       <div className="min-w-0 flex-1">
-        <p className={`text-sm ${!notification.is_read ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+        <p className={`text-sm ${!notification.is_read ? 'font-semibold text-ink' : 'text-ink'}`}>
           {notification.title}
         </p>
-        <p className="mt-0.5 text-sm text-gray-500">{notification.body}</p>
-        <p className="mt-1 text-xs text-gray-400">{formatTime(notification.created_at)}</p>
+        <p className="mt-0.5 text-sm text-muted">{notification.body}</p>
+        <p className="mt-1 text-xs text-muted">{formatTime(notification.created_at)}</p>
       </div>
       <div className="flex flex-shrink-0 items-center gap-2">
         {!notification.is_read && (
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMarkRead(); }}
-            className="rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="rounded px-2 py-1 text-xs text-muted hover:bg-sand hover:text-muted"
           >
             Mark read
           </button>

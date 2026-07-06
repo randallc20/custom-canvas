@@ -31,13 +31,13 @@ export default function ForgotPasswordPage() {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="w-full max-w-sm text-center">
-          <h1 className="mb-4 text-2xl font-bold text-gray-900">Check Your Email</h1>
-          <p className="text-gray-600">
+          <h1 className="mb-4 text-2xl font-bold text-ink">Check Your Email</h1>
+          <p className="text-muted">
             We sent a password reset link to <span className="font-medium">{email}</span>.
             Click the link in the email to set a new password.
           </p>
           <Link href="/login" className="mt-6 inline-block text-sm text-terra hover:underline">
-            Back to sign in
+            Go to sign in
           </Link>
         </div>
       </div>
@@ -47,8 +47,8 @@ export default function ForgotPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <h1 className="mb-2 text-2xl font-bold text-gray-900">Forgot Password?</h1>
-        <p className="mb-6 text-sm text-gray-500">
+        <h1 className="mb-2 text-2xl font-bold text-ink">Forgot Password?</h1>
+        <p className="mb-6 text-sm text-muted">
           Enter your email and we&apos;ll send you a link to reset your password.
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -65,7 +65,7 @@ export default function ForgotPasswordPage() {
             Send Reset Link
           </Button>
         </form>
-        <p className="mt-4 text-center text-sm text-gray-500">
+        <p className="mt-4 text-center text-sm text-muted">
           Remember your password?{' '}
           <Link href="/login" className="text-terra hover:underline">Sign in</Link>
         </p>
