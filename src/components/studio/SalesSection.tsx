@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatPrice } from '@/utils/formatPrice';
 import { useArtistProfileId } from '@/hooks/useArtistProfileId';
 import type { Order, OrderStatus } from '@/types/order';
@@ -27,6 +29,9 @@ export function SalesSection() {
   const { data: orders, isLoading } = useArtistOrders(artistId);
   const updateStatus = useUpdateOrderStatus();
   const { toast } = useToast();
+  const confirm = useConfirm();
+  const [approvingRefund, setApprovingRefund] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [shipModal, setShipModal] = useState<Order | null>(null);
   const [trackingNumber, setTrackingNumber] = useState('');
 
@@ -45,6 +50,27 @@ export function SalesSection() {
       setTrackingNumber('');
     } catch {
       toast('Failed to update order', 'error');
+    }
+  };
+
+  const handleApproveRefund = async (order: Order) => {
+    const ok = await confirm({
+      title: 'Approve this refund?',
+      message: 'Custom Canvas will settle the payment: the buyer gets the price and shipping back, and your payout for this sale is returned. The buyer\'s service fee is not refunded. This can\'t be undone.',
+      confirmLabel: 'Approve refund',
+      destructive: true,
+    });
+    if (!ok) return;
+    setApprovingRefund(order.id);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/approve-refund`, { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      toast('Refund approved — Custom Canvas will settle the payment.', 'success');
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not approve the refund', 'error');
+    } finally {
+      setApprovingRefund(null);
     }
   };
 
@@ -101,12 +127,26 @@ export function SalesSection() {
                   </p>
                 )}
 
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex items-center gap-2">
                   {order.status === 'paid' && (
                     <Button size="sm" onClick={() => setShipModal(order)}>Mark as Shipped</Button>
                   )}
                   {order.status === 'shipped' && (
                     <Button size="sm" variant="outline" onClick={() => handleDelivered(order.id)}>Mark Delivered</Button>
+                  )}
+                  {['paid', 'shipped', 'delivered'].includes(order.status) && (
+                    order.refund_approved_at ? (
+                      <span className="text-xs text-muted">Refund approved — Custom Canvas is settling the payment.</span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        loading={approvingRefund === order.id}
+                        onClick={() => handleApproveRefund(order)}
+                      >
+                        Approve refund
+                      </Button>
+                    )
                   )}
                 </div>
               </div>

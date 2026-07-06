@@ -16,7 +16,7 @@ export async function createOrder(data: Omit<Order, 'id' | 'created_at' | 'updat
 export async function getOrdersByBuyer(buyerId: string): Promise<Order[]> {
   const { data, error } = await supabase
     .from('orders')
-    .select('*')
+    .select('*, listing:listings(title), artist:artist_profiles(profile_id, display_name)')
     .eq('buyer_id', buyerId)
     .order('created_at', { ascending: false });
 

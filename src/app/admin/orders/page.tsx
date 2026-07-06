@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
+import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { formatPrice } from '@/utils/formatPrice';
 import { supabase } from '@/lib/supabase';
 import type { OrderStatus } from '@/types/order';
@@ -12,10 +15,12 @@ import type { OrderStatus } from '@/types/order';
 interface AdminOrder {
   id: string;
   amount_cents: number;
+  shipping_cents: number;
   platform_fee_cents: number;
   artist_payout_cents: number;
   status: OrderStatus;
   created_at: string;
+  refund_approved_at: string | null;
   buyer: { full_name: string | null; email: string } | null;
 }
 
@@ -42,11 +47,14 @@ function OrdersContent() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [settling, setSettling] = useState<string | null>(null);
+  const { toast } = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
     supabase
       .from('orders')
-      .select('id, amount_cents, platform_fee_cents, artist_payout_cents, status, created_at, buyer:profiles!orders_buyer_id_fkey(full_name, email)')
+      .select('id, amount_cents, shipping_cents, platform_fee_cents, artist_payout_cents, status, created_at, refund_approved_at, buyer:profiles!orders_buyer_id_fkey(full_name, email)')
       .order('created_at', { ascending: false })
       .limit(200)
       .then(({ data }) => {
@@ -54,6 +62,31 @@ function OrdersContent() {
         setLoading(false);
       });
   }, []);
+
+  const handleSettleRefund = async (o: AdminOrder) => {
+    const ok = await confirm({
+      title: 'Settle this refund?',
+      message: `The buyer gets ${formatPrice(o.amount_cents + o.shipping_cents)} back (price + shipping — the service fee is not refunded). The artist's payout of ${formatPrice(o.artist_payout_cents)} is reversed; the platform returns its commission.`,
+      confirmLabel: 'Refund buyer',
+      destructive: true,
+    });
+    if (!ok) return;
+    setSettling(o.id);
+    try {
+      const res = await fetch(`/api/admin/orders/${o.id}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Artist-approved refund' }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      toast('Refund settled.', 'success');
+      setOrders((prev) => prev.map((x) => (x.id === o.id ? { ...x, status: 'refunded' as OrderStatus } : x)));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Refund failed', 'error');
+    } finally {
+      setSettling(null);
+    }
+  };
 
   const filtered = statusFilter === 'all'
     ? orders
@@ -124,7 +157,14 @@ function OrdersContent() {
                 <td className="px-4 py-3 font-medium text-ink">{formatPrice(o.amount_cents)}</td>
                 <td className="px-4 py-3 text-muted">{formatPrice(o.platform_fee_cents)}</td>
                 <td className="px-4 py-3">
-                  <Badge variant={STATUS_VARIANT[o.status]}>{o.status}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={STATUS_VARIANT[o.status]}>{o.status}</Badge>
+                    {o.refund_approved_at && o.status !== 'refunded' && (
+                      <Button size="sm" variant="danger" loading={settling === o.id} onClick={() => handleSettleRefund(o)}>
+                        Settle refund
+                      </Button>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-muted">
                   {new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}

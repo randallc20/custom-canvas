@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useBuyerOrders } from '@/hooks/useOrders';
+import { useFindOrCreateConversation } from '@/hooks/useConversations';
 import { useCreateReview } from '@/hooks/useReviews';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ReviewForm } from '@/components/review/ReviewForm';
-import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { formatPrice } from '@/utils/formatPrice';
 import type { Order, OrderStatus } from '@/types/order';
@@ -35,9 +34,9 @@ export default function OrdersPage() {
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null);
   const [reviewedOrders, setReviewedOrders] = useState<Set<string>>(new Set());
   const [cancelling, setCancelling] = useState<string | null>(null);
-  const confirm = useConfirm();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const router = useRouter();
+  const findOrCreate = useFindOrCreateConversation();
 
   if (isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
@@ -45,24 +44,21 @@ export default function OrdersPage() {
     await createReview.mutateAsync(data);
   };
 
-  const handleCancel = async (orderId: string) => {
-    const ok = await confirm({
-      title: 'Cancel this order?',
-      message: 'You\'ll be fully refunded (artwork, shipping, and service fee). This can\'t be undone.',
-      confirmLabel: 'Cancel order', destructive: true,
-    });
-    if (!ok) return;
-    setCancelling(orderId);
-    try {
-      const res = await fetch(`/api/orders/${orderId}/cancel`, { method: 'POST' });
-      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
-      toast('Order cancelled — your refund is on the way.', 'success');
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not cancel order', 'error');
-    } finally {
-      setCancelling(null);
-    }
+  // Refunds are between buyer and artist: the request starts as a chat
+  // message; if the artist agrees, Custom Canvas settles the payment.
+  const requestRefund = (order: Order) => {
+    const artist = order.artist;
+    const listing = order.listing;
+    if (!user || !artist?.profile_id) return;
+    setCancelling(order.id);
+    const prefill = `Hi, I'd like to request a refund for my order #${order.id.slice(0, 8)}${listing ? ` of "${listing.title}"` : ''}. `;
+    findOrCreate.mutate(
+      { userId: user.id, otherUserId: artist.profile_id, contextType: 'listing', contextId: order.listing_id ?? undefined },
+      {
+        onSuccess: (conversation) => router.push(`/messages/${conversation.id}?prefill=${encodeURIComponent(prefill)}`),
+        onError: () => { toast('Could not open the conversation.', 'error'); setCancelling(null); },
+      }
+    );
   };
 
   return (
@@ -115,11 +111,15 @@ export default function OrdersPage() {
                 {reviewedOrders.has(order.id) && (
                   <p className="mt-3 text-xs text-sage">Review submitted — thank you!</p>
                 )}
-                {order.status === 'paid' && (
+                {['paid', 'shipped', 'delivered'].includes(order.status) && (
                   <div className="mt-3">
-                    <Button size="sm" variant="ghost" loading={cancelling === order.id} onClick={() => handleCancel(order.id)}>
-                      Cancel &amp; refund
-                    </Button>
+                    {order.refund_approved_at ? (
+                      <p className="text-xs text-muted">Refund approved — Custom Canvas is settling your payment.</p>
+                    ) : (
+                      <Button size="sm" variant="ghost" loading={cancelling === order.id} onClick={() => requestRefund(order)}>
+                        Request a refund
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

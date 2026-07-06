@@ -15,8 +15,9 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-40 border-b border-line bg-cream/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-        <Link href="/" className="font-display text-xl font-semibold text-ink">
-          Custom Canvas
+        <Link href="/" className="flex items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-horizontal.svg" alt="Custom Canvas" className="h-8 w-auto" />
         </Link>
 
         <div className="hidden flex-1 justify-center px-8 md:flex">

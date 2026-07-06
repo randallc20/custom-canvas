@@ -58,7 +58,7 @@ Notes:
   it runs). Otherwise local testing stops at the Stripe payment page and
   order-creation assertions live in the staging section of the test doc.
 
-## 4. One business decision parked for you + Phil
+## 4. One business decision parked for you + Phil — ✅ DECIDED & BUILT 2026-07-06 (artist-mediated refunds: request via chat → artist approves → admin notified → settle returns price+shipping, fee kept, exact payout reversal; verified end-to-end in Stripe test mode)
 
 **Partial-refund transfer policy.** Stripe's `reverse_transfer: true` on a
 partial refund claws back from the artist *proportionally to the whole

@@ -22,28 +22,27 @@ export const metadata: Metadata = {
   },
   description: 'Discover and purchase original art from emerging Houston artists. Browse, collect, and commission one-of-a-kind pieces.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://customcanvas.art'),
+  icons: {
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }, { url: '/favicon.ico', sizes: 'any' }],
+    apple: '/apple-touch-icon.png',
+  },
   openGraph: {
     title: 'Custom Canvas',
     description: 'Discover and purchase original art from emerging Houston artists.',
     type: 'website',
     locale: 'en_US',
     siteName: 'Custom Canvas',
+    images: ['/og-default.png'],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Custom Canvas',
     description: 'Discover and purchase original art from emerging Houston artists.',
+    images: ['/og-default.png'],
   },
   robots: {
     index: true,
     follow: true,
-  },
-  icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/icons/icon-192.png', type: 'image/png', sizes: '192x192' },
-    ],
-    apple: '/apple-touch-icon.png',
   },
 };
 

@@ -9,6 +9,10 @@ export interface ShippingAddress {
 }
 
 export interface Order {
+  refund_approved_at?: string | null;
+  /** Joined on the buyer orders view for the refund-request chat handoff. */
+  artist?: { profile_id: string; display_name: string } | null;
+  listing?: { title: string } | null;
   id: string;
   listing_id: string | null;
   commission_id: string | null;

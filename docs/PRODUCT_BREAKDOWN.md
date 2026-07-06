@@ -38,7 +38,7 @@ Canonical example: $300 piece + $20 shipping → buyer pays $335 (+tax), artist 
 - **One live order per listing** enforced by a partial unique DB index; the webhook auto-refunds (with transfer reversal) if a race double-sells.
 - Order creation is **idempotent** on `stripe_payment_intent_id` (unique constraint) so webhook retries can't duplicate orders.
 - Money columns on orders are **frozen at the DB level** for non-admin users; artists can only advance status to shipped/delivered.
-- Refunds: buyer can self-cancel while status is `paid` (atomic claim → Stripe refund with `reverse_transfer`); admin can issue partial/full refunds for disputes. `charge.refunded` webhook returns the listing to market.
+- Refunds (policy set 2026-07-06): **artist-mediated**. Buyers request a refund from the artist in chat; if the artist approves (flagging the order + notifying admins), an admin settles it: buyer gets price + shipping back, the service fee is never refunded, the artist's payout is reversed exactly, the platform returns its commission. No buyer self-cancel. Full-refund webhooks (oversell auto-refund) still relist automatically.
 
 ---
 
