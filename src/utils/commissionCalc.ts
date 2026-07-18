@@ -2,9 +2,9 @@ export const PLATFORM_RATE = 0.15;
 export const BUYER_FEE_RATE = 0.05;
 export const BUYER_FEE_CAP_CENTS = 1500; // 5% service fee, capped at $15
 
-// Single source of truth for fee-disclosure labels so UI copy can't drift
-// from the math when the fee terms change.
-export const BUYER_FEE_LABEL = `Service fee (${Math.round(BUYER_FEE_RATE * 100)}%, max $${BUYER_FEE_CAP_CENTS / 100})`;
+// Single source of truth for the fee line label. Kept deliberately plain
+// ("Service fee") per feedback — the formula lives in about/terms copy.
+export const BUYER_FEE_LABEL = 'Service fee';
 
 export interface Split {
   platformCommission: number;
