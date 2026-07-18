@@ -139,7 +139,7 @@ function CheckoutContent() {
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="City"
-              placeholder="Houston"
+              placeholder="Your city"
               value={shipping.city}
               onChange={(e) => setShipping((s) => ({ ...s, city: e.target.value }))}
             />

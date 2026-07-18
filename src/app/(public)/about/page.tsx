@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'About',
-  description: 'Custom Canvas connects emerging Houston artists with collectors who believe in supporting local talent.',
+  description: 'Custom Canvas connects local artists with the communities around them — and with collectors anywhere.',
 };
 
 export default function AboutPage() {
@@ -12,8 +12,9 @@ export default function AboutPage() {
 
       <div className="space-y-6 text-muted">
         <p className="text-lg">
-          Custom Canvas is an online art marketplace built to connect emerging Houston artists
-          with collectors who believe in supporting local talent.
+          Custom Canvas is an online art marketplace built to connect local artists with the
+          people around them — choose your city and discover the art being made in your
+          community. Fall for a piece from somewhere else? It ships.
         </p>
 
         <h2 className="text-xl font-semibold text-ink">Our Mission</h2>
@@ -21,7 +22,7 @@ export default function AboutPage() {
           We believe every artist deserves a platform to share their work with the world.
           Custom Canvas makes it easy for artists to showcase, sell, and accept commissions —
           while giving collectors a curated space to discover one-of-a-kind pieces from
-          Houston&apos;s vibrant creative community.
+          your city&apos;s creative community.
         </p>
 
         <h2 className="text-xl font-semibold text-ink">How It Works</h2>

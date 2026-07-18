@@ -30,8 +30,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       await admin.from('notifications').insert({
         user_id: artist.profile_id,
         type: 'houston_verified',
-        title: 'You\'re Houston Verified',
-        body: 'Your Houston Verified badge is now live on your profile.',
+        title: 'You\'re Local Verified',
+        body: 'Your Local Verified badge is now live on your profile.',
         link: '/dashboard',
       });
     }

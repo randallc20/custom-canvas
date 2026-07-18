@@ -9,7 +9,7 @@ import { PARTNER_TYPE_LABELS, type PartnerType } from '@/types/gallery';
 
 export const metadata: Metadata = {
   title: 'Partners',
-  description: 'Verified galleries, schools, museums and organizations supporting Houston artists.',
+  description: 'Verified galleries, schools, museums and organizations supporting local artists.',
 };
 
 interface Props {
@@ -36,7 +36,7 @@ export default async function PartnersPage({ searchParams }: Props) {
     <div className="mx-auto max-w-7xl px-4 py-8">
       <h1 className="mb-2 text-2xl font-bold text-ink">Partners</h1>
       <p className="mb-6 text-muted">
-        Verified galleries, schools, museums and organizations supporting Houston&apos;s artists.
+        Verified galleries, schools, museums and organizations supporting local artists.
       </p>
 
       <div className="mb-8 flex flex-wrap gap-2">

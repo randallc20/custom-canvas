@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { ListingWithImages } from '@/types/listing';
 import { getFeedListings } from '@/services/feed';
+import { cityMatchPattern } from '@/lib/location';
 
 export const FEATURED_SHELF_CAP = 10;
 
@@ -24,16 +25,19 @@ export interface NeighborhoodSpotlight {
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const SPOTLIGHT_MIN_LISTINGS = 3;
 
-/** Computed shelf: one Houston neighborhood per week, rotating
+/** Computed shelf: one neighborhood per week (within the buyer's city when set), rotating
  *  deterministically through every neighborhood that has enough live work.
  *  weekSeed is overridable for tests/dev. */
 export async function getNeighborhoodSpotlight(
-  weekSeed?: number
+  weekSeed?: number,
+  city?: string
 ): Promise<NeighborhoodSpotlight | null> {
-  const { data, error } = await supabase
+  let countsQuery = supabase
     .from('listings')
     .select('artist:artist_profiles!inner(neighborhood)')
     .eq('status', 'available');
+  if (city) countsQuery = countsQuery.ilike('artist_profiles.city', cityMatchPattern(city));
+  const { data, error } = await countsQuery;
   if (error) return null;
 
   const counts = new Map<string, number>();
@@ -50,7 +54,7 @@ export async function getNeighborhoodSpotlight(
   const week = weekSeed ?? Math.floor(Date.now() / WEEK_MS);
   const neighborhood = eligible[week % eligible.length];
 
-  const { listings } = await getFeedListings({ neighborhoods: [neighborhood], limit: 8 });
+  const { listings } = await getFeedListings({ neighborhoods: [neighborhood], city, limit: 8 });
   return { neighborhood, listings };
 }
 

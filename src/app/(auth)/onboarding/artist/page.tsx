@@ -22,7 +22,6 @@ export default function ArtistOnboardingPage() {
   const { register, handleSubmit, formState: { errors, isSubmitting }, trigger } = useForm<ArtistProfileFormData>({
     resolver: zodResolver(artistProfileSchema),
     defaultValues: {
-      city: 'Houston',
       accent_color: '#E8704A',
       bio_layout: 'left',
       commissions_open: false,

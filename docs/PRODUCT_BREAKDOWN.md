@@ -6,7 +6,7 @@
 
 ## 1. What It Is
 
-**Custom Canvas** is a Houston-focused marketplace for original art. Artists sell finished pieces and take custom commissions; buyers discover local art through a feed, search, and artist profiles; verified partner organizations (galleries, schools, museums) anchor the local-trust story. The platform takes 15% of each sale plus a 5% buyer service fee capped at $15 (changed from a flat $10 in Build 3, Phase 1); artists keep 85% plus full shipping.
+**Custom Canvas** is a local-first marketplace for original art — buyers choose their city (typed city/ZIP, or device location) and see the artists around them first, with an Everywhere toggle and nationwide shipping for art from farther away. Houston is the founding community (as of Build 4, 2026-07-17, the product is location-neutral). Artists sell finished pieces and take custom commissions; buyers discover local art through a feed, search, and artist profiles; verified partner organizations (galleries, schools, museums) anchor the local-trust story. The platform takes 15% of each sale plus a 5% buyer service fee capped at $15 (changed from a flat $10 in Build 3, Phase 1); artists keep 85% plus full shipping.
 
 - **Stack:** Next.js 14 (App Router) + Supabase (Postgres/Auth/Storage/Realtime) + Stripe (Checkout, Connect Express, Tax) + Resend (email) + Sentry, deployed on Vercel.
 - **Staging:** https://custom-canvas-chi.vercel.app (auto-deploys on push to master).
@@ -15,7 +15,7 @@
 
 ### Positioning pillars (as expressed in the product)
 1. **85% to artists** — repeated on homepage, about page, payouts page.
-2. **Houston-local** — neighborhoods as filter facets, "Houston Verified" badge, local pickup as a first-class fulfillment mode, partner orgs (Glassell School, galleries).
+2. **Local-first, anywhere** — buyer-chosen community scopes the feed/shelves/hero; neighborhoods as filter facets, "Local Verified" badge, local pickup as a first-class fulfillment mode, partner orgs anchor each community.
 3. **Commissions welcome** — commission-only listings, per-artist commission panels, a full quote → WIP → delivery workflow.
 
 ---

@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useUnread } from '@/context/UnreadContext';
 import { NotificationDropdown } from '@/components/notification/NotificationDropdown';
 import { NavSearch } from '@/components/layout/NavSearch';
+import { LocationPicker } from '@/components/layout/LocationPicker';
 
 export function Navbar() {
   const { user, signOut } = useAuth();
@@ -20,8 +21,9 @@ export function Navbar() {
           <img src="/brand/logo-horizontal.svg" alt="Custom Canvas" className="h-8 w-auto" />
         </Link>
 
-        <div className="hidden flex-1 justify-center px-8 md:flex">
+        <div className="hidden flex-1 items-center justify-center gap-3 px-8 md:flex">
           <NavSearch className="w-full max-w-md" />
+          <LocationPicker />
         </div>
 
         <div className="hidden items-center gap-4 md:flex">
@@ -112,6 +114,9 @@ export function Navbar() {
         <div className="border-t border-line bg-cream px-4 pb-4 md:hidden">
           <div className="mt-3">
             <NavSearch />
+          </div>
+          <div className="mt-3">
+            <LocationPicker />
           </div>
           <div className="mt-3 space-y-1">
             {user ? (

@@ -34,7 +34,7 @@ export function ProfileCard({ artist }: ProfileCardProps) {
             {artist.display_name}
           </p>
           {artist.neighborhood && (
-            <p className="truncate text-sm text-muted">{artist.neighborhood}, {artist.city || 'Houston'}</p>
+            <p className="truncate text-sm text-muted">{[artist.neighborhood, artist.city].filter(Boolean).join(', ')}</p>
           )}
         </div>
       </div>

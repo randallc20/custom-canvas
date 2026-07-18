@@ -33,7 +33,7 @@ export function HoustonVerifiedCard() {
   if (!artist || artist.is_houston_verified) return null;
 
   const submit = async () => {
-    if (!details.trim()) { toast('Tell us how you\'re connected to Houston.', 'error'); return; }
+    if (!details.trim()) { toast('Tell us how you\'re connected to your local art community.', 'error'); return; }
     setSaving(true);
     const { error } = await supabase.from('verification_requests').insert({
       artist_id: artist.id, connection_type: connectionType, details: details.trim(), links: links.trim() || null,
@@ -46,11 +46,11 @@ export function HoustonVerifiedCard() {
   return (
     <div className="rounded-xl border border-line p-6">
       <div className="mb-1 flex items-center gap-2">
-        <h2 className="text-lg font-semibold text-ink">Get Houston Verified</h2>
+        <h2 className="text-lg font-semibold text-ink">Get Local Verified</h2>
         {pending && <Badge variant="warning">Under review</Badge>}
       </div>
       <p className="mb-4 text-sm text-muted">
-        The Houston Verified badge tells buyers you&apos;re a real local artist. Tell us how you&apos;re connected to the city.
+        The Local Verified badge tells buyers you&apos;re a real, rooted member of your local art community. Tell us how you&apos;re connected to the city.
       </p>
       {pending ? (
         <p className="text-sm text-muted">Your request is in the queue — we&apos;ll notify you when it&apos;s reviewed.</p>
@@ -59,9 +59,9 @@ export function HoustonVerifiedCard() {
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">How are you connected?</label>
             <select value={connectionType} onChange={(e) => setConnectionType(e.target.value)} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink">
-              <option value="school">Houston art school</option>
-              <option value="neighborhood">Live in a Houston neighborhood</option>
-              <option value="studio">Houston studio space</option>
+              <option value="school">Local art school</option>
+              <option value="neighborhood">Live in the community</option>
+              <option value="studio">Local studio space</option>
               <option value="other">Other</option>
             </select>
           </div>

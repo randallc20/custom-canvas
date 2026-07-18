@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { cityMatchPattern } from '@/lib/location';
 import { ListingWithImages } from '@/types/listing';
 import type { ArtistProfile } from '@/types/artist';
 
@@ -8,6 +9,8 @@ export type Availability = 'available' | 'commission';
 export interface FeedParams {
   page?: number;
   limit?: number;
+  /** Scope to a community: matches artist_profiles.city (case-insensitive). */
+  city?: string;
   medium?: string;
   minPrice?: number;
   maxPrice?: number;
@@ -26,7 +29,7 @@ interface FeedResult {
 
 export async function getFeedListings(params: FeedParams = {}): Promise<FeedResult> {
   const {
-    page = 0, limit = 20, medium, minPrice, maxPrice, search, sort = 'recent',
+    page = 0, limit = 20, city, medium, minPrice, maxPrice, search, sort = 'recent',
     neighborhoods, schools, commissionsOpen, availability = 'available',
   } = params;
 
@@ -46,6 +49,7 @@ export async function getFeedListings(params: FeedParams = {}): Promise<FeedResu
     query = query.eq('status', 'available');
   }
 
+  if (city) query = query.ilike('artist_profiles.city', cityMatchPattern(city));
   if (medium) query = query.eq('medium', medium);
   if (minPrice !== undefined) query = query.gte('price_cents', minPrice);
   if (maxPrice !== undefined) query = query.lte('price_cents', maxPrice);
@@ -86,17 +90,18 @@ export interface ArtistsResult {
   nextPage: number | null;
 }
 
-export async function getFeedArtists(params: { page?: number; limit?: number; search?: string } = {}): Promise<ArtistsResult> {
-  const { page = 0, limit = 24, search } = params;
+export async function getFeedArtists(params: { page?: number; limit?: number; search?: string; city?: string } = {}): Promise<ArtistsResult> {
+  const { page = 0, limit = 24, search, city } = params;
 
   let query = supabase
     .from('artist_profiles')
-    .select('*, profile:profiles(avatar_url)')
+    .select('*, profile:profiles!artist_profiles_profile_id_fkey(avatar_url)')
     .eq('is_live', true)
     .order('created_at', { ascending: false })
     .order('id', { ascending: false });
 
   if (search) query = query.textSearch('search_vector', search, { type: 'websearch' });
+  if (city) query = query.ilike('city', cityMatchPattern(city));
 
   const from = page * limit;
   query = query.range(from, from + limit);
@@ -134,11 +139,14 @@ export async function getSearchSuggestions(term: string): Promise<SearchSuggesti
   };
 }
 
-/** Distinct neighborhood/school values for the filter multi-selects. */
-export async function getFilterOptions(): Promise<{ neighborhoods: string[]; schools: string[] }> {
-  const { data } = await supabase
+/** Distinct neighborhood/school values for the filter multi-selects,
+ *  scoped to the buyer's community when one is set. */
+export async function getFilterOptions(city?: string): Promise<{ neighborhoods: string[]; schools: string[] }> {
+  let query = supabase
     .from('artist_profiles')
     .select('neighborhood, school');
+  if (city) query = query.ilike('city', cityMatchPattern(city));
+  const { data } = await query;
   const neighborhoods = new Set<string>();
   const schools = new Set<string>();
   for (const row of data ?? []) {

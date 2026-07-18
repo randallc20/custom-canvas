@@ -58,7 +58,7 @@ function Content() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-ink">Houston Verified Requests</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Local Verified Requests</h1>
       {reqs.length === 0 ? (
         <EmptyState title="No pending requests" description="Verification requests will appear here." />
       ) : (

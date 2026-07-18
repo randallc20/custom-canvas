@@ -16,11 +16,12 @@ export function useFeaturedShelf() {
   });
 }
 
-export function useNeighborhoodSpotlight() {
+export function useNeighborhoodSpotlight(city?: string, enabled = true) {
   return useQuery({
-    queryKey: ['featured', 'spotlight'],
-    queryFn: () => getNeighborhoodSpotlight(),
+    queryKey: ['featured', 'spotlight', city ?? null],
+    queryFn: () => getNeighborhoodSpotlight(undefined, city),
     staleTime: 5 * 60 * 1000,
+    enabled,
   });
 }
 

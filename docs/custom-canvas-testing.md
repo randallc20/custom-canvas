@@ -38,6 +38,13 @@ or a normal + private window — sessions are per-browser.
 
 ## 1. Anonymous visitor (before logging in)
 
+- [ ] 1.0 **Location**: hero says "your local community" with a Choose-your-city
+      button. Set location via ZIP 77005 → navbar pill shows "Houston, TX",
+      hero personalizes, feed gains Local/Everywhere chips (Local default).
+      Try a city with no artists (e.g. "Austin, TX") → friendly empty state
+      with a "Browse everywhere" escape. Location survives reload; "Clear —
+      browse everywhere" in the picker resets it. Privacy: the picker
+      discloses that geolocation sends coordinates to a geocoding service.
 - [ ] 1.1 Homepage loads: logo in navbar, hero ("Discover art from Houston's
       emerging artists"), then shelves — **Featured in Houston**, **From
       {neighborhood}** (rotates weekly), **Picked by Bayou City Gallery** with
@@ -153,7 +160,7 @@ or a normal + private window — sessions are per-browser.
 **Studio**
 - [ ] 4.1 Log in → you land in `/studio`: needs-attention queue (orders to
       ship / commissions to quote / unread messages), "Last 7 days" strip,
-      stat cards, pinned-work picker, Houston Verified card, away-mode
+      stat cards, pinned-work picker, Local Verified card, away-mode
       toggle, collapsed "Trends" (expands to 30-day charts).
 - [ ] 4.2 Old bookmarks land correctly: `/dashboard`→Studio, `/listings`→
       Work, `/series`→Work?tab=series, `/sales` & `/payouts`→Sales & Money,
@@ -219,7 +226,7 @@ or a normal + private window — sessions are per-browser.
       shows the away banner, Buy is disabled, commissions pause; a buyer
       messaging you gets ONE auto-reply per conversation. Disable → all
       restored.
-- [ ] 4.22 Houston Verified: submit a request (type + details + links) →
+- [ ] 4.22 Local Verified: submit a request (type + details + links) →
       pending state; only one open request allowed. After admin approves
       (§5.6) → badge on your page + bell + email.
 
@@ -242,7 +249,7 @@ or a normal + private window — sessions are per-browser.
       order holds it).
 - [ ] 5.5 Disputes: reports from chat (report a message as the buyer first)
       appear; resolve with dismiss / action-taken + notes.
-- [ ] 5.6 Verifications: approve the artist's Houston Verified request
+- [ ] 5.6 Verifications: approve the artist's Local Verified request
       (§4.22) and verify a pending partner from §2.3 (Galleries page) →
       both get badges + notifications.
 - [ ] 5.7 Admin bell: the refund-approval notification from §4.14 links to

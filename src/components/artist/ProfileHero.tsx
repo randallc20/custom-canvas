@@ -66,7 +66,7 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
                 <span className="text-sm text-muted">{artist.neighborhood}, {artist.city}</span>
               )}
               {artist.status && <Badge>{artist.status.replace(/_/g, ' ')}</Badge>}
-              {artist.is_houston_verified && <Badge variant="verified">Houston Verified</Badge>}
+              {artist.is_houston_verified && <Badge variant="verified">Local Verified</Badge>}
               {artist.away_mode && (
                 <Badge variant="warning">
                   Away{artist.away_until ? ` — back ${new Date(artist.away_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}

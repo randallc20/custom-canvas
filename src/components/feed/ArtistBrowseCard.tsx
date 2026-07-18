@@ -48,7 +48,7 @@ export function ArtistBrowseCard({ artist }: ArtistBrowseCardProps) {
         </div>
         <p className="truncate font-medium text-ink group-hover:text-terra">{artist.display_name}</p>
         <p className="truncate text-sm text-muted">
-          {[artist.neighborhood, artist.school].filter(Boolean).join(' · ') || 'Houston'}
+          {[artist.city, artist.neighborhood].filter(Boolean).join(' · ') || 'Local artist'}
         </p>
         {user && !isOwn && (
           <Button

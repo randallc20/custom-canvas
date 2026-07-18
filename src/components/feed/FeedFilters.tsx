@@ -24,6 +24,8 @@ export interface FeedFilterValues {
 
 interface FeedFiltersProps {
   filters: FeedFilterValues;
+  /** Effective community scope (respects the Everywhere toggle). */
+  city?: string;
   onFilterChange: (filters: FeedFilterValues) => void;
 }
 
@@ -34,10 +36,10 @@ function toggleInList(list: string[] | undefined, value: string): string[] {
   return Array.from(set);
 }
 
-export function FeedFilters({ filters, onFilterChange }: FeedFiltersProps) {
+export function FeedFilters({ filters, city, onFilterChange }: FeedFiltersProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
-  const { data: options } = useFilterOptions();
+  const { data: options } = useFilterOptions(city);
 
   // Controlled so the box reflects external changes (navbar search, Clear).
   const [searchInput, setSearchInput] = useState(filters.search ?? '');

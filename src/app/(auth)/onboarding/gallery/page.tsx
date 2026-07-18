@@ -21,7 +21,7 @@ export default function GalleryOnboardingPage() {
   const [error, setError] = useState('');
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<GalleryProfileFormData>({
     resolver: zodResolver(galleryProfileSchema),
-    defaultValues: { city: 'Houston', partner_type: 'gallery' },
+    defaultValues: { partner_type: 'gallery' },
   });
 
   if (loading) {

@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     default: 'Custom Canvas',
     template: '%s | Custom Canvas',
   },
-  description: 'Discover and purchase original art from emerging Houston artists. Browse, collect, and commission one-of-a-kind pieces.',
+  description: 'Discover and buy original art from local artists in your community — browse, collect, and commission one-of-a-kind pieces.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://customcanvas.art'),
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }, { url: '/favicon.ico', sizes: 'any' }],
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Custom Canvas',
-    description: 'Discover and purchase original art from emerging Houston artists.',
+    description: 'Discover and buy original art from local artists in your community.',
     type: 'website',
     locale: 'en_US',
     siteName: 'Custom Canvas',
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Custom Canvas',
-    description: 'Discover and purchase original art from emerging Houston artists.',
+    description: 'Discover and buy original art from local artists in your community.',
     images: ['/og-default.png'],
   },
   robots: {

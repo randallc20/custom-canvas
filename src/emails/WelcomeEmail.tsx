@@ -8,7 +8,7 @@ export function WelcomeEmail({ name, role }: WelcomeEmailProps) {
     ? 'Start by completing your profile and uploading your first piece.'
     : role === 'gallery'
     ? 'Your gallery application is under review. We\'ll notify you once verified.'
-    : 'Discover one-of-a-kind pieces from Houston\'s most talented emerging artists.';
+    : 'Discover one-of-a-kind pieces from the artists in your community.';
 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', maxWidth: 600, margin: '0 auto' }}>

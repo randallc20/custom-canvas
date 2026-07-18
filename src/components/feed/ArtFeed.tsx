@@ -10,6 +10,9 @@ import { FilterChip } from '@/components/ui/FilterChip';
 import { FeedSkeleton } from './FeedSkeleton';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Button } from '@/components/ui/Button';
+import { useLocation } from '@/context/LocationContext';
+import { formatLocation } from '@/lib/location';
 
 type View = 'art' | 'artists';
 
@@ -39,10 +42,28 @@ export function ArtFeed() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { view, filters } = parseFilters(new URLSearchParams(searchParams.toString()));
+  const { location, ready } = useLocation();
+  // Local is the default whenever a community is chosen; ?scope=all opts out
+  // (URL-backed so a shared link keeps its scope).
+  const everywhere = searchParams.get('scope') === 'all';
+  const city = ready && location && !everywhere ? location.city : undefined;
+
+  const setScope = useCallback(
+    (all: boolean) => {
+      const sp = new URLSearchParams(searchParams.toString());
+      if (all) sp.set('scope', 'all');
+      else sp.delete('scope');
+      const qs = sp.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams]
+  );
 
   const setUrl = useCallback(
     (nextView: View, nextFilters: FeedFilterValues) => {
       const sp = new URLSearchParams();
+      // The Local/Everywhere scope is orthogonal to filters — never drop it.
+      if (searchParams.get('scope') === 'all') sp.set('scope', 'all');
       if (nextView === 'artists') sp.set('view', 'artists');
       if (nextFilters.search) sp.set('q', nextFilters.search);
       if (nextFilters.medium) sp.set('medium', nextFilters.medium);
@@ -56,19 +77,34 @@ export function ArtFeed() {
       const qs = sp.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [router, pathname]
+    [router, pathname, searchParams]
+  );
+
+  // Wait for the stored location before the first fetch — otherwise every
+  // visit double-fetches (everywhere, then local) with a content flash.
+  if (!ready) return <FeedSkeleton />;
+
+  const scopeToggle = location && (
+    <div className="mb-4 flex items-center gap-2">
+      <FilterChip active={!everywhere} onClick={() => setScope(false)}>
+        Local · {formatLocation(location)}
+      </FilterChip>
+      <FilterChip active={everywhere} onClick={() => setScope(true)}>Everywhere</FilterChip>
+    </div>
   );
 
   return view === 'artists' ? (
     <div>
       <ViewToggle view={view} onChange={(v) => setUrl(v, filters)} />
-      <ArtistsView search={filters.search} />
+      {scopeToggle}
+      <ArtistsView search={filters.search} city={city} onBrowseEverywhere={() => setScope(true)} />
     </div>
   ) : (
     <div>
       <ViewToggle view={view} onChange={(v) => setUrl(v, filters)} />
-      <FeedFiltersBar filters={filters} onFilterChange={(f) => setUrl('art', f)} />
-      <ArtView filters={filters} />
+      {scopeToggle}
+      <FeedFiltersBar filters={filters} city={city} onFilterChange={(f) => setUrl('art', f)} />
+      <ArtView filters={filters} city={city} onBrowseEverywhere={() => setScope(true)} />
     </div>
   );
 }
@@ -82,13 +118,23 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => voi
   );
 }
 
-function ArtView({ filters }: { filters: FeedFilters }) {
-  const { listings, fetchNextPage, hasNextPage, isLoading, isFetchingNextPage, isError } = useFeed(filters);
+function ArtView({ filters, city, onBrowseEverywhere }: { filters: FeedFilters; city?: string; onBrowseEverywhere: () => void }) {
+  const { listings, fetchNextPage, hasNextPage, isLoading, isFetchingNextPage, isError } = useFeed({ ...filters, city });
   const sentinelRef = useInfiniteSentinel(fetchNextPage, hasNextPage, isFetchingNextPage);
 
   if (isLoading) return <FeedSkeleton />;
   if (isError) return <EmptyState title="Something went wrong" description="We couldn't load the feed. Please try refreshing." />;
-  if (listings.length === 0) return <EmptyState title="No art found" description="Try adjusting your filters or check back later." />;
+  if (listings.length === 0) {
+    return city ? (
+      <EmptyState
+        title={`No art in ${city} yet`}
+        description="Your local art scene is still arriving here — browse everywhere in the meantime, or tell a local artist about us."
+        action={<Button variant="outline" onClick={onBrowseEverywhere}>Browse everywhere</Button>}
+      />
+    ) : (
+      <EmptyState title="No art found" description="Try adjusting your filters or check back later." />
+    );
+  }
 
   return (
     <>
@@ -104,13 +150,23 @@ function ArtView({ filters }: { filters: FeedFilters }) {
   );
 }
 
-function ArtistsView({ search }: { search?: string }) {
-  const { artists, fetchNextPage, hasNextPage, isLoading, isFetchingNextPage, isError } = useArtistsFeed(search);
+function ArtistsView({ search, city, onBrowseEverywhere }: { search?: string; city?: string; onBrowseEverywhere: () => void }) {
+  const { artists, fetchNextPage, hasNextPage, isLoading, isFetchingNextPage, isError } = useArtistsFeed(search, city);
   const sentinelRef = useInfiniteSentinel(fetchNextPage, hasNextPage, isFetchingNextPage);
 
   if (isLoading) return <FeedSkeleton />;
   if (isError) return <EmptyState title="Something went wrong" description="We couldn't load artists. Please try refreshing." />;
-  if (artists.length === 0) return <EmptyState title="No artists found" description="Try a different search." />;
+  if (artists.length === 0) {
+    return city ? (
+      <EmptyState
+        title={`No artists in ${city} yet`}
+        description="Know a local artist? Send them our way — or browse artists everywhere."
+        action={<Button variant="outline" onClick={onBrowseEverywhere}>Browse everywhere</Button>}
+      />
+    ) : (
+      <EmptyState title="No artists found" description="Try a different search." />
+    );
+  }
 
   return (
     <>

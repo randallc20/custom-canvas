@@ -32,11 +32,11 @@ export function useFeed(filters: FeedFilters = {}) {
   };
 }
 
-export function useArtistsFeed(search?: string) {
+export function useArtistsFeed(search?: string, city?: string) {
   const query = useInfiniteQuery({
-    queryKey: ['artists-feed', search ?? null],
+    queryKey: ['artists-feed', search ?? null, city ?? null],
     queryFn: ({ pageParam }) =>
-      getFeedArtists({ search, page: pageParam as number }),
+      getFeedArtists({ search, city, page: pageParam as number }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextPage,
   });
@@ -62,10 +62,10 @@ export function useSearchSuggestions(term: string) {
   });
 }
 
-export function useFilterOptions() {
+export function useFilterOptions(city?: string) {
   return useQuery({
-    queryKey: ['filter-options'],
-    queryFn: getFilterOptions,
+    queryKey: ['filter-options', city ?? null],
+    queryFn: () => getFilterOptions(city),
     staleTime: 5 * 60_000,
   });
 }
