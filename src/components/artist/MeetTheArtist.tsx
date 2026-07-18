@@ -2,19 +2,17 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { VideoGallery } from '@/components/artist/VideoGallery';
-import type { ArtistPersonalPhoto, ArtistVideo } from '@/types/artist';
+import type { ArtistPersonalPhoto, } from '@/types/artist';
 
 interface MeetTheArtistProps {
   displayName: string;
   photos: ArtistPersonalPhoto[];
-  videos: ArtistVideo[];
 }
 
-export function MeetTheArtist({ displayName, photos, videos }: MeetTheArtistProps) {
+export function MeetTheArtist({ displayName, photos }: MeetTheArtistProps) {
   const [lightbox, setLightbox] = useState<ArtistPersonalPhoto | null>(null);
 
-  if (photos.length === 0 && videos.length === 0) return null;
+  if (photos.length === 0) return null;
 
   const [hero, ...rest] = photos;
 
@@ -63,8 +61,6 @@ export function MeetTheArtist({ displayName, photos, videos }: MeetTheArtistProp
           ))}
         </div>
       )}
-
-      <VideoGallery videos={videos} />
 
       {lightbox && (
         <div

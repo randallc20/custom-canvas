@@ -214,8 +214,8 @@ or a normal + private window — sessions are per-browser.
       completeness % rises as you fill things in.
 - [ ] 4.16 Accent color: pick a different swatch → YOUR public page CTAs
       re-theme; bio layout switch changes the hero.
-- [ ] 4.17 Personal photos (≤10, captions) and videos (≤5) upload and show
-      in Meet-the-Artist.
+- [ ] 4.17 Personal photos (≤10, captions) upload and show in Meet-the-Artist.
+      (Videos are intentionally not supported.)
 - [ ] 4.18 Education: add an entry naming "Glassell School of Art" → you
       appear under Alumni & Students on that partner's page automatically.
 - [ ] 4.19 **Preview as visitor** (primary button) opens your public page

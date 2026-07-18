@@ -46,7 +46,7 @@ export default async function ArtistPage({ params }: Props) {
 
   if (!artist) notFound();
 
-  const [listingsRes, reviewsRes, seriesRes, educationRes, photosRes, videosRes] = await Promise.all([
+  const [listingsRes, reviewsRes, seriesRes, educationRes, photosRes] = await Promise.all([
     supabase
       .from('listings')
       .select('*, images:listing_images(*), tags:listing_tags(tag:tags(*))')
@@ -119,7 +119,6 @@ export default async function ArtistPage({ params }: Props) {
             <MeetTheArtist
               displayName={artist.display_name}
               photos={photosRes.data ?? []}
-              videos={videosRes.data ?? []}
             />
             <EducationTimeline education={educationRes.data ?? []} />
             <div>

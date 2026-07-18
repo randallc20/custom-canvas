@@ -15,7 +15,6 @@ import { AccentPalette } from '@/components/profile/AccentPalette';
 import { BioLayoutSelector } from '@/components/profile/BioLayoutSelector';
 import { EducationFieldset, type EducationDraft } from '@/components/profile/EducationFieldset';
 import { PersonalPhotoUploader } from '@/components/profile/PersonalPhotoUploader';
-import { VideoUploaderSection } from '@/components/profile/VideoUploaderSection';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
 import { ArtistProfile } from '@/types/artist';
@@ -233,7 +232,6 @@ export function ArtistProfileEdit() {
 
         <fieldset className="space-y-4">
           <legend className="text-lg font-semibold text-ink">Videos</legend>
-          <VideoUploaderSection artistId={artist.id} />
         </fieldset>
 
         <fieldset className="space-y-4">
