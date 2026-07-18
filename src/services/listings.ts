@@ -48,6 +48,27 @@ export async function updateListing(id: string, updates: Partial<Listing>): Prom
   });
 }
 
+/** Replace a listing's tag set (curated names → ids). Fires the DB trigger
+ *  that refreshes the listing's search vector, so tag words are searchable. */
+export async function setListingTags(listingId: string, tagNames: string[]): Promise<void> {
+  const { error: clearError } = await supabase
+    .from('listing_tags')
+    .delete()
+    .eq('listing_id', listingId);
+  if (clearError) throw clearError;
+  if (!tagNames.length) return;
+  const { data: tags, error: tagError } = await supabase
+    .from('tags')
+    .select('id, name')
+    .in('name', tagNames);
+  if (tagError) throw tagError;
+  if (!tags?.length) return;
+  const { error } = await supabase
+    .from('listing_tags')
+    .insert(tags.map((t) => ({ listing_id: listingId, tag_id: t.id })));
+  if (error) throw error;
+}
+
 export async function deleteListing(id: string): Promise<void> {
   await listingApi<{ success: boolean }>(`/api/listings/${id}`, { method: 'DELETE' });
 }

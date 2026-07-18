@@ -13,10 +13,11 @@ import { supabase } from '@/lib/supabase';
 import { numberOrNull } from '@/utils/formNumber';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useSeries } from '@/hooks/useArtistContent';
+import { TagPicker } from '@/components/listing/TagPicker';
 import { ImageUpload } from '@/components/upload/ImageUpload';
 import { ImageThumbGrid } from '@/components/upload/ImageThumbGrid';
 import { MAX_LISTING_IMAGES } from '@/components/listing/ListingImagesManager';
-import { addListingImages } from '@/services/listings';
+import { addListingImages, setListingTags } from '@/services/listings';
 
 export default function NewListingPage() {
   const router = useRouter();
@@ -47,12 +48,13 @@ export default function NewListingPage() {
 
   const { data: seriesOptions = [] } = useSeries(artistId);
 
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
     resolver: zodResolver(listingSchema),
     defaultValues: { status: 'available', tags: [], price_visible: true },
   });
 
   const priceVisible = watch('price_visible');
+  const selectedTags = watch('tags');
 
   const onSubmit = async (data: ListingFormData, asDraft = false) => {
     const listing = await createListing.mutateAsync({
@@ -75,6 +77,9 @@ export default function NewListingPage() {
     });
     if (imageUrls.length > 0) {
       await addListingImages(listing.id, imageUrls, 0);
+    }
+    if (data.tags.length > 0) {
+      await setListingTags(listing.id, data.tags);
     }
     // First listing is worth 20 completeness points — refresh canonically.
     supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
@@ -108,6 +113,8 @@ export default function NewListingPage() {
             </select>
           </div>
         )}
+
+        <TagPicker value={selectedTags} onChange={(tags) => setValue('tags', tags, { shouldDirty: true })} />
 
         <fieldset className="space-y-4 rounded-xl border border-line p-4">
           <legend className="px-1 text-sm font-semibold text-ink">Pricing</legend>

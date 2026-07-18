@@ -110,7 +110,7 @@ Dashboard (users/artists/listings/orders counts, revenue + fee totals, 30-day ch
 - **Feed** (`/`): infinite scroll, offset pagination with stable tiebreak. Two views: **Art** (listings) and **Artists** (browse cards with 3-thumbnail strip + follow button).
 - **Sorts:** Newest (default), Price ↑, Price ↓, Most Saved.
 - **Filters** (all URL-param backed → shareable): full-text search, medium, price range, Houston neighborhoods (multi), art schools (multi), commissions-open, availability (Available / Commission).
-- **Search:** Postgres `tsvector` + GIN on listings (title/description/medium) and artists (name/bio/neighborhood/school). Navbar search has 300ms-debounced autocomplete (top 3 artists + top 3 listings) and routes to `/?q=`.
+- **Search:** Postgres `tsvector` + GIN — listings vector is weighted title(A) + medium/tags(B) + description(C) (migration 00029); artists on name/bio/neighborhood/school. Strict websearch first, then an automatic any-term prefix fallback so extra words and partial words still match (applies to feed, artists view, and autocomplete). Navbar search has 300ms-debounced autocomplete (top 3 artists + top 3 listings) and routes to `/?q=`.
 - **Recently viewed:** last 12 listings, localStorage, shown above feed for returning visitors.
 - **Related listings:** up to 4 more available works from the same artist on listing detail.
 - Cards show cover image (`is_primary`), title, artist, price/"Contact for price", save heart with pop animation.

@@ -56,6 +56,10 @@ or a normal + private window — sessions are per-browser.
       (copy it into a new tab → same filtered view).
 - [ ] 1.4 Navbar search: type 3+ letters → autocomplete shows artists +
       listings; Enter → filtered feed.
+- [ ] 1.4b **Search forgiveness**: "abstract art", "landscape", "oil
+      paintings", and partial words like "print" all return sensible
+      results (tags are searchable; extra words don't zero the results).
+      Nonsense ("zebra unicorn") still returns the empty state.
 - [ ] 1.5 Open a listing: image carousel, dimensions/medium/year, price,
       **"Service fee (5%, max $15)" + estimated total + "artist keeps 85%"**
       note, related works below. Share button copies a link.
@@ -168,8 +172,10 @@ or a normal + private window — sessions are per-browser.
 
 **Work (listings)**
 - [ ] 4.3 New Listing: fill everything incl. up to 8 images (drag to
-      reorder; first = cover), price, shipping, series, tags → **Save as
-      draft** → it's in Work with a draft badge, not in the public feed.
+      reorder; first = cover), price, shipping, series, and **tags from the
+      curated picker (style/subject/mood/medium chips, max 10)** → **Save as
+      draft**. After publishing, searching one of your tag words finds the
+      piece. → it's in Work with a draft badge, not in the public feed.
 - [ ] 4.4 **Publish** the draft → followers get a bell notification (and the
       follower email if their inbox is real). Publishing again must not
       re-notify.

@@ -4,6 +4,15 @@ import { ListingWithImages } from '@/types/listing';
 import type { ArtistProfile } from '@/types/artist';
 
 export type FeedSort = 'recent' | 'price_asc' | 'price_desc' | 'popular';
+
+/** Forgiving retry query: every term prefix-matched, ANY term may match —
+ *  so "abstract art" still finds "Gulf Abstract" and "print" finds
+ *  "Printmaking". Used only when the strict websearch finds nothing. */
+export function prefixOrQuery(search: string): string | null {
+  const terms = search.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).slice(0, 8);
+  if (!terms.length) return null;
+  return terms.map((t) => `${t}:*`).join(' | ');
+}
 export type Availability = 'available' | 'commission';
 
 export interface FeedParams {
@@ -28,6 +37,16 @@ interface FeedResult {
 }
 
 export async function getFeedListings(params: FeedParams = {}): Promise<FeedResult> {
+  // Strict full-text first; if a search finds nothing, retry with a
+  // forgiving any-term prefix query so extra words never zero the results.
+  const strict = await runFeedQuery(params, 'strict');
+  if (params.search && strict.listings.length === 0 && strict.nextPage === null) {
+    return runFeedQuery(params, 'fallback');
+  }
+  return strict;
+}
+
+async function runFeedQuery(params: FeedParams, searchMode: 'strict' | 'fallback'): Promise<FeedResult> {
   const {
     page = 0, limit = 20, city, medium, minPrice, maxPrice, search, sort = 'recent',
     neighborhoods, schools, commissionsOpen, availability = 'available',
@@ -53,7 +72,12 @@ export async function getFeedListings(params: FeedParams = {}): Promise<FeedResu
   if (medium) query = query.eq('medium', medium);
   if (minPrice !== undefined) query = query.gte('price_cents', minPrice);
   if (maxPrice !== undefined) query = query.lte('price_cents', maxPrice);
-  if (search) query = query.textSearch('search_vector', search, { type: 'websearch' });
+  if (search) {
+    const fallback = searchMode === 'fallback' ? prefixOrQuery(search) : null;
+    query = fallback
+      ? query.textSearch('search_vector', fallback, { config: 'english' })
+      : query.textSearch('search_vector', search, { type: 'websearch', config: 'english' });
+  }
   if (neighborhoods?.length) query = query.in('artist_profiles.neighborhood', neighborhoods);
   if (schools?.length) query = query.in('artist_profiles.school', schools);
   if (commissionsOpen) query = query.eq('artist_profiles.commissions_open', true);
@@ -91,6 +115,14 @@ export interface ArtistsResult {
 }
 
 export async function getFeedArtists(params: { page?: number; limit?: number; search?: string; city?: string } = {}): Promise<ArtistsResult> {
+  const strict = await runArtistsQuery(params, 'strict');
+  if (params.search && strict.artists.length === 0 && strict.nextPage === null) {
+    return runArtistsQuery(params, 'fallback');
+  }
+  return strict;
+}
+
+async function runArtistsQuery(params: { page?: number; limit?: number; search?: string; city?: string }, searchMode: 'strict' | 'fallback'): Promise<ArtistsResult> {
   const { page = 0, limit = 24, search, city } = params;
 
   let query = supabase
@@ -100,7 +132,12 @@ export async function getFeedArtists(params: { page?: number; limit?: number; se
     .order('created_at', { ascending: false })
     .order('id', { ascending: false });
 
-  if (search) query = query.textSearch('search_vector', search, { type: 'websearch' });
+  if (search) {
+    const fallback = searchMode === 'fallback' ? prefixOrQuery(search) : null;
+    query = fallback
+      ? query.textSearch('search_vector', fallback, { config: 'english' })
+      : query.textSearch('search_vector', search, { type: 'websearch', config: 'english' });
+  }
   if (city) query = query.ilike('city', cityMatchPattern(city));
 
   const from = page * limit;
@@ -126,17 +163,23 @@ export interface SearchSuggestions {
 
 export async function getSearchSuggestions(term: string): Promise<SearchSuggestions> {
   if (!term.trim()) return { artists: [], listings: [] };
-  const [artistsRes, listingsRes] = await Promise.all([
-    supabase.from('artist_profiles').select('slug, display_name')
-      .eq('is_live', true)
-      .textSearch('search_vector', term, { type: 'websearch' }).limit(3),
-    supabase.from('listings').select('id, title').eq('status', 'available')
-      .textSearch('search_vector', term, { type: 'websearch' }).limit(3),
-  ]);
-  return {
-    artists: artistsRes.data ?? [],
-    listings: listingsRes.data ?? [],
+  const run = async (mode: 'strict' | 'fallback') => {
+    const fallback = mode === 'fallback' ? prefixOrQuery(term) : null;
+    const searchArg = fallback ?? term;
+    const searchOpts = fallback
+      ? { config: 'english' }
+      : { type: 'websearch' as const, config: 'english' };
+    const [artistsRes, listingsRes] = await Promise.all([
+      supabase.from('artist_profiles').select('slug, display_name').eq('is_live', true)
+        .textSearch('search_vector', searchArg, searchOpts).limit(3),
+      supabase.from('listings').select('id, title').eq('status', 'available')
+        .textSearch('search_vector', searchArg, searchOpts).limit(3),
+    ]);
+    return { artists: artistsRes.data ?? [], listings: listingsRes.data ?? [] };
   };
+  const strict = await run('strict');
+  if (strict.artists.length || strict.listings.length) return strict;
+  return run('fallback');
 }
 
 /** Distinct neighborhood/school values for the filter multi-selects,

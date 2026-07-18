@@ -5,12 +5,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { listingSchema, ListingFormData, toCents } from '@/schemas/listingSchema';
 import { useListing, useUpdateListing } from '@/hooks/useListings';
+import { setListingTags } from '@/services/listings';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { TagPicker } from '@/components/listing/TagPicker';
 import { numberOrNull } from '@/utils/formNumber';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useSeries } from '@/hooks/useArtistContent';
@@ -35,7 +37,7 @@ export default function EditListingPage() {
       });
   }, [user]);
 
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
     resolver: zodResolver(listingSchema),
     values: listing ? {
       title: listing.title,
@@ -57,6 +59,7 @@ export default function EditListingPage() {
   });
 
   const priceVisible = watch('price_visible');
+  const selectedTags = watch('tags') ?? [];
   const isSold = listing?.status === 'sold';
 
   if (isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
@@ -81,6 +84,7 @@ export default function EditListingPage() {
         status: data.status,
       },
     });
+    await setListingTags(id, data.tags ?? []);
     router.push('/studio/work');
   };
 
@@ -111,6 +115,8 @@ export default function EditListingPage() {
             </select>
           </div>
         )}
+
+        <TagPicker value={selectedTags} onChange={(tags) => setValue('tags', tags, { shouldDirty: true })} />
 
         {listing && <ListingImagesManager listingId={id} images={listing.images} />}
 
