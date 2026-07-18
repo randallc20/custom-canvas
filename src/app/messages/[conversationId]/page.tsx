@@ -20,7 +20,7 @@ import { PageShell } from '@/components/layout/PageShell';
 
 export default function ConversationPage() {
   return (
-    <PageShell>
+    <PageShell fullHeight>
       <AuthGuard allowedRoles={['artist', 'user', 'gallery']}>
         <ConversationContent />
       </AuthGuard>
@@ -57,7 +57,7 @@ function ConversationContent() {
   const isCommission = activeConv?.context_type === 'commission';
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-4rem)] max-w-6xl">
+    <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1">
       <div className="hidden w-80 border-r border-line md:block">
         {conversations && (
           <ConversationList

@@ -14,7 +14,7 @@ import { PageShell } from '@/components/layout/PageShell';
 
 export default function MessagesPage() {
   return (
-    <PageShell>
+    <PageShell fullHeight>
       <AuthGuard allowedRoles={['artist', 'user', 'gallery']}>
         <Suspense fallback={<div className="flex justify-center py-16"><Spinner size="lg" /></div>}>
           <MessagesContent />
@@ -43,7 +43,7 @@ function MessagesContent() {
       : conversations ?? [];
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-4rem)] max-w-6xl">
+    <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1">
       <div className="flex w-full flex-col border-r border-line md:w-80">
         <div className="flex gap-1 border-b border-line px-2 py-2">
           {(['all', 'commissions'] as const).map((t) => (

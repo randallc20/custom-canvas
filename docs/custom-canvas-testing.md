@@ -145,7 +145,9 @@ or a normal + private window — sessions are per-browser.
 
 **Messaging & safety**
 - [ ] 3.17 "Message Artist" on a listing → thread opens with the piece pinned
-      as a context banner and a prefilled message.
+      as a context banner and a prefilled message. **The message box and Send
+      button are visible immediately — no scrolling to find them** (desktop
+      and phone; the page itself never scrolls, only the message history).
 - [ ] 3.18 Send text, an image, and a PDF attachment (≤10MB) → all render;
       image opens in a lightbox.
 - [ ] 3.19 Unread badge on the navbar bubble clears when you read the thread.
