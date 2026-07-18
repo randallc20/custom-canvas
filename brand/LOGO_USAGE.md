@@ -1,85 +1,104 @@
-# Custom Canvas — Logo usage
+# Custom Canvas — Logo Usage
 
-The mark is two concentric letter C's: an ink C (the gallery) holding a terra C
-(the art inside it). Both C's share one letterform, one stroke weight, and one
-opening — they read as a single voice. All text in these files is converted to
-paths (Fraunces 600 for the wordmark), so nothing depends on fonts at runtime.
+Mark v2 — "Loaded brush." Two concentric C's drawn as single brush strokes:
+the ink outer C (the gallery) holding the terra inner C (the art inside it).
+Each stroke lands loaded and blunt, thins as the paint depletes, and breaks
+into tapering dry-brush ribbons at the tail. Each C is a single closed
+filled SVG path — no strokes, filters, gradients, or masks. The wordmark is
+Fraunces 600 (opsz 48), converted to outlines; the contrast between the
+painted mark and the set type is intentional. Do not redraw the wordmark
+with brush effects.
 
 ## File map
 
-| File | Goes to | Used for |
-|---|---|---|
-| brand/logo-mark[.svg/-ink/-cream] | keep in repo (`/brand`) | master art, square icon |
-| brand/logo-horizontal[...] | `/brand`, imported in navbar | navbar at 28–32px tall |
-| brand/logo-stacked[...] | `/brand` | footer, auth pages |
-| public/favicon.svg + favicon.ico | `public/` | browser tabs (ico = 16+32+48) |
-| public/apple-touch-icon.png | `public/` | iOS home screen (180², solid cream) |
-| public/icons/icon-192.png, icon-512.png | `public/icons/` | PWA manifest |
-| public/icons/icon-512-maskable.png | `public/icons/` | manifest `purpose: "maskable"` (cream mark on terra, 80% safe zone) |
-| public/og-default.png | `public/` | site-wide OpenGraph/Twitter fallback (1200×630) |
-| public/email-logo.png | `public/` (hosted URL) | transactional email header, render at 360×88 CSS px (`width="360"`) |
-| stripe-branding/ | upload in Stripe Dashboard → Settings → Branding | hosted checkout icon + logo |
-| extras/social-avatar-1024.png | social profiles | Instagram/X/etc. avatar |
+```
+brand/
+  logo-mark.svg               Mark only, full color (ink outer / terra inner)
+  logo-mark-ink.svg           Mark only, all ink
+  logo-mark-cream.svg         Mark only, all cream
+  logo-horizontal.svg         Mark + wordmark side by side, full color
+  logo-horizontal-ink.svg     Horizontal, all ink
+  logo-horizontal-cream.svg   Horizontal, all cream
+  logo-stacked.svg            Mark above wordmark, centered, full color
+  logo-stacked-ink.svg        Stacked, all ink
+  logo-stacked-cream.svg      Stacked, all cream
+  brand-sheet.svg / .png      Reference sheet: lockups on cream, terra, ink
+public/
+  favicon.svg                 Simplified heavy mark (no dry-brush detail)
+  favicon.ico                 16 + 32 + 48 px, from the simplified mark
+  apple-touch-icon.png        180×180, full-color mark on solid cream
+  og-default.png              1200×630, stacked mark on cream + tagline
+  email-logo.png              Horizontal lockup @2x (720×176, renders 360×88)
+  icons/icon-192.png          Cream mark on terra
+  icons/icon-512.png          Cream mark on terra
+  icons/icon-512-maskable.png Cream mark on terra, content within 80% safe zone
+stripe-branding/
+  stripe-icon.png             512×512 square, full-color mark on cream
+  stripe-logo.png             Horizontal lockup, transparent background
+```
 
-## Which variant on which background
+## Variant rules
 
-- **Full color** (ink + terra): cream `#FAF6F0`, white cards, sand `#F1E8DA`.
-- **All-ink**: light backgrounds when terra would clash or in single-color print.
-- **All-cream**: terra `#E8704A`, terraDark `#C95A38`, ink `#2D2A26`, photos (dark areas).
-- Never recolor to pure black `#000` or pure white `#FFF`; never put full-color on terra (the inner C disappears).
+- **Full color** (ink + terra): on cream `#FAF6F0`, white-adjacent, or sand
+  `#F1E8DA` backgrounds only.
+- **All ink**: light backgrounds where a single color is required (print,
+  embossing, single-color partners).
+- **All cream**: on terra `#E8704A`, ink `#2D2A26`, sage `#7C8B6F`, or
+  photography.
+- **Never** place the full-color mark on terra — the inner C disappears.
+- Never recolor outside the palette; never use pure black `#000` or pure
+  white `#FFF`.
+- Do not add drop shadows, outlines, or texture overlays; the dry-brush
+  detail is part of the artwork, not a style to be extended.
 
-## Clear space and minimum sizes
+## Clear space
 
-- **Clear space**: keep a margin equal to the inner C's height (≈ 25% of the
-  mark's height) on all sides of any lockup. Nothing else inside it.
-- **Minimum sizes**: mark 16px; horizontal lockup 24px tall (navbar renders at
-  28–32px — safe); stacked lockup 64px tall. Below these, use the mark alone.
-- The favicon files use a slightly heavier stroke (6 vs 5 units) tuned for
-  16px rasterization — don't swap in the regular mark.
+Keep a clear zone of **half the mark's height** (0.5×) on all sides of any
+lockup, measured from the mark's bounding box. Nothing — text, rules, page
+edges — inside that zone. The depleted tail at the lower right of the mark
+counts as part of the mark; measure clear space from the tips of the
+trailing ribbons.
 
-## Regenerating rasters
+## Minimum sizes
 
-Everything regenerates from the SVG masters with one command (needs Python 3
-with `fonttools uharfbuzz cairosvg pillow`; fonts are bundled in `fonts/`):
+- Mark alone: **24 px** (full mark with dry-brush tail).
+- Below 24 px, use the simplified favicon mark (`public/favicon.svg`) —
+  the depletion detail is removed and weights are heavier so the two C's
+  stay legible at 16 px.
+- Horizontal lockup: **120 px** wide.
+- Stacked lockup: **80 px** wide.
+- Print: mark no smaller than 10 mm.
+
+## Raster regeneration commands
+
+All PNGs are rendered from the SVG sources. To regenerate after editing
+(requires `cairosvg` and `Pillow`; `pip install cairosvg pillow`):
 
 ```bash
-python scripts/generate-assets.py
+# brand sheet
+python3 -c "import cairosvg; cairosvg.svg2png(url='brand/brand-sheet.svg', \
+  write_to='brand/brand-sheet.png', output_width=1360, output_height=840)"
+
+# favicon.ico (renders favicon.svg at 48/32/16 and bundles)
+python3 - <<'PY'
+import cairosvg; from PIL import Image
+imgs=[]
+for s in (48,32,16):
+    cairosvg.svg2png(url='public/favicon.svg', write_to=f'/tmp/f{s}.png',
+                     output_width=s, output_height=s)
+    imgs.append(Image.open(f'/tmp/f{s}.png'))
+imgs[0].save('public/favicon.ico',
+             sizes=[(48,48),(32,32),(16,16)], append_images=imgs[1:])
+PY
+
+# app icons (cream mark on terra; maskable keeps content inside 80%)
+# see build notes: render brand/logo-mark-cream.svg onto a #E8704A square,
+# mark sized to 78% of the canvas (62% for the maskable variant), centered
+# on the mark's visual bounding box.
+
+# email logo @2x
+python3 -c "import cairosvg; cairosvg.svg2png(url='brand/logo-horizontal.svg', \
+  write_to='public/email-logo.png', output_height=176)"
 ```
 
-One-off exports from any SVG master:
-
-```bash
-# rsvg-convert
-rsvg-convert -w 512 -h 512 brand/logo-mark.svg -o out/logo-mark-512.png
-rsvg-convert -w 1200 -h 630 --background-color '#FAF6F0' brand/logo-stacked.svg -o out/og.png
-
-# sharp (node)
-npx sharp-cli -i brand/logo-mark.svg -o out/logo-mark-512.png resize 512 512
-```
-
-## Next.js wiring
-
-```tsx
-// app/layout.tsx metadata
-icons: {
-  icon: [{ url: "/favicon.svg", type: "image/svg+xml" }, { url: "/favicon.ico" }],
-  apple: "/apple-touch-icon.png",
-},
-openGraph: { images: ["/og-default.png"] },
-twitter: { card: "summary_large_image", images: ["/og-default.png"] },
-```
-
-```json
-// manifest icons
-[
-  { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-  { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-  { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-]
-```
-
-## Fonts
-
-Fraunces and DM Sans are bundled under the SIL Open Font License for
-regeneration only; shipped SVGs contain outlines, not fonts. Wordmark:
-Fraunces 600, opsz 40, SOFT 0, WONK 0, +0.2px tracking.
+Tagline for social/OG use: "Original art from Houston's emerging artists".
