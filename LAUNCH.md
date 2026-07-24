@@ -1,8 +1,10 @@
 # Custom Canvas — Launch Checklist
 
+*Infra appendix to docs/GO-LIVE-PLAN.md — the company go-live plan lives there.*
+
 Everything needed to take the staging build to production. Work top to bottom.
 
-## 0. Staging catch-up (Build 3)
+## 0. Staging catch-up (Build 3) — ✅ DONE 2026-07-06 (through migration 00029 as of 07-17)
 - [ ] Apply migrations 00024–00026 to the **DEV** project (same psql loop as §1,
       IPv4 session pooler host):
   ```bash
@@ -75,7 +77,9 @@ Everything needed to take the staging build to production. Work top to bottom.
       payout shows in Stripe, tax collected, both emails arrive.
 - [ ] Fee model verified: 5% service fee (capped at $15) shows on the listing
       page, checkout breakdown, order record, and both confirmation emails.
-- [ ] Buyer cancels a fresh order → full refund lands.
+- [ ] Refund flow: buyer requests via chat → artist approves in Studio →
+      admin settles → buyer refunded price+shipping (fee kept), artist payout
+      reversed, order refunded, piece relisted.
 - [ ] Commission request → quote (in-thread) → accept → progress update → notify.
 - [ ] `npx playwright test` (set `E2E_BASE_URL`) — smoke specs green.
 
