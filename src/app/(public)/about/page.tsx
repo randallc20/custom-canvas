@@ -50,7 +50,7 @@ export default function AboutPage() {
         <h2 className="text-xl font-semibold text-ink">Contact</h2>
         <p>
           Questions or feedback? Reach us at{' '}
-          <span className="font-medium text-terra">hello@customcanvas.art</span>
+          <span className="font-medium text-terra">hello@customcanvas.shop</span>
         </p>
       </div>
     </div>
