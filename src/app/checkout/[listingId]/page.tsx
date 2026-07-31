@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/Toast';
 import { formatPrice } from '@/utils/formatPrice';
 import { calcSplit, BUYER_FEE_LABEL } from '@/utils/commissionCalc';
 import { isPickupOnly } from '@/utils/fulfillment';
+import { paymentsEnabled } from '@/utils/features';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
 
@@ -38,6 +39,14 @@ function CheckoutContent() {
     country: 'US',
   });
 
+  if (!paymentsEnabled) {
+    return (
+      <p className="py-16 text-center text-muted">
+        Purchasing isn&apos;t open quite yet — we&apos;re onboarding artists. Message the artist
+        from the listing to be first in line when checkout goes live.
+      </p>
+    );
+  }
   if (isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
   if (!listing) return <p className="py-16 text-center text-muted">Listing not found.</p>;
   if (listing.status !== 'available') {

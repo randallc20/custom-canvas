@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { formatPrice, listingPriceLabel } from '@/utils/formatPrice';
 import { calcSplit, BUYER_FEE_LABEL } from '@/utils/commissionCalc';
 import { isPickupOnly } from '@/utils/fulfillment';
+import { paymentsEnabled } from '@/utils/features';
 import { useAuth } from '@/context/AuthContext';
 import { useFindOrCreateConversation } from '@/hooks/useConversations';
 
@@ -80,6 +81,17 @@ export function PurchasePanel({ listing, artistProfileId, fulfillmentPref, awayM
         <div className="space-y-3">
           <div className="rounded-xl border border-line bg-sand/50 p-3 text-sm text-ink">
             This artist is away{awayDate ? ` — back ${awayDate}` : ''}. Save this piece to revisit later.
+          </div>
+          {messageButton}
+        </div>
+      ) : !paymentsEnabled ? (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-line bg-sand/50 p-3 text-sm text-ink">
+            <p className="font-medium">Purchasing opens soon</p>
+            <p className="mt-1 text-muted">
+              We&apos;re onboarding artists right now. Follow this artist or message them to be
+              first in line when checkout goes live.
+            </p>
           </div>
           {messageButton}
         </div>

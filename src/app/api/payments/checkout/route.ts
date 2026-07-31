@@ -6,6 +6,10 @@ import { calcSplit } from '@/utils/commissionCalc';
 import { isPickupOnly } from '@/utils/fulfillment';
 
 export async function POST(request: NextRequest) {
+  // Payments gated until Stripe live activation — flip NEXT_PUBLIC_PAYMENTS_ENABLED.
+  if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== 'true') {
+    return NextResponse.json({ error: 'Purchasing is not open yet.' }, { status: 403 });
+  }
   const supabase = createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
