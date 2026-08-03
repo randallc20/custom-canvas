@@ -13,12 +13,30 @@ interface Prefs {
   price_drop_alerts: boolean;
 }
 
-const LABELS: Record<keyof Prefs, string> = {
-  marketing: 'Product news & marketing',
-  new_listing_alerts: 'New work from artists I follow',
-  message_notifications: 'New message emails',
-  price_drop_alerts: 'Price drops on saved art',
-};
+// Order matters — message forwarding is what most people look for first.
+const OPTIONS: { key: keyof Prefs; label: string; description: string }[] = [
+  {
+    key: 'message_notifications',
+    label: 'Email me when I get a new message',
+    description:
+      "When someone messages you and you haven't read it yet, we'll email you the message with a link to read and reply.",
+  },
+  {
+    key: 'new_listing_alerts',
+    label: 'New work from artists I follow',
+    description: 'Get an email when an artist you follow lists a new piece.',
+  },
+  {
+    key: 'price_drop_alerts',
+    label: 'Price drops on art I saved',
+    description: "We'll email you if a piece you saved drops in price.",
+  },
+  {
+    key: 'marketing',
+    label: 'Product news & occasional updates',
+    description: 'Now-and-then emails about new features and Custom Canvas news.',
+  },
+];
 
 const DEFAULTS: Prefs = { marketing: true, new_listing_alerts: true, message_notifications: true, price_drop_alerts: true };
 
@@ -51,16 +69,19 @@ export function EmailPreferences() {
   return (
     <div className="mb-8 rounded-xl border border-line p-6">
       <h2 className="mb-4 text-lg font-semibold text-ink">Email Preferences</h2>
-      <div className="space-y-3">
-        {(Object.keys(LABELS) as (keyof Prefs)[]).map((key) => (
-          <label key={key} className="flex items-center gap-3 text-sm text-ink">
+      <div className="space-y-4">
+        {OPTIONS.map(({ key, label, description }) => (
+          <label key={key} className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
               checked={prefs[key]}
               onChange={(e) => setPrefs((p) => ({ ...p, [key]: e.target.checked }))}
-              className="rounded border-line"
+              className="mt-0.5 h-4 w-4 rounded border-line text-terra focus:ring-terra/30"
             />
-            {LABELS[key]}
+            <span className="text-sm">
+              <span className="font-medium text-ink">{label}</span>
+              <span className="mt-0.5 block text-xs text-muted">{description}</span>
+            </span>
           </label>
         ))}
       </div>
