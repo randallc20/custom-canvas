@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase';
 import { Message, MessageAttachment } from '@/types/message';
-import { updateLastMessage } from './conversations';
 
 interface MessageParams {
   cursor?: string;
@@ -45,39 +44,25 @@ export async function sendMessage(data: {
     metadata?: Record<string, unknown>;
   };
 }): Promise<Message> {
-  const { data: message, error } = await supabase
-    .from('messages')
-    .insert({
+  // Goes through the API so the server can email the recipient (respecting
+  // their "New message emails" toggle). RLS + block-guard still apply because
+  // the route inserts with the caller's session. The conversation-list preview
+  // and last-message stamp are set server-side too.
+  const res = await fetch('/api/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       conversation_id: data.conversation_id,
-      sender_id: data.sender_id,
       content: data.content,
       message_type: data.message_type ?? 'text',
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  if (data.attachment) {
-    const { error: attErr } = await supabase.from('message_attachments').insert({
-      message_id: message.id,
-      attachment_type: data.attachment.attachment_type,
-      url: data.attachment.url,
-      metadata: data.attachment.metadata ?? {},
-    });
-    if (attErr) throw attErr;
+      attachment: data.attachment,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(typeof body.error === 'string' ? body.error : 'Failed to send message');
   }
-
-  // Give media/card messages a readable conversation-list preview.
-  const preview = data.content?.trim()
-    ? data.content
-    : data.message_type === 'image' ? '📷 Photo'
-    : data.message_type === 'quote_card' ? '💬 Commission quote'
-    : data.message_type === 'listing_card' ? '🖼 Shared a listing'
-    : data.attachment?.attachment_type === 'file' ? '📎 Attachment'
-    : '';
-  await updateLastMessage(data.conversation_id, preview);
-  return message;
+  return res.json();
 }
 
 export async function markMessagesAsRead(conversationId: string, userId: string): Promise<void> {
