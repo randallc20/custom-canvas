@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { CaptchaField, captchaEnabled } from '@/components/auth/CaptchaField';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,6 +14,8 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn, user } = useAuth();
+  const [captcha, setCaptcha] = useState('');
+  const [captchaReset, setCaptchaReset] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -36,11 +39,17 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (captchaEnabled && !captcha) {
+      setError('Please complete the verification below.');
+      return;
+    }
     setLoading(true);
     try {
-      await signIn(email, password);
+      await signIn(email, password, captcha);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid email or password. Please try again.');
+      setCaptcha('');
+      setCaptchaReset((n) => n + 1);
     } finally {
       setLoading(false);
     }
@@ -59,7 +68,8 @@ export default function LoginPage() {
               Forgot password?
             </Link>
           </div>
-          <Button type="submit" loading={loading} className="w-full">Sign In</Button>
+          <CaptchaField onVerify={setCaptcha} resetSignal={captchaReset} />
+          <Button type="submit" loading={loading} disabled={captchaEnabled && !captcha} className="w-full">Sign In</Button>
         </form>
         <p className="mt-4 text-center text-sm text-muted">
           Don&apos;t have an account?{' '}

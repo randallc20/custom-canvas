@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { CaptchaField, captchaEnabled } from '@/components/auth/CaptchaField';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -12,16 +13,24 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const { resetPassword } = useAuth();
+  const [captcha, setCaptcha] = useState('');
+  const [captchaReset, setCaptchaReset] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (captchaEnabled && !captcha) {
+      setError('Please complete the verification below.');
+      return;
+    }
     setLoading(true);
     try {
-      await resetPassword(email);
+      await resetPassword(email, captcha);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setCaptcha('');
+      setCaptchaReset((n) => n + 1);
     } finally {
       setLoading(false);
     }
@@ -60,8 +69,9 @@ export default function ForgotPasswordPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
+          <CaptchaField onVerify={setCaptcha} resetSignal={captchaReset} />
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <Button type="submit" loading={loading} className="w-full">
+          <Button type="submit" loading={loading} disabled={captchaEnabled && !captcha} className="w-full">
             Send Reset Link
           </Button>
         </form>

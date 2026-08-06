@@ -7,10 +7,10 @@ import { Profile } from '@/types/user';
 interface AuthContextValue {
   user: Profile | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, role: string, fullName: string) => Promise<void>;
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<void>;
+  signUp: (email: string, password: string, role: string, fullName: string, captchaToken?: string) => Promise<void>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string, captchaToken?: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
 }
 
@@ -63,17 +63,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const signIn = async (email: string, password: string, captchaToken?: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email, password,
+      options: captchaToken ? { captchaToken } : undefined,
+    });
     if (error) throw error;
   };
 
-  const signUp = async (email: string, password: string, role: string, fullName: string) => {
+  const signUp = async (email: string, password: string, role: string, fullName: string, captchaToken?: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { role, full_name: fullName },
+        ...(captchaToken ? { captchaToken } : {}),
       },
     });
     if (error) throw error;
@@ -84,9 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = async (email: string, captchaToken?: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
+      ...(captchaToken ? { captchaToken } : {}),
     });
     if (error) throw error;
   };

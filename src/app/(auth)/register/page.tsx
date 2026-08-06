@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { CaptchaField, captchaEnabled } from '@/components/auth/CaptchaField';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
@@ -24,6 +25,8 @@ export default function RegisterPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const { signUp } = useAuth();
   const router = useRouter();
+  const [captcha, setCaptcha] = useState('');
+  const [captchaReset, setCaptchaReset] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,12 +35,18 @@ export default function RegisterPage() {
       setError('Please accept the Terms of Service and Privacy Policy to continue.');
       return;
     }
+    if (captchaEnabled && !captcha) {
+      setError('Please complete the verification below.');
+      return;
+    }
     setLoading(true);
     try {
-      await signUp(email, password, role, fullName);
+      await signUp(email, password, role, fullName, captcha);
       setConfirmationSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create account');
+      setCaptcha('');
+      setCaptchaReset((n) => n + 1);
     } finally {
       setLoading(false);
     }
@@ -116,8 +125,9 @@ export default function RegisterPage() {
             </span>
           </label>
 
+          <CaptchaField onVerify={setCaptcha} resetSignal={captchaReset} />
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <Button type="submit" loading={loading} disabled={!acceptedTerms} className="w-full">Create Account</Button>
+          <Button type="submit" loading={loading} disabled={!acceptedTerms || (captchaEnabled && !captcha)} className="w-full">Create Account</Button>
         </form>
         <p className="mt-4 text-center text-sm text-muted">
           Already have an account?{' '}
