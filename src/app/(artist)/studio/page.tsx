@@ -13,6 +13,7 @@ import { PinnedListingSelector } from '@/components/dashboard/PinnedListingSelec
 import { AwayModeToggle } from '@/components/dashboard/AwayModeToggle';
 import { HoustonVerifiedCard } from '@/components/dashboard/HoustonVerifiedCard';
 import { NeedsAttention } from '@/components/studio/NeedsAttention';
+import { ReviewStatusBanner } from '@/components/studio/ReviewStatusBanner';
 import { TrendsSection } from '@/components/studio/TrendsSection';
 import type { Order } from '@/types/order';
 
@@ -41,6 +42,10 @@ export default function StudioHomePage() {
         <h1 className="font-display text-2xl font-bold text-ink">Studio</h1>
         <Link href="/listings/new"><Button>New Listing</Button></Link>
       </div>
+
+      {artist && (
+        <ReviewStatusBanner status={artist.application_status} reason={artist.rejection_reason} />
+      )}
 
       {!artist?.stripe_onboarded && (
         <div className="mb-6 rounded-xl border border-terra/30 bg-terraSoft/60 p-4">

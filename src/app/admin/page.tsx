@@ -17,6 +17,7 @@ interface PlatformStats {
   total_revenue_cents: number;
   platform_fees_cents: number;
   pending_reports: number;
+  pending_applications: number;
   users_over_time: { date: string; count: number }[];
   revenue_over_time: { date: string; amount_cents: number }[];
 }
@@ -45,6 +46,7 @@ const NAV_LINKS = [
   { href: '/admin/orders', label: 'Orders', desc: 'Track transactions' },
   { href: '/admin/disputes', label: 'Disputes', desc: 'Resolve reports' },
   { href: '/admin/verifications', label: 'Verifications', desc: 'Local Verified queue' },
+  { href: '/admin/applications', label: 'Applications', desc: 'Approve new artists' },
 ];
 
 export default function AdminPage() {
@@ -96,6 +98,17 @@ function AdminDashboard() {
         <StatCard label="Active Listings" value={stats.active_listings.toLocaleString()} />
         <StatCard label="Total Orders" value={stats.total_orders.toLocaleString()} />
       </div>
+
+      {stats.pending_applications > 0 && (
+        <div className="mb-8">
+          <Link href="/admin/applications">
+            <div className="rounded-lg border border-terra/40 bg-terraSoft/60 p-4">
+              <p className="text-sm text-terra">Artist applications awaiting review</p>
+              <p className="text-2xl font-bold text-ink">{stats.pending_applications}</p>
+            </div>
+          </Link>
+        </div>
+      )}
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <StatCard label="Total Revenue" value={formatPrice(stats.total_revenue_cents)} highlight />

@@ -11,6 +11,8 @@ export interface OwnArtistProfile {
   stripe_onboarded: boolean;
   stripe_account_id: string | null;
   pinned_listing_ids: string[] | null;
+  application_status: 'pending' | 'approved' | 'rejected';
+  rejection_reason: string | null;
 }
 
 /** The signed-in artist's own artist_profiles row — one React Query-cached
@@ -23,7 +25,7 @@ export function useOwnArtistProfile(): { artist: OwnArtistProfile | null; loadin
     queryFn: async () => {
       const { data } = await supabase
         .from('artist_profiles')
-        .select('id, slug, completeness_score, stripe_onboarded, stripe_account_id, pinned_listing_ids')
+        .select('id, slug, completeness_score, stripe_onboarded, stripe_account_id, pinned_listing_ids, application_status, rejection_reason')
         .eq('profile_id', user!.id)
         .maybeSingle();
       return (data as OwnArtistProfile | null) ?? null;

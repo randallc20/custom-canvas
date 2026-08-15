@@ -43,6 +43,38 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
   });
 }
 
+export async function sendArtistApprovedEmail(to: string, name: string): Promise<void> {
+  await getResend().emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: 'You\'re approved — your Custom Canvas shop is live',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+        <h2 style="color:#111">Welcome to Custom Canvas, ${name}!</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">Your application has been approved. Your profile and listings are now live and visible to buyers in your community.</p>
+        <a href="${APP_URL}/studio" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Go to your Studio</a>
+      </div>
+    `,
+  });
+}
+
+export async function sendArtistRejectedEmail(to: string, name: string, reason: string): Promise<void> {
+  await getResend().emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: 'A note about your Custom Canvas application',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+        <h2 style="color:#111">Thanks for applying, ${name}</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">We took a look at your application and it needs a few changes before we can approve it:</p>
+        <p style="color:#111;font-size:16px;line-height:1.5;padding:12px 16px;background:#faf3ef;border-radius:6px">${reason}</p>
+        <p style="color:#666;font-size:16px;line-height:1.5">Update your profile and resubmit for review whenever you're ready — we'll take another look.</p>
+        <a href="${APP_URL}/studio" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Update &amp; resubmit</a>
+      </div>
+    `,
+  });
+}
+
 export async function sendNewMessageEmail(
   to: string,
   senderName: string,
