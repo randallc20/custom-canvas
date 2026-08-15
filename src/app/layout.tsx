@@ -3,6 +3,8 @@ import { Fraunces, DM_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { CookieConsent } from '@/components/layout/CookieConsent';
+import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -62,6 +64,8 @@ export default function RootLayout({
           {children}
           <CookieConsent />
         </Providers>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
