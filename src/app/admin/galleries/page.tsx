@@ -9,7 +9,6 @@ import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
-import { supabase } from '@/lib/supabase';
 import { PARTNER_TYPE_LABELS, type GalleryProfile } from '@/types/gallery';
 
 export default function AdminGalleriesPage() {
@@ -36,13 +35,11 @@ function GalleriesContent() {
 
   const loadGalleries = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('gallery_profiles')
-      .select('*, profile:profiles(email, full_name)')
-      .eq('is_verified', tab === 'verified')
-      .order('created_at', { ascending: tab === 'pending' });
-
-    setGalleries((data ?? []) as typeof galleries);
+    // Applicant emails aren't client-readable (00031) — the galleries API
+    // returns them for admins via its service-role path.
+    const res = await fetch(tab === 'pending' ? '/api/galleries?pending=true' : '/api/galleries?verified=true');
+    const data = res.ok ? await res.json() : [];
+    setGalleries((Array.isArray(data) ? data : []) as typeof galleries);
     setLoading(false);
   };
 

@@ -23,10 +23,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
-    const fetchProfile = async (userId: string) => {
+    // The email column is not client-readable (00031 column privacy) — the
+    // auth session is the source of truth for the user's own email, so we
+    // select the public columns and merge session email into the Profile.
+    const fetchProfile = async (userId: string, email: string) => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, role, full_name, avatar_url, created_at, updated_at')
         .eq('id', userId)
         .single();
 
@@ -34,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) {
           setUser(null);
         } else {
-          setUser(data);
+          setUser({ ...data, email });
         }
         setLoading(false);
       }
@@ -42,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id, session.user.email ?? '');
       } else if (isMounted) {
         setLoading(false);
       }
@@ -50,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id, session.user.email ?? '');
       } else if (isMounted) {
         setUser(null);
         setLoading(false);

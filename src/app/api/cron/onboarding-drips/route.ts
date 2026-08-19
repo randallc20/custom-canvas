@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   // --- Artist drip (stops when profile is live) ---
   const { data: artists } = await admin
     .from('artist_profiles')
-    .select('id, is_live, created_at, profile:profiles(id, email, full_name, email_preferences)')
+    .select('id, is_live, created_at, profile:profiles!artist_profiles_profile_id_fkey(id, email, full_name, email_preferences)')
     .eq('is_live', false);
 
   for (const a of artists ?? []) {

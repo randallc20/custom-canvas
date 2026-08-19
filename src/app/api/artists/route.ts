@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { ARTIST_PROFILE_EMBED } from '@/lib/publicProfile';
 
 export async function GET(request: NextRequest) {
   const search = request.nextUrl.searchParams.get('search');
@@ -7,7 +8,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from('artist_profiles')
-    .select('*, profile:profiles(*)')
+    .select(`*, ${ARTIST_PROFILE_EMBED}`)
     .eq('is_live', true);
 
   if (search) query = query.textSearch('search_vector', search);

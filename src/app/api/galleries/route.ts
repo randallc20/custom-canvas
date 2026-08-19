@@ -1,15 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createAdminSupabaseClient } from '@/lib/supabase-admin';
+import { PUBLIC_PROFILE_COLS } from '@/lib/publicProfile';
 
 export async function GET(request: NextRequest) {
   const supabase = createServerSupabaseClient();
   const pending = request.nextUrl.searchParams.get('pending') === 'true';
 
-  let query = supabase.from('gallery_profiles').select('*, profile:profiles(*)');
+  // The admin verification queue needs applicant emails; email is not
+  // client-readable (00031), so admins get a service-role read. Everyone
+  // else gets the public profile columns.
+  const { data: { user } } = await supabase.auth.getUser();
+  let isAdmin = false;
+  if (user) {
+    const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    isAdmin = me?.role === 'admin';
+  }
+
+  const client = isAdmin ? createAdminSupabaseClient() : supabase;
+  const profileCols = isAdmin ? `${PUBLIC_PROFILE_COLS}, email` : PUBLIC_PROFILE_COLS;
+
+  let query = client.from('gallery_profiles').select(`*, profile:profiles(${profileCols})`);
 
   if (pending) query = query.eq('is_verified', false);
+  if (request.nextUrl.searchParams.get('verified') === 'true') query = query.eq('is_verified', true);
 
-  const { data, error } = await query.order('created_at', { ascending: false });
+  // Pending queue reads oldest-first (review order); everything else newest-first.
+  const { data, error } = await query.order('created_at', { ascending: pending });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }

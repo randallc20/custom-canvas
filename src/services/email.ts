@@ -3,6 +3,24 @@ import { getResend } from '@/lib/resend';
 const FROM_EMAIL = process.env.EMAIL_FROM ?? 'Custom Canvas <onboarding@resend.dev>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
+// Every user-supplied value (names, titles, message previews, notes) MUST go
+// through escapeHtml before interpolation into template HTML — a display name
+// like <a href="evil">…</a> would otherwise render as live markup in a
+// genuinely-from-us email (phishing vector). Subjects aren't HTML but must
+// not carry line breaks; run them through plain().
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function plain(s: string): string {
+  return s.replace(/[\r\n]+/g, ' ').trim();
+}
+
 export async function sendWelcomeEmail(to: string, name: string, role: string): Promise<void> {
   const roleMessage = role === 'artist'
     ? 'Start by completing your profile and uploading your first piece.'
@@ -16,7 +34,7 @@ export async function sendWelcomeEmail(to: string, name: string, role: string): 
     subject: 'Welcome to Custom Canvas!',
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
-        <h2 style="color:#111">Welcome to Custom Canvas, ${name}!</h2>
+        <h2 style="color:#111">Welcome to Custom Canvas, ${escapeHtml(name)}!</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">Thank you for joining our community of artists and collectors.</p>
         <p style="color:#666;font-size:16px;line-height:1.5">${roleMessage}</p>
         <a href="${APP_URL}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Get Started</a>
@@ -34,11 +52,11 @@ export async function sendNewMessageEmail(
   await getResend().emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `New message from ${senderName}`,
+    subject: `New message from ${plain(senderName)}`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
-        <h2 style="color:#111">New message from ${senderName}</h2>
-        <p style="color:#666;font-size:16px;line-height:1.5">&ldquo;${preview}&rdquo;</p>
+        <h2 style="color:#111">New message from ${escapeHtml(senderName)}</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">&ldquo;${escapeHtml(preview)}&rdquo;</p>
         <a href="${conversationUrl}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View Conversation</a>
       </div>
     `,
@@ -53,11 +71,11 @@ export async function sendCommissionRequestEmail(
   await getResend().emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `New commission request: ${title}`,
+    subject: `New commission request: ${plain(title)}`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">New Commission Request</h2>
-        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${artistName}, you have a new commission request: <strong>${title}</strong></p>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(artistName)}, you have a new commission request: <strong>${escapeHtml(title)}</strong></p>
         <a href="${APP_URL}/commissions" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View Request</a>
       </div>
     `,
@@ -74,13 +92,13 @@ export async function sendOrderConfirmationEmail(
   await getResend().emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `Order confirmed: ${listingTitle}`,
+    subject: `Order confirmed: ${plain(listingTitle)}`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">Order Confirmed</h2>
-        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${buyerName}, your purchase has been confirmed!</p>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, your purchase has been confirmed!</p>
         <div style="background:#f9f9f9;padding:16px;border-radius:8px;margin:16px 0">
-          <p style="margin:0;font-weight:bold;color:#111">${listingTitle}</p>
+          <p style="margin:0;font-weight:bold;color:#111">${escapeHtml(listingTitle)}</p>
           <p style="margin:4px 0 0;color:#666">Total: ${amount}</p>
           <p style="margin:4px 0 0;color:#999;font-size:13px">Order #${orderId.slice(0, 8)}</p>
         </div>
@@ -100,13 +118,13 @@ export async function sendNewSaleEmail(
   await getResend().emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `You made a sale: ${listingTitle}`,
+    subject: `You made a sale: ${plain(listingTitle)}`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">You made a sale!</h2>
-        <p style="color:#666;font-size:16px;line-height:1.5">Congratulations ${artistName}, someone just purchased your work!</p>
+        <p style="color:#666;font-size:16px;line-height:1.5">Congratulations ${escapeHtml(artistName)}, someone just purchased your work!</p>
         <div style="background:#FFF7ED;padding:16px;border-radius:8px;margin:16px 0;border:1px solid #E8704A33">
-          <p style="margin:0;font-weight:bold;color:#111">${listingTitle}</p>
+          <p style="margin:0;font-weight:bold;color:#111">${escapeHtml(listingTitle)}</p>
           <p style="margin:4px 0 0;color:#666">Sale price: ${amount}</p>
           <p style="margin:4px 0 0;color:#E8704A;font-weight:bold">Your payout: ${payoutAmount}</p>
         </div>
@@ -126,18 +144,18 @@ export async function sendShippingUpdateEmail(
   const trackingBlock = trackingNumber
     ? `<div style="background:#f9f9f9;padding:16px;border-radius:8px;margin:16px 0">
         <p style="margin:0;color:#666;font-size:13px">Tracking number:</p>
-        <p style="margin:4px 0 0;font-family:monospace;font-weight:bold;color:#111">${trackingNumber}</p>
+        <p style="margin:4px 0 0;font-family:monospace;font-weight:bold;color:#111">${escapeHtml(trackingNumber)}</p>
       </div>`
     : '';
 
   await getResend().emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `Your order has shipped: ${listingTitle}`,
+    subject: `Your order has shipped: ${plain(listingTitle)}`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">Your order has shipped!</h2>
-        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${buyerName}, great news — <strong>${listingTitle}</strong> is on its way to you!</p>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, great news — <strong>${escapeHtml(listingTitle)}</strong> is on its way to you!</p>
         ${trackingBlock}
         <a href="${APP_URL}/orders" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View Order</a>
       </div>
@@ -157,15 +175,15 @@ export async function sendReviewReceivedEmail(
   await getResend().emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `New ${rating}-star review from ${reviewerName}`,
+    subject: `New ${rating}-star review from ${plain(reviewerName)}`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">You received a review!</h2>
-        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${artistName}, ${reviewerName} left you a review.</p>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(artistName)}, ${escapeHtml(reviewerName)} left you a review.</p>
         <div style="background:#FFF7ED;padding:16px;border-radius:8px;margin:16px 0;border:1px solid #E8704A33">
           <p style="margin:0;font-size:20px;color:#F59E0B">${stars}</p>
-          ${comment ? `<p style="margin:8px 0 0;color:#666;font-style:italic">&ldquo;${comment}&rdquo;</p>` : ''}
-          <p style="margin:4px 0 0;color:#999;font-size:13px">— ${reviewerName}</p>
+          ${comment ? `<p style="margin:8px 0 0;color:#666;font-style:italic">&ldquo;${escapeHtml(comment)}&rdquo;</p>` : ''}
+          <p style="margin:4px 0 0;color:#999;font-size:13px">— ${escapeHtml(reviewerName)}</p>
         </div>
         <a href="${APP_URL}/dashboard" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View Dashboard</a>
       </div>
@@ -183,12 +201,12 @@ export async function sendCommissionUpdateEmail(
   await getResend().emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `${artistName} posted an update on your commission`,
+    subject: `${plain(artistName)} posted an update on your commission`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">New commission update</h2>
-        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${buyerName}, <strong>${artistName}</strong> shared progress on your commission:</p>
-        <blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #E8704A;color:#444">${note}</blockquote>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, <strong>${escapeHtml(artistName)}</strong> shared progress on your commission:</p>
+        <blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #E8704A;color:#444">${escapeHtml(note)}</blockquote>
         <a href="${APP_URL}/commissions/${commissionId}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View Update</a>
       </div>
     `,
@@ -205,11 +223,11 @@ export async function sendCommissionNudgeEmail(
   await getResend().emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `Buyers love progress updates — post one for ${buyerName}?`,
+    subject: `Buyers love progress updates — post one for ${plain(buyerName)}?`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
-        <h2 style="color:#111">Keep ${buyerName} in the loop</h2>
-        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${artistName}, it's been a couple of weeks since the last update on <strong>${commissionTitle}</strong>. A quick note or WIP photo goes a long way.</p>
+        <h2 style="color:#111">Keep ${escapeHtml(buyerName)} in the loop</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(artistName)}, it's been a couple of weeks since the last update on <strong>${escapeHtml(commissionTitle)}</strong>. A quick note or WIP photo goes a long way.</p>
         <a href="${APP_URL}/commissions/${commissionId}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Post an update</a>
       </div>
     `,
@@ -225,11 +243,11 @@ export async function sendReviewRequestEmail(
   await getResend().emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `How was ${listingTitle}?`,
+    subject: `How was ${plain(listingTitle)}?`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">Share your experience</h2>
-        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${buyerName}, we'd love to hear how <strong>${listingTitle}</strong> turned out. A quick review helps the artist and other collectors.</p>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, we'd love to hear how <strong>${escapeHtml(listingTitle)}</strong> turned out. A quick review helps the artist and other collectors.</p>
         <a href="${APP_URL}/orders?review=${orderId}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Leave a review</a>
       </div>
     `,
@@ -245,28 +263,19 @@ export async function sendArtistDripEmail(to: string, name: string, stage: strin
   const c = content[stage] ?? content.artist_day1;
   await getResend().emails.send({
     from: FROM_EMAIL, to, subject: c.subject,
-    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" /><h2 style="color:#111">${c.heading}</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${name}, ${c.body}</p><a href="${APP_URL}/dashboard" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Finish my profile</a></div>`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" /><h2 style="color:#111">${c.heading}</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, ${c.body}</p><a href="${APP_URL}/dashboard" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Finish my profile</a></div>`,
   });
 }
 
 export async function sendBuyerDripEmail(to: string, name: string): Promise<void> {
   await getResend().emails.send({
     from: FROM_EMAIL, to, subject: 'Meet the artists near you',
-    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" /><h2 style="color:#111">Discover local art</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${name}, there's a whole community of local artists to explore on Custom Canvas. Find a piece — or an artist — you love.</p><a href="${APP_URL}/" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Explore art</a></div>`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" /><h2 style="color:#111">Discover local art</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, there's a whole community of local artists to explore on Custom Canvas. Find a piece — or an artist — you love.</p><a href="${APP_URL}/" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Explore art</a></div>`,
   });
 }
 
 
 // ---- Bulk listing alerts (Build 3 Phase 3) ----
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 const unsubscribeFooter = (unsubscribeUrl: string) =>
   `<p style="color:#999;font-size:12px;margin-top:24px">You're getting this because you follow artists or save work on Custom Canvas. <a href="${unsubscribeUrl}" style="color:#999">Unsubscribe</a></p>`;
@@ -303,7 +312,7 @@ export function buildNewListingEmail(
   const unsub = unsubscribeUrl(unsubscribeToken);
   return {
     to,
-    subject: `${artistName} just listed new work`,
+    subject: `${plain(artistName)} just listed new work`,
     headers: bulkHeaders(unsub),
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
@@ -329,7 +338,7 @@ export function buildPriceDropEmail(
   const unsub = unsubscribeUrl(unsubscribeToken);
   return {
     to,
-    subject: `Price drop: ${listingTitle}`,
+    subject: `Price drop: ${plain(listingTitle)}`,
     headers: bulkHeaders(unsub),
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
