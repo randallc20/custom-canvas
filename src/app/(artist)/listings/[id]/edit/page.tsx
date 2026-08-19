@@ -17,6 +17,7 @@ import { numberOrNull } from '@/utils/formNumber';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useSeries } from '@/hooks/useArtistContent';
 import { ListingImagesManager } from '@/components/listing/ListingImagesManager';
+import { PhotoTipsPanel } from '@/components/upload/PhotoTipsPanel';
 
 export default function EditListingPage() {
   const { id } = useParams<{ id: string }>();
@@ -118,7 +119,12 @@ export default function EditListingPage() {
 
         <TagPicker value={selectedTags} onChange={(tags) => setValue('tags', tags, { shouldDirty: true })} />
 
-        {listing && <ListingImagesManager listingId={id} images={listing.images} />}
+        {listing && (
+          <>
+            <PhotoTipsPanel />
+            <ListingImagesManager listingId={id} images={listing.images} />
+          </>
+        )}
 
         <fieldset className="space-y-4 rounded-xl border border-line p-4">
           <legend className="px-1 text-sm font-semibold text-ink">Pricing</legend>

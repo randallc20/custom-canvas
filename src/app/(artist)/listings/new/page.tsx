@@ -16,6 +16,7 @@ import { useSeries } from '@/hooks/useArtistContent';
 import { TagPicker } from '@/components/listing/TagPicker';
 import { ImageUpload } from '@/components/upload/ImageUpload';
 import { ImageThumbGrid } from '@/components/upload/ImageThumbGrid';
+import { PhotoTipsPanel } from '@/components/upload/PhotoTipsPanel';
 import { MAX_LISTING_IMAGES } from '@/components/listing/ListingImagesManager';
 import { addListingImages, setListingTags } from '@/services/listings';
 
@@ -149,6 +150,7 @@ export default function NewListingPage() {
 
         <fieldset className="space-y-4 rounded-xl border border-line p-4">
           <legend className="px-1 text-sm font-semibold text-ink">Images</legend>
+          <PhotoTipsPanel />
           <ImageThumbGrid
             items={imageUrls.map((url) => ({ key: url, url }))}
             onMove={moveImage}

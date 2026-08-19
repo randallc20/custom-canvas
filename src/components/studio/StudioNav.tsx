@@ -8,6 +8,7 @@ const TABS = [
   { href: '/studio/work', label: 'Work' },
   { href: '/studio/sales', label: 'Sales & Money' },
   { href: '/studio/page', label: 'Public Page' },
+  { href: '/studio/services', label: 'Services' },
 ];
 
 export function StudioNav() {

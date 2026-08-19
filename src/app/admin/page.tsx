@@ -47,6 +47,7 @@ const NAV_LINKS = [
   { href: '/admin/disputes', label: 'Disputes', desc: 'Resolve reports' },
   { href: '/admin/verifications', label: 'Verifications', desc: 'Local Verified queue' },
   { href: '/admin/applications', label: 'Applications', desc: 'Approve new artists' },
+  { href: '/admin/services', label: 'Services', desc: 'Curate artist services' },
 ];
 
 export default function AdminPage() {

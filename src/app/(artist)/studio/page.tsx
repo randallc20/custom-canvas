@@ -14,6 +14,7 @@ import { AwayModeToggle } from '@/components/dashboard/AwayModeToggle';
 import { HoustonVerifiedCard } from '@/components/dashboard/HoustonVerifiedCard';
 import { NeedsAttention } from '@/components/studio/NeedsAttention';
 import { ReviewStatusBanner } from '@/components/studio/ReviewStatusBanner';
+import { SetupChecklist } from '@/components/studio/SetupChecklist';
 import { TrendsSection } from '@/components/studio/TrendsSection';
 import type { Order } from '@/types/order';
 
@@ -43,6 +44,9 @@ export default function StudioHomePage() {
         <Link href="/listings/new"><Button>New Listing</Button></Link>
       </div>
 
+      {artist && artist.application_status === 'draft' && (
+        <SetupChecklist artist={artist} listings={listings} />
+      )}
       {artist && <ReviewStatusBanner status={artist.application_status} />}
 
       {!artist?.stripe_onboarded && (
