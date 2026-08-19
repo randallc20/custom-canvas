@@ -5,6 +5,17 @@ import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe';
 import { calcSplit } from '@/utils/commissionCalc';
 import { isPickupOnly } from '@/utils/fulfillment';
+import { z } from 'zod';
+
+// Only these keys, bounded lengths — the address rides Stripe metadata
+// (500-char value cap) and lands in orders.shipping_address verbatim.
+const shippingSchema = z.object({
+  street: z.string().trim().min(1).max(120),
+  city: z.string().trim().min(1).max(80),
+  state: z.string().trim().min(1).max(40),
+  zip: z.string().trim().min(3).max(12),
+  country: z.string().trim().min(2).max(2).default('US'),
+});
 
 export async function POST(request: NextRequest) {
   // Payments gated until Stripe live activation — flip NEXT_PUBLIC_PAYMENTS_ENABLED.
@@ -57,8 +68,13 @@ export async function POST(request: NextRequest) {
 
   const pickup = isPickupOnly(artist.fulfillment_pref);
   const shippingCents = pickup ? 0 : (listing.shipping_rate_cents ?? 0);
-  if (!pickup && !shipping) {
-    return NextResponse.json({ error: 'Shipping address is required' }, { status: 400 });
+  let shippingAddress: z.infer<typeof shippingSchema> | null = null;
+  if (!pickup) {
+    const parsed = shippingSchema.safeParse(shipping);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'A complete shipping address is required' }, { status: 400 });
+    }
+    shippingAddress = parsed.data;
   }
 
   const split = calcSplit(listing.price_cents, shippingCents);
@@ -110,7 +126,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         listing_id: listingId,
         buyer_id: user.id,
-        shipping_address: shipping ? JSON.stringify(shipping) : '',
+        shipping_address: shippingAddress ? JSON.stringify(shippingAddress) : '',
         shipping_cents: String(shippingCents),
         pickup: String(pickup),
         // Lock the economics at session creation; the webhook records these

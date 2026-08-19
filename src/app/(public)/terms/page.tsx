@@ -43,8 +43,9 @@ export default function TermsPage() {
             fee on each sale, and buyers pay a 5% service fee capped at $15 per order. Artists
             receive 85% of the sale price via Stripe Connect payouts. Refunds are at the
             artist&apos;s discretion: buyers request a refund from the artist directly, and if the
-            artist approves it, Custom Canvas returns the artwork price and shipping. The
-            service fee is non-refundable.
+            artist approves it, Custom Canvas returns the artwork price and shipping, plus the
+            sales tax collected on those amounts. The service fee (and the tax on it) is
+            non-refundable.
           </p>
         </section>
 

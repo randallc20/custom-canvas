@@ -15,7 +15,7 @@ import { supabase } from '@/lib/supabase';
 import type { Report, ReportStatus } from '@/types/report';
 
 interface ReportWithContext extends Report {
-  reporter?: { full_name: string | null; email: string } | null;
+  reporter?: { full_name: string | null } | null;
   listing?: { title: string } | null;
 }
 
@@ -49,7 +49,8 @@ function DisputesContent() {
   useEffect(() => {
     supabase
       .from('reports')
-      .select('*, reporter:profiles!reports_reporter_id_fkey(full_name, email), listing:listings!reports_listing_id_fkey(title)')
+      // email is not client-readable (00031) — full_name only.
+      .select('*, reporter:profiles!reports_reporter_id_fkey(full_name), listing:listings!reports_listing_id_fkey(title)')
       .order('created_at', { ascending: tab === 'pending' })
       .then(({ data }) => {
         setReports((data ?? []) as unknown as ReportWithContext[]);
@@ -139,7 +140,7 @@ function DisputesContent() {
                     )}
                   </p>
                   <p className="text-sm text-muted">
-                    Reported by: {report.reporter?.full_name ?? report.reporter?.email ?? '—'}
+                    Reported by: {report.reporter?.full_name ?? '—'}
                   </p>
                   {report.description && (
                     <p className="mt-2 text-sm text-muted">{report.description}</p>

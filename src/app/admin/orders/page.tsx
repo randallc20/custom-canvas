@@ -21,7 +21,8 @@ interface AdminOrder {
   status: OrderStatus;
   created_at: string;
   refund_approved_at: string | null;
-  buyer: { full_name: string | null; email: string } | null;
+  amount_tax_cents: number;
+  buyer: { full_name: string | null } | null;
 }
 
 const STATUS_VARIANT: Record<OrderStatus, 'default' | 'success' | 'warning' | 'danger'> = {
@@ -54,7 +55,8 @@ function OrdersContent() {
   useEffect(() => {
     supabase
       .from('orders')
-      .select('id, amount_cents, shipping_cents, platform_fee_cents, artist_payout_cents, status, created_at, refund_approved_at, buyer:profiles!orders_buyer_id_fkey(full_name, email)')
+      // email is not client-readable (00031) — full_name only.
+      .select('id, amount_cents, shipping_cents, platform_fee_cents, artist_payout_cents, amount_tax_cents, status, created_at, refund_approved_at, buyer:profiles!orders_buyer_id_fkey(full_name)')
       .order('created_at', { ascending: false })
       .limit(200)
       .then(({ data }) => {
@@ -66,7 +68,7 @@ function OrdersContent() {
   const handleSettleRefund = async (o: AdminOrder) => {
     const ok = await confirm({
       title: 'Settle this refund?',
-      message: `The buyer gets ${formatPrice(o.amount_cents + o.shipping_cents)} back (price + shipping — the service fee is not refunded). The artist's payout of ${formatPrice(o.artist_payout_cents)} is reversed; the platform returns its commission.`,
+      message: `The buyer gets ${formatPrice(o.amount_cents + o.shipping_cents)} back plus the tax on those amounts (the service fee and its tax are not refunded). The artist's payout of ${formatPrice(o.artist_payout_cents)} is reversed; the platform returns its commission.`,
       confirmLabel: 'Refund buyer',
       destructive: true,
     });
@@ -152,7 +154,7 @@ function OrdersContent() {
               <tr key={o.id} className="hover:bg-sand/50">
                 <td className="px-4 py-3 font-mono text-xs text-muted">#{o.id.slice(0, 8)}</td>
                 <td className="px-4 py-3 text-ink">
-                  {o.buyer?.full_name ?? o.buyer?.email ?? '—'}
+                  {o.buyer?.full_name ?? '—'}
                 </td>
                 <td className="px-4 py-3 font-medium text-ink">{formatPrice(o.amount_cents)}</td>
                 <td className="px-4 py-3 text-muted">{formatPrice(o.platform_fee_cents)}</td>
