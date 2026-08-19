@@ -61,19 +61,40 @@ test.describe('critical paths — money (opt-in)', () => {
 
   test('buyer completes a Stripe test-card purchase', async ({ page }) => {
     await login(page, buyer!.email, buyer!.password);
-    // Open the first available listing and start checkout.
-    await page.goto('/');
-    await page.getByRole('link', { name: /view|details/i }).first().click();
-    await page.getByRole('button', { name: /buy|purchase|checkout/i }).first().click();
-    // Stripe hosted checkout — fill the universally-accepted test card.
-    const frame = page.frameLocator('iframe[name*="card"], iframe[title*="card" i]').first();
-    await frame.getByPlaceholder(/card number/i).fill('4242424242424242');
-    await frame.getByPlaceholder(/mm ?\/ ?yy/i).fill('12/34');
-    await frame.getByPlaceholder(/cvc/i).fill('123');
-    await page.getByRole('button', { name: /pay/i }).click();
-    // Back on the app: order confirmation.
-    await expect(page.getByText(/thank you|order (confirmed|placed)|payment received/i)).toBeVisible({
-      timeout: 30_000,
-    });
+
+    // The real flow: pick an available listing via the API (home cards are
+    // image links with artwork titles, not "view" buttons), open its page,
+    // Buy Now → the app's /checkout/[id] shipping page → Stripe's HOSTED
+    // checkout (a full-page redirect, NOT an iframe) → /orders?success=true.
+    const listings = await (await page.request.get('/api/listings')).json();
+    expect(Array.isArray(listings) && listings.length > 0).toBeTruthy();
+    await page.goto(`/listing/${listings[0].id}`);
+    await page.getByRole('button', { name: /buy now/i }).click();
+
+    // App shipping page (pickup-only artists skip the address fields).
+    await expect(page).toHaveURL(/\/checkout\//);
+    const street = page.getByLabel(/street address/i);
+    if (await street.isVisible().catch(() => false)) {
+      await street.fill('123 Main St');
+      await page.getByLabel(/city/i).fill('Houston');
+      await page.getByLabel(/state/i).fill('TX');
+      await page.getByLabel(/zip/i).fill('77001');
+    }
+    await page.getByRole('button', { name: /^pay/i }).click();
+
+    // Stripe hosted checkout: page-level inputs on checkout.stripe.com.
+    await page.waitForURL(/checkout\.stripe\.com/, { timeout: 30_000 });
+    await page.getByLabel(/card number/i).fill('4242424242424242');
+    await page.getByLabel(/expiration/i).fill('12/34');
+    await page.getByLabel(/cvc|security code/i).fill('123');
+    const nameField = page.getByLabel(/name on card|cardholder/i);
+    if (await nameField.isVisible().catch(() => false)) await nameField.fill('E2E Buyer');
+    const zipField = page.getByLabel(/zip|postal/i).last();
+    if (await zipField.isVisible().catch(() => false)) await zipField.fill('77001');
+    await page.getByTestId('hosted-payment-submit-button').click();
+
+    // Back on the app: the orders page success banner.
+    await page.waitForURL(/\/orders\?success=true/, { timeout: 45_000 });
+    await expect(page.getByText(/purchase was successful/i)).toBeVisible({ timeout: 15_000 });
   });
 });

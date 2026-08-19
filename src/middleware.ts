@@ -42,6 +42,10 @@ function globalLimiter(limit: number): Ratelimit | null {
       limiter: Ratelimit.slidingWindow(limit, '60 s'),
       prefix: 'cc:rl',
       analytics: false,
+      // Without this the default is 5s — a slow (not down) Upstash would
+      // stall EVERY API request in middleware. On timeout the request is
+      // allowed through (fail open).
+      timeout: 1000,
     });
     limiterCache.set(limit, rl);
   }
@@ -81,9 +85,11 @@ export async function middleware(request: NextRequest) {
       const { success } = await rl.limit(key);
       if (!success) return NextResponse.json(TOO_FAST, { status: 429 });
       return NextResponse.next();
-    } catch {
-      // Redis unreachable — never fail an API request over rate-limiting
-      // infrastructure. Fall through to the in-memory floor.
+    } catch (err) {
+      // Redis unreachable/misconfigured — never fail an API request over
+      // rate-limiting infrastructure; fall through to the in-memory floor.
+      // But say so: a rotated token would otherwise degrade silently forever.
+      console.error('[ratelimit] Upstash error — using in-memory floor:', (err as Error)?.message);
     }
   }
 

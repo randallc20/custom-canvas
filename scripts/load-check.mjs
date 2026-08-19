@@ -25,32 +25,40 @@ const latencies = [];
 const statuses = {};
 let done = 0;
 
+let errorCount = 0;
+
 async function one() {
   const start = performance.now();
   try {
     const res = await fetch(url, { headers: { 'user-agent': 'cc-load-check' } });
     await res.arrayBuffer(); // include full body transfer in the timing
     statuses[res.status] = (statuses[res.status] || 0) + 1;
+    // Only successful round-trips count toward latency percentiles —
+    // connect-timeout durations would inflate p95/p99 exactly when things
+    // go wrong, hiding the signal.
+    latencies.push(performance.now() - start);
   } catch (err) {
     statuses[`ERR:${err.code || err.name}`] = (statuses[`ERR:${err.code || err.name}`] || 0) + 1;
+    errorCount += 1;
   }
-  latencies.push(performance.now() - start);
   done += 1;
 }
 
+let started = 0;
+
 async function worker() {
-  while (done + inFlight() < total) {
+  // The check-and-increment is synchronous (no await between), so exactly
+  // `total` requests are issued across all workers.
+  while (started < total) {
     started += 1;
     await one();
   }
 }
 
-let started = 0;
-const inFlight = () => started - done;
-
+// Nearest-rank percentile: ceil(p/100 * n) - 1.
 function pct(sorted, p) {
   if (!sorted.length) return 0;
-  const idx = Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length));
+  const idx = Math.max(0, Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1));
   return sorted[idx];
 }
 
@@ -64,7 +72,7 @@ const ms = (n) => `${n.toFixed(0)}ms`;
 console.log(`\nLoad check → ${url}`);
 console.log(`requests=${total} concurrency=${concurrency} wall=${wall.toFixed(1)}s throughput=${(total / wall).toFixed(1)} req/s`);
 console.log(`status: ${Object.entries(statuses).map(([k, v]) => `${k}×${v}`).join('  ')}`);
-console.log(`latency: p50=${ms(pct(sorted, 50))} p95=${ms(pct(sorted, 95))} p99=${ms(pct(sorted, 99))} max=${ms(sorted[sorted.length - 1] || 0)}`);
+console.log(`latency (successful only${errorCount ? `, ${errorCount} errors excluded` : ''}): p50=${ms(pct(sorted, 50))} p95=${ms(pct(sorted, 95))} p99=${ms(pct(sorted, 99))} max=${ms(sorted[sorted.length - 1] || 0)}`);
 
 const ok = (statuses['200'] || 0) === total;
 const has429 = Object.keys(statuses).some((k) => k === '429');

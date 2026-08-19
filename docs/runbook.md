@@ -14,8 +14,10 @@ auto-deploys per project.
 Dashboard → Developers → Webhooks shows failed deliveries to
 `/api/webhooks/stripe`.
 1. Read the failing event in Stripe → Webhooks → the endpoint → click the event
-   → **Resend**. Webhook handlers are idempotent (keyed on the Stripe event/
-   session id), so replaying is safe.
+   → **Resend**. Replaying is safe: order creation dedupes on the payment-
+   intent id (pre-check + unique index — there is NO event-id table, so don't
+   look for one), refund handling is guarded by order status, and the other
+   handlers are harmless re-runs.
 2. If many are failing: confirm `STRIPE_WEBHOOK_SECRET` in Vercel prod matches
    the live endpoint's signing secret (a key rotation or a new endpoint changes
    it). Mismatch → every event 400s on signature check.
@@ -77,8 +79,11 @@ Production** (instant rollback, no rebuild). Then fix forward on a branch.
 ---
 
 ## Owner-action checklist (dashboard toggles this repo can't do in code)
-- [ ] **Upstash**: create a free Redis DB, add `UPSTASH_REDIS_REST_URL` /
-      `UPSTASH_REDIS_REST_TOKEN` to Vercel prod → global rate limiting goes live.
+- [ ] **Upstash**: create a free Redis DB — pick the region colocated with
+      the Vercel functions (US East / iad1); every API request pays one Redis
+      round-trip, so cross-region doubles API latency. Add
+      `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` to Vercel prod →
+      global rate limiting goes live.
 - [ ] **Vercel Analytics + Speed Insights**: enable both in the project's
       Analytics tab (code is already wired in `layout.tsx`).
 - [ ] **Uptime monitor**: BetterStack (free) → HTTP monitors on
