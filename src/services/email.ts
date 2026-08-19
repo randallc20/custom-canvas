@@ -1,5 +1,10 @@
 import { getResend } from '@/lib/resend';
 
+// In production, a missing EMAIL_FROM must be loud — the resend.dev fallback
+// would silently send every transactional email from the wrong domain.
+if (process.env.VERCEL_ENV === 'production' && !process.env.EMAIL_FROM) {
+  throw new Error('EMAIL_FROM is required in production');
+}
 const FROM_EMAIL = process.env.EMAIL_FROM ?? 'Custom Canvas <onboarding@resend.dev>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
@@ -19,28 +24,6 @@ function escapeHtml(s: string): string {
 
 function plain(s: string): string {
   return s.replace(/[\r\n]+/g, ' ').trim();
-}
-
-export async function sendWelcomeEmail(to: string, name: string, role: string): Promise<void> {
-  const roleMessage = role === 'artist'
-    ? 'Start by completing your profile and uploading your first piece.'
-    : role === 'gallery'
-    ? 'Your gallery application is under review. We\'ll notify you once verified.'
-    : 'Discover one-of-a-kind pieces from the artists in your community.';
-
-  await getResend().emails.send({
-    from: FROM_EMAIL,
-    to,
-    subject: 'Welcome to Custom Canvas!',
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
-        <h2 style="color:#111">Welcome to Custom Canvas, ${escapeHtml(name)}!</h2>
-        <p style="color:#666;font-size:16px;line-height:1.5">Thank you for joining our community of artists and collectors.</p>
-        <p style="color:#666;font-size:16px;line-height:1.5">${roleMessage}</p>
-        <a href="${APP_URL}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Get Started</a>
-      </div>
-    `,
-  });
 }
 
 export async function sendArtistApprovedEmail(to: string, name: string): Promise<void> {

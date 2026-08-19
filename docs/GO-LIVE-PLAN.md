@@ -25,7 +25,7 @@ Nothing here is code, and everything here blocks live money.
       liability, artist-mediated refund policy, Connect artist agreement,
       Texas marketplace-facilitator tax language. A few hours of a startup
       lawyer's time now saves real pain later.
-- [ ] **Domain + email**: getcustomcanvas.com DNS access; hello@ mailbox
+- [ ] **Domain + email**: customcanvas.shop DNS access; hello@ mailbox
       (Google Workspace or similar) for support + Resend replies.
 - [ ] **Insurance** (optional now, revisit at revenue): general liability /
       media.
@@ -41,7 +41,7 @@ Everything from LAUNCH.md §1–§7, executed in order, plus these additions:
       email is limited to ~2/hour — signups would break immediately. Point
       Supabase Auth SMTP at Resend with the verified domain.
 - [ ] **Re-enable email confirmation** on signup (disabled on staging).
-- [ ] **Environments**: prod = getcustomcanvas.com on prod Supabase/Stripe
+- [ ] **Environments**: prod = customcanvas.shop on prod Supabase/Stripe
       live; staging keeps DEV Supabase + Stripe test as the permanent test
       bed. Vercel env vars split accordingly.
 - [ ] **Rotate every secret that passed through development chat** (DB

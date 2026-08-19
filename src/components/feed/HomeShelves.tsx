@@ -17,10 +17,12 @@ export function HomeShelves() {
 
   return (
     <div>
+      {/* Shelves are curated from the founding city — say so, rather than
+          implying "local" to a visitor browsing from elsewhere. */}
       <ListingShelf
         eyebrow="Curated"
-        title="Featured"
-        subtitle="Hand-picked work from local artists"
+        title="Featured in Houston"
+        subtitle="Hand-picked work from Houston artists — our founding community"
         listings={featured.data}
         isLoading={featured.isLoading}
       />
