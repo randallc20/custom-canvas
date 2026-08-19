@@ -1,28 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/Button';
-import { useToast } from '@/components/ui/Toast';
 
 /**
- * Studio banner for the artist's review lifecycle:
- *  draft    → build freely (hidden) + "Submit for review"
+ * Studio banner for the artist's review lifecycle. The SetupChecklist owns
+ * the build steps and the submit/resubmit button (draft + rejected states);
+ * this banner communicates status:
+ *  draft    → nothing (checklist covers it)
  *  pending  → in the admin queue, everything still hidden
  *  rejected → the admin's reason (fetched server-side — it isn't client-
- *             readable) + fix & resubmit
- *  approved → renders nothing; the shop is live.
- * Submitting invalidates the own-artist-profile query so every Studio
- * surface picks up the new status without a reload.
+ *             readable); the checklist below carries the fix links + button
+ *  approved → nothing; the shop is live.
  */
 export function ReviewStatusBanner({
   status,
 }: {
   status: 'draft' | 'pending' | 'approved' | 'rejected';
 }) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [submitting, setSubmitting] = useState(false);
   const [reason, setReason] = useState<string | null>(null);
 
   // The rejection reason lives behind /api/artist/application (00033 column
@@ -35,24 +29,7 @@ export function ReviewStatusBanner({
       .catch(() => {});
   }, [status]);
 
-  if (status === 'approved') return null;
-
-  const submit = async () => {
-    setSubmitting(true);
-    const res = await fetch('/api/artist/submit', { method: 'POST' });
-    if (res.ok) {
-      toast('Submitted — we\'ll review your shop soon', 'success');
-      queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
-    } else {
-      const { error } = await res.json().catch(() => ({ error: null }));
-      toast(error ?? 'Could not submit — please try again', 'error');
-      if (res.status === 409) queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
-    }
-    setSubmitting(false);
-  };
-
-  // draft is handled by SetupChecklist (checklist + gated submit button).
-  if (status === 'draft') return null;
+  if (status === 'approved' || status === 'draft') return null;
 
   if (status === 'pending') {
     return (
@@ -66,17 +43,15 @@ export function ReviewStatusBanner({
     );
   }
 
-  // rejected
+  // rejected — the reason lives here; the checklist below carries the
+  // deep links and the Resubmit button.
   return (
     <div className="mb-6 rounded-xl border border-terra/30 bg-terraSoft/60 p-4">
       <p className="text-sm font-medium text-ink">Your application needs a few changes</p>
       {reason && <p className="mt-1 text-sm text-ink">{reason}</p>}
       <p className="mt-1 text-sm text-muted">
-        Update your profile or listings to address this, then resubmit for another review.
+        Work through the checklist below to address this, then resubmit for another review.
       </p>
-      <div className="mt-3">
-        <Button size="sm" loading={submitting} onClick={submit}>Resubmit for review</Button>
-      </div>
     </div>
   );
 }

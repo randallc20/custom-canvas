@@ -22,11 +22,11 @@ export async function updateArtistProfile(
     .from('artist_profiles')
     .update(updates)
     .eq('id', id)
-    .select()
+    .select(ARTIST_PUBLIC_COLS) // bare .select() = RETURNING * → 42501 on revoked columns
     .single();
 
   if (error) throw error;
-  return data;
+  return data as unknown as ArtistProfile;
 }
 
 export async function getArtistListings(artistId: string) {

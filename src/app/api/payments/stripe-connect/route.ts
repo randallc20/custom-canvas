@@ -8,7 +8,9 @@ export async function POST() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: artist } = await supabase
+  // stripe_account_id is not client-readable (00033) — read via service role,
+  // scoped to the caller's own profile.
+  const { data: artist } = await createAdminSupabaseClient()
     .from('artist_profiles')
     .select('id, stripe_account_id')
     .eq('profile_id', user.id)

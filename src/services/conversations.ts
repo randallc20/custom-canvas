@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { PUBLIC_PROFILE_COLS } from '@/lib/publicProfile';
 import { Conversation, ConversationWithParticipants } from '@/types/conversation';
 import type { CommissionStatus } from '@/types/commission';
 
@@ -11,7 +12,8 @@ export async function getConversations(userId: string): Promise<InboxConversatio
   const { data, error } = await supabase
     .from('conversations')
     .select(
-      '*, participant_one_profile:profiles!conversations_participant_one_fkey(*), participant_two_profile:profiles!conversations_participant_two_fkey(*)'
+      // email is not client-readable (00031) — explicit public columns only.
+      `*, participant_one_profile:profiles!conversations_participant_one_fkey(${PUBLIC_PROFILE_COLS}), participant_two_profile:profiles!conversations_participant_two_fkey(${PUBLIC_PROFILE_COLS})`
     )
     .or(`participant_one.eq.${userId},participant_two.eq.${userId}`)
     .order('last_message_at', { ascending: false });
@@ -46,7 +48,8 @@ export async function getConversationById(id: string): Promise<ConversationWithP
   const { data, error } = await supabase
     .from('conversations')
     .select(
-      '*, participant_one_profile:profiles!conversations_participant_one_fkey(*), participant_two_profile:profiles!conversations_participant_two_fkey(*)'
+      // email is not client-readable (00031) — explicit public columns only.
+      `*, participant_one_profile:profiles!conversations_participant_one_fkey(${PUBLIC_PROFILE_COLS}), participant_two_profile:profiles!conversations_participant_two_fkey(${PUBLIC_PROFILE_COLS})`
     )
     .eq('id', id)
     .single();

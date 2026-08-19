@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { reviewSchema } from '@/schemas/reviewSchema';
 import { sendReviewReceivedEmail } from '@/services/email';
 
@@ -82,7 +83,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (artistProfile) {
-      const { data: artistUser } = await supabase
+      // email is service-role-only (00031) — the user-context client can't read it.
+      const { data: artistUser } = await createAdminSupabaseClient()
         .from('profiles')
         .select('email')
         .eq('id', artistProfile.profile_id)

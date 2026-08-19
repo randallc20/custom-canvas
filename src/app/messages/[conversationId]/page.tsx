@@ -76,11 +76,11 @@ function ConversationContent() {
             <>
               <Avatar
                 src={otherParticipant.avatar_url}
-                alt={otherParticipant.full_name ?? otherParticipant.email}
+                alt={otherParticipant.full_name ?? 'User'}
                 size="sm"
               />
               <span className="text-sm font-medium text-ink">
-                {otherParticipant.full_name ?? otherParticipant.email}
+                {otherParticipant.full_name ?? 'User'}
               </span>
               {otherPartnerType != null && <PartnerBadge partnerType={otherPartnerType} />}
               <div className="ml-auto flex items-center gap-2">

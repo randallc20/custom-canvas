@@ -23,6 +23,7 @@ export function SetupChecklist({
   artist: OwnArtistProfile;
   listings: ListingWithImages[] | undefined;
 }) {
+  const isResubmit = artist.application_status === 'rejected';
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
@@ -44,13 +45,12 @@ export function SetupChecklist({
             setAvatarUrl(data?.avatar_url ?? null);
             setAvatarLoaded(true);
           }
-        });
+        }, () => { if (mounted) setAvatarLoaded(true); });
     });
     return () => { mounted = false; };
   }, []);
 
   const listingCount = listings?.length ?? 0;
-  const firstListingPhotoCount = listings?.[0]?.images?.length ?? 0;
   const bestPhotoCount = (listings ?? []).reduce(
     (max, l) => Math.max(max, l.images?.length ?? 0),
     0
@@ -60,42 +60,42 @@ export function SetupChecklist({
     {
       label: 'Add a profile photo',
       done: !!avatarUrl,
-      href: '/profile/edit',
+      href: '/studio/page',
       hint: 'Buyers connect with faces — yours, or you at work.',
     },
     {
       label: 'Tell your story (100+ characters)',
       done: (artist.story?.trim().length ?? 0) >= 100,
-      href: '/profile/edit',
+      href: '/studio/page',
       hint: 'Where you make, what drives the work.',
     },
     {
       label: 'Pick your mediums',
       done: (artist.primary_mediums?.length ?? 0) > 0,
-      href: '/profile/edit',
+      href: '/studio/page',
     },
     {
       label: 'Set your neighborhood',
       done: !!artist.neighborhood?.trim(),
-      href: '/profile/edit',
+      href: '/studio/page',
       hint: 'Local is the whole point — buyers browse by community.',
     },
     {
       label: 'Choose shipping or pickup',
       done: !!artist.fulfillment_pref,
-      href: '/profile/edit',
+      href: '/studio/page',
     },
     {
       label: 'Add a banner image',
       done: !!artist.banner_image_url,
-      href: '/profile/edit',
+      href: '/studio/page',
     },
     {
       label: 'Create your first listing — aim for 3+ photos',
       done: listingCount > 0 && bestPhotoCount >= 3,
       href: '/listings/new',
       hint: listingCount > 0 && bestPhotoCount < 3
-        ? `Your listing has ${firstListingPhotoCount || bestPhotoCount} photo${bestPhotoCount === 1 ? '' : 's'} — add more angles and a detail shot.`
+        ? `Your best listing has ${bestPhotoCount} photo${bestPhotoCount === 1 ? '' : 's'} — add more angles and a detail shot.`
         : 'Great photos sell art. Natural light, straight-on, fill the frame.',
     },
     {
@@ -131,7 +131,7 @@ export function SetupChecklist({
   return (
     <div className="mb-6 rounded-xl border border-line bg-surface p-5 shadow-card">
       <div className="mb-1 flex items-center justify-between">
-        <p className="text-sm font-semibold text-ink">Build your shop, then submit it for review</p>
+        <p className="text-sm font-semibold text-ink">{isResubmit ? 'Address the feedback, then resubmit for review' : 'Build your shop, then submit it for review'}</p>
         <span className="text-xs font-medium text-muted">{doneCount}/{items.length}</span>
       </div>
       <p className="mb-3 text-sm text-muted">
@@ -177,7 +177,7 @@ export function SetupChecklist({
           disabled={!avatarLoaded || !essentialsDone}
           onClick={submit}
         >
-          Submit for review
+          {isResubmit ? 'Resubmit for review' : 'Submit for review'}
         </Button>
         {!essentialsDone && (
           <span className="text-xs text-muted">
