@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { cityMatchPattern } from '@/lib/location';
 import { ListingWithImages } from '@/types/listing';
 import type { ArtistProfile } from '@/types/artist';
+import { ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 
 export type FeedSort = 'recent' | 'price_asc' | 'price_desc' | 'popular';
 
@@ -56,7 +57,11 @@ async function runFeedQuery(params: FeedParams, searchMode: 'strict' | 'fallback
   // surface the artist on each card.
   let query = supabase
     .from('listings')
-    .select('*, images:listing_images(*), tags:listing_tags(tag:tags(*)), artist:artist_profiles!inner(slug, display_name, neighborhood, school, commissions_open)');
+    .select('*, images:listing_images(*), tags:listing_tags(tag:tags(*)), artist:artist_profiles!inner(slug, display_name, neighborhood, school, commissions_open)')
+    // Only live (approved) artists' work is public. RLS enforces this for
+    // anon reads; the explicit filter also keeps a draft artist's own pieces
+    // (owner-bypass rows) out of their feed view for consistency.
+    .eq('artist_profiles.is_live', true);
 
   // Availability: "Commission Only" shows pieces from artists open to
   // commissions; default shows available-for-purchase work.
@@ -127,7 +132,7 @@ async function runArtistsQuery(params: { page?: number; limit?: number; search?:
 
   let query = supabase
     .from('artist_profiles')
-    .select('*, profile:profiles!artist_profiles_profile_id_fkey(avatar_url)')
+    .select(`${ARTIST_PUBLIC_COLS}, profile:profiles!artist_profiles_profile_id_fkey(avatar_url)`)
     .eq('is_live', true)
     .order('created_at', { ascending: false })
     .order('id', { ascending: false });
@@ -187,7 +192,8 @@ export async function getSearchSuggestions(term: string): Promise<SearchSuggesti
 export async function getFilterOptions(city?: string): Promise<{ neighborhoods: string[]; schools: string[] }> {
   let query = supabase
     .from('artist_profiles')
-    .select('neighborhood, school');
+    .select('neighborhood, school')
+    .eq('is_live', true); // draft/pending artists must not seed filter options
   if (city) query = query.ilike('city', cityMatchPattern(city));
   const { data } = await query;
   const neighborhoods = new Set<string>();

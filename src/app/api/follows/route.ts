@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 
 export async function GET() {
   const supabase = createServerSupabaseClient();
@@ -8,7 +9,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('follows')
-    .select('artist:artist_profiles(*)')
+    .select(`artist:artist_profiles(${ARTIST_PUBLIC_COLS})`)
     .eq('follower_id', user.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

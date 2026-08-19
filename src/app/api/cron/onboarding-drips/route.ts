@@ -20,11 +20,13 @@ export async function GET(request: NextRequest) {
   };
   const markSent = (profileId: string, stage: string) => admin.from('drip_emails_sent').insert({ profile_id: profileId, stage });
 
-  // --- Artist drip (stops when profile is live) ---
+  // --- Artist drip: only artists still BUILDING (draft). Pending artists
+  // are waiting on US (nudging them is noise), rejected artists got specific
+  // feedback in the rejection email, live artists are done. ---
   const { data: artists } = await admin
     .from('artist_profiles')
     .select('id, is_live, created_at, profile:profiles!artist_profiles_profile_id_fkey(id, email, full_name, email_preferences)')
-    .eq('is_live', false);
+    .eq('application_status', 'draft');
 
   for (const a of artists ?? []) {
     const profile = a.profile as unknown as { id: string; email: string | null; full_name: string | null; email_preferences: { marketing?: boolean } | null } | null;

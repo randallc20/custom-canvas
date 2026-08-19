@@ -28,6 +28,18 @@ export async function POST(request: NextRequest) {
 
   const { participant_id, context_type, context_id, initial_message } = parsed.data;
 
+  // Approval gate: a non-live artist can't be messaged (their page is
+  // unreachable; this closes the direct-profile-id path). Buyers have no
+  // artist_profiles row, so this only bites draft/pending/rejected artists.
+  const { data: targetArtist } = await supabase
+    .from('artist_profiles')
+    .select('is_live')
+    .eq('profile_id', participant_id)
+    .maybeSingle();
+  if (targetArtist && !targetArtist.is_live) {
+    return NextResponse.json({ error: 'User not available' }, { status: 404 });
+  }
+
   const { data: conversation, error: convError } = await supabase
     .from('conversations')
     .insert({

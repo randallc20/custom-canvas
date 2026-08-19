@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { ARTIST_PROFILE_EMBED } from '@/lib/publicProfile';
+import { ARTIST_PROFILE_EMBED, ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 
 export async function GET(_request: NextRequest, { params }: { params: { slug: string } }) {
   const supabase = createServerSupabaseClient();
 
   const { data, error } = await supabase
     .from('artist_profiles')
-    .select(`*, ${ARTIST_PROFILE_EMBED}`)
+    .select(`${ARTIST_PUBLIC_COLS}, ${ARTIST_PROFILE_EMBED}`)
     .eq('slug', params.slug)
     .single();
 
@@ -49,7 +49,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { slug: 
     .from('artist_profiles')
     .update(updates)
     .eq('slug', params.slug)
-    .select()
+    .select(ARTIST_PUBLIC_COLS) // bare .select() would 42501 on revoked columns
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

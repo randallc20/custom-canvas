@@ -1,16 +1,17 @@
 import { supabase } from '@/lib/supabase';
 import { ArtistProfile, ArtistWithProfile } from '@/types/artist';
-import { ARTIST_PROFILE_EMBED } from '@/lib/publicProfile';
+import { ARTIST_PROFILE_EMBED, ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 
 export async function getArtistBySlug(slug: string): Promise<ArtistWithProfile | null> {
   const { data, error } = await supabase
     .from('artist_profiles')
-    .select(`*, ${ARTIST_PROFILE_EMBED}`)
+    .select(`${ARTIST_PUBLIC_COLS}, ${ARTIST_PROFILE_EMBED}`)
     .eq('slug', slug)
     .single();
 
   if (error) throw error;
-  return data;
+  // Dynamic select string defeats supabase-js inference — pin the type.
+  return data as unknown as ArtistWithProfile;
 }
 
 export async function updateArtistProfile(
