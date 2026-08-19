@@ -25,6 +25,15 @@ Dashboard → Developers → Webhooks shows failed deliveries to
    (RLS / missing column after a migration that didn't reach prod).
 4. Backfill: once fixed, resend the affected events from Stripe.
 
+### Settle-refund retry edges (rare, know them)
+- Retrying a failed settle with a DIFFERENT reason within 24h → Stripe
+  idempotency params-mismatch error (repeated 502). Retry with the same
+  reason (the admin UI always sends the same one) or wait out the 24h key.
+- A settle that crashed mid-flight and is first retried MORE than 24h later
+  can mint a fresh refund attempt that exceeds the remaining refundable
+  balance → recurring 502. Fix by backfilling orders.stripe_refund_id with
+  the refund id visible in Stripe, then retry (it will skip to the reversal).
+
 ## Refund / dispute
 - **Refund** is artist-mediated: buyer requests in chat → artist "Approve refund"
   in Studio → admin "Settle refund" in `/admin`. Buyer gets price+shipping; the

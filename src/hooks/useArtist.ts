@@ -26,6 +26,9 @@ export function useUpdateArtistProfile() {
       updateArtistProfile(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['artist'] });
+      // The Studio setup checklist reads this key — rows must check off the
+      // moment the artist saves their profile.
+      queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
     },
   });
 }

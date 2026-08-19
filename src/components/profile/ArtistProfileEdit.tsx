@@ -16,6 +16,7 @@ import { BioLayoutSelector } from '@/components/profile/BioLayoutSelector';
 import { EducationFieldset, type EducationDraft } from '@/components/profile/EducationFieldset';
 import { PersonalPhotoUploader } from '@/components/profile/PersonalPhotoUploader';
 import { supabase } from '@/lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { ArtistProfile } from '@/types/artist';
 import { calculateCompletenessScore } from '@/utils/completenessScore';
@@ -33,6 +34,7 @@ export function ArtistProfileEdit() {
   const [loading, setLoading] = useState(true);
   const [educationDrafts, setEducationDrafts] = useState<EducationDraft[]>([]);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: educationData } = useEducation(artist?.id ?? '');
   const saveEducationMutation = useSaveEducation();
@@ -109,6 +111,7 @@ export function ArtistProfileEdit() {
       setAvatarUrl(url);
       toast('Profile photo updated', 'success');
       supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
+      queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] }); // checklist row
     }
   };
 
@@ -119,6 +122,7 @@ export function ArtistProfileEdit() {
       setArtist((a) => (a ? { ...a, banner_image_url: url } : a));
       toast('Banner updated', 'success');
       supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
+      queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] }); // checklist row
     }
   };
 
@@ -207,7 +211,7 @@ export function ArtistProfileEdit() {
               placeholder="Tell your story. What drew you to art? What are you making right now? There are no rules here — this is your space."
               className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
             />
-            <p className="mt-1 text-xs text-muted">Shown as &ldquo;My Story&rdquo; at the top of your profile.</p>
+            <p className="mt-1 text-xs text-muted">Shown as &ldquo;My Story&rdquo; at the top of your profile. At least 100 characters to submit your shop for review.</p>
           </div>
         </fieldset>
 

@@ -18,7 +18,7 @@ interface Application {
   story: string | null;
   primary_mediums: string[] | null;
   created_at: string;
-  listings: { count: number }[];
+  listings: { id: string; images: { image_url: string }[] }[];
 }
 
 export default function AdminApplicationsPage() {
@@ -44,7 +44,7 @@ function Content() {
   const load = () => {
     supabase
       .from('artist_profiles')
-      .select('id, display_name, slug, city, story, primary_mediums, created_at, listings(count)')
+      .select('id, display_name, slug, city, story, primary_mediums, created_at, listings(id, images:listing_images(image_url))')
       .eq('application_status', 'pending')
       .order('created_at', { ascending: true })
       .then(({ data, error }) => {
@@ -99,7 +99,10 @@ function Content() {
       ) : (
         <div className="space-y-4">
           {apps.map((a) => {
-            const listingCount = a.listings?.[0]?.count ?? 0;
+            const listingCount = a.listings?.length ?? 0;
+            const thumbs = (a.listings ?? [])
+              .flatMap((l) => l.images?.slice(0, 1) ?? [])
+              .slice(0, 3);
             return (
               <div key={a.id} className="rounded-xl border border-line p-4">
                 <div className="flex items-start justify-between gap-4">
@@ -122,6 +125,14 @@ function Content() {
                   <p className="mt-2 text-xs text-muted">{a.primary_mediums.join(', ')}</p>
                 )}
                 {a.story && <p className="mt-2 line-clamp-3 text-sm text-ink">{a.story}</p>}
+                {thumbs.length > 0 && (
+                  <div className="mt-3 flex gap-2">
+                    {thumbs.map((t) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={t.image_url} src={t.image_url} alt="" className="h-16 w-16 rounded-lg border border-line object-cover" />
+                    ))}
+                  </div>
+                )}
 
                 {rejecting === a.id ? (
                   <div className="mt-4 space-y-2">
@@ -149,9 +160,17 @@ function Content() {
                   </div>
                 ) : (
                   <div className="mt-4 flex gap-2">
-                    <Button size="sm" loading={acting === a.id} onClick={() => decide(a.id, 'approve')}>
+                    <Button
+                      size="sm"
+                      loading={acting === a.id}
+                      disabled={listingCount === 0}
+                      onClick={() => decide(a.id, 'approve')}
+                    >
                       Approve &amp; go live
                     </Button>
+                    {listingCount === 0 && (
+                      <span className="self-center text-xs text-muted">No listings — reject with feedback instead.</span>
+                    )}
                     <Button size="sm" variant="outline" disabled={acting === a.id} onClick={() => { setRejecting(a.id); setReason(''); }}>
                       Reject
                     </Button>

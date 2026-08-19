@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createConversationSchema } from '@/schemas/messageSchema';
+import { PUBLIC_PROFILE_COLS } from '@/lib/publicProfile';
 
 export async function GET() {
   const supabase = createServerSupabaseClient();
@@ -9,7 +10,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('conversations')
-    .select('*, participant_one_profile:profiles!conversations_participant_one_fkey(*), participant_two_profile:profiles!conversations_participant_two_fkey(*)')
+    .select(`*, participant_one_profile:profiles!conversations_participant_one_fkey(${PUBLIC_PROFILE_COLS}), participant_two_profile:profiles!conversations_participant_two_fkey(${PUBLIC_PROFILE_COLS})`)
     .or(`participant_one.eq.${user.id},participant_two.eq.${user.id}`)
     .order('last_message_at', { ascending: false });
 

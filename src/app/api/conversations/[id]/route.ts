@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { PUBLIC_PROFILE_COLS } from '@/lib/publicProfile';
 
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = createServerSupabaseClient();
@@ -8,7 +9,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
 
   const { data, error } = await supabase
     .from('conversations')
-    .select('*, participant_one_profile:profiles!conversations_participant_one_fkey(*), participant_two_profile:profiles!conversations_participant_two_fkey(*)')
+    .select(`*, participant_one_profile:profiles!conversations_participant_one_fkey(${PUBLIC_PROFILE_COLS}), participant_two_profile:profiles!conversations_participant_two_fkey(${PUBLIC_PROFILE_COLS})`)
     .eq('id', params.id)
     .single();
 

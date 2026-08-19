@@ -44,10 +44,10 @@ export default function StudioHomePage() {
         <Link href="/listings/new"><Button>New Listing</Button></Link>
       </div>
 
-      {artist && artist.application_status === 'draft' && (
+      {artist && <ReviewStatusBanner status={artist.application_status} />}
+      {artist && (artist.application_status === 'draft' || artist.application_status === 'rejected') && (
         <SetupChecklist artist={artist} listings={listings} />
       )}
-      {artist && <ReviewStatusBanner status={artist.application_status} />}
 
       {!artist?.stripe_onboarded && (
         <div className="mb-6 rounded-xl border border-terra/30 bg-terraSoft/60 p-4">
@@ -58,12 +58,14 @@ export default function StudioHomePage() {
         </div>
       )}
 
-      {artist && <NeedsAttention artistId={artist.id} />}
+      {artist?.application_status === 'approved' && <NeedsAttention artistId={artist.id} />}
 
       {artist && <WeekStrip artistId={artist.id} orders={orders} />}
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Profile Completeness" value={`${artist?.completeness_score ?? 0}%`} />
+        {artist?.application_status === 'approved' && (
+          <StatCard label="Profile Completeness" value={`${artist?.completeness_score ?? 0}%`} />
+        )}
         <StatCard label="Listings" value={String(listingCount)} />
         <StatCard label="Total Sales" value={String(totalSales)} />
         <StatCard label="Revenue" value={formatPrice(totalRevenue)} />
@@ -79,10 +81,12 @@ export default function StudioHomePage() {
         </div>
       )}
 
-      <div className="mb-8 grid gap-6 md:grid-cols-2">
-        <HoustonVerifiedCard />
-        <AwayModeToggle />
-      </div>
+      {artist?.application_status === 'approved' ? (
+        <div className="mb-8 grid gap-6 md:grid-cols-2">
+          <HoustonVerifiedCard />
+          <AwayModeToggle />
+        </div>
+      ) : null}
 
       <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
         <button

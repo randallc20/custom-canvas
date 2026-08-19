@@ -9,7 +9,11 @@ export async function getSavedListings(profileId: string): Promise<ListingWithIm
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return (data?.map((s) => ({
+  return (data
+    // A saved listing can go dark (artist unpublished/rejected — RLS hides
+    // it); the row comes back with listing:null and must not crash the page.
+    ?.filter((s) => s.listing)
+    .map((s) => ({
     ...(s.listing as unknown as Record<string, unknown>),
     tags: ((s.listing as unknown as Record<string, unknown>)?.tags as Array<{ tag: unknown }>)?.map((lt) => lt.tag) ?? [],
   })) ?? []) as ListingWithImages[];
