@@ -11,6 +11,12 @@ export interface OwnArtistProfile {
   stripe_onboarded: boolean;
   pinned_listing_ids: string[] | null;
   application_status: 'draft' | 'pending' | 'approved' | 'rejected';
+  // Setup-checklist inputs
+  story: string | null;
+  primary_mediums: string[] | null;
+  neighborhood: string | null;
+  fulfillment_pref: string | null;
+  banner_image_url: string | null;
 }
 
 /** The signed-in artist's own artist_profiles row — one React Query-cached
@@ -26,7 +32,7 @@ export function useOwnArtistProfile(): { artist: OwnArtistProfile | null; loadin
         // stripe_account_id + rejection_reason are not client-readable
         // (00033); the banner fetches the rejection reason via
         // /api/artist/application when it needs it.
-        .select('id, slug, completeness_score, stripe_onboarded, pinned_listing_ids, application_status')
+        .select('id, slug, completeness_score, stripe_onboarded, pinned_listing_ids, application_status, story, primary_mediums, neighborhood, fulfillment_pref, banner_image_url')
         .eq('profile_id', user!.id)
         .maybeSingle();
       return (data as OwnArtistProfile | null) ?? null;

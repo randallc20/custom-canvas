@@ -51,20 +51,8 @@ export function ReviewStatusBanner({
     setSubmitting(false);
   };
 
-  if (status === 'draft') {
-    return (
-      <div className="mb-6 rounded-xl border border-line bg-sand/40 p-4">
-        <p className="text-sm font-medium text-ink">Build your shop, then submit it for review</p>
-        <p className="mt-1 text-sm text-muted">
-          Add your profile details and listings — nothing is public yet. When you&apos;re ready, submit and
-          we&apos;ll review your shop. Once approved, everything goes live at once.
-        </p>
-        <div className="mt-3">
-          <Button size="sm" loading={submitting} onClick={submit}>Submit for review</Button>
-        </div>
-      </div>
-    );
-  }
+  // draft is handled by SetupChecklist (checklist + gated submit button).
+  if (status === 'draft') return null;
 
   if (status === 'pending') {
     return (
