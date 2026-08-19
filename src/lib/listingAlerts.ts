@@ -26,13 +26,16 @@ export async function fanOutNewListingEmails(listing: {
   try {
     const admin = createAdminSupabaseClient();
     const [{ data: artist }, { data: follows }] = await Promise.all([
-      admin.from('artist_profiles').select('display_name').eq('id', listing.artist_id).single(),
+      admin.from('artist_profiles').select('display_name, is_live').eq('id', listing.artist_id).single(),
       admin
         .from('follows')
         .select('follower:profiles(email, full_name, email_preferences, unsubscribe_token)')
         .eq('artist_id', listing.artist_id)
         .limit(FAN_OUT_CAP),
     ]);
+    // Non-live (draft/pending/rejected) artists' activity never fans out —
+    // nothing of theirs is publicly reachable.
+    if (!artist?.is_live) return;
     const artistName = artist?.display_name ?? 'An artist you follow';
     const recipients = (follows ?? [])
       .map((f) => f.follower as unknown as Recipient | null)
@@ -64,6 +67,14 @@ export async function fanOutPriceDropEmails(listing: {
 }): Promise<void> {
   try {
     const admin = createAdminSupabaseClient();
+    // Skip fan-out when the owning artist isn't live (mirrors the in-app
+    // notification triggers).
+    const { data: owner } = await admin
+      .from('listings')
+      .select('artist:artist_profiles!inner(is_live)')
+      .eq('id', listing.id)
+      .single();
+    if (!(owner?.artist as unknown as { is_live?: boolean } | null)?.is_live) return;
     const { data: saves } = await admin
       .from('saved_listings')
       .select('saver:profiles(email, full_name, email_preferences, unsubscribe_token)')

@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
-// A rejected artist, after addressing the feedback, puts themselves back in the
-// review queue. Routed through the service role because the approval columns are
-// frozen for the artist's own writes (00030 guard) — the same pattern the
-// commission actions use. Moving back to 'pending' re-notifies admins via the
-// artist_application_notify trigger.
+// The artist puts their shop in the review queue (draft → pending), or back
+// in after addressing rejection feedback (rejected → pending). Service role
+// because the approval columns are frozen for the artist's own writes (00030
+// guard). Compare-and-swap: the status filter on the UPDATE means a
+// concurrent admin decision (or double-click) loses cleanly with a 409
+// rather than clobbering state. The 00032 trigger notifies admins on the
+// transition into 'pending'.
 export async function POST() {
   const supabase = createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,11 +21,8 @@ export async function POST() {
     .eq('profile_id', user.id)
     .single();
   if (!artist) return NextResponse.json({ error: 'No artist profile' }, { status: 404 });
-  if (artist.application_status !== 'rejected') {
-    return NextResponse.json({ error: 'Only a rejected application can be resubmitted.' }, { status: 409 });
-  }
 
-  await admin
+  const { data: updated, error } = await admin
     .from('artist_profiles')
     .update({
       application_status: 'pending',
@@ -31,7 +30,17 @@ export async function POST() {
       reviewed_by: null,
       reviewed_at: null,
     })
-    .eq('id', artist.id);
+    .eq('id', artist.id)
+    .in('application_status', ['draft', 'rejected'])
+    .select('id');
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!updated?.length) {
+    return NextResponse.json(
+      { error: 'Your shop is already in review or has been approved.' },
+      { status: 409 }
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

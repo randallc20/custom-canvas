@@ -39,13 +39,17 @@ function Content() {
   const [rejecting, setRejecting] = useState<string | null>(null);
   const [reason, setReason] = useState('');
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const load = () => {
     supabase
       .from('artist_profiles')
       .select('id, display_name, slug, city, story, primary_mediums, created_at, listings(count)')
       .eq('application_status', 'pending')
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        // Never render the reassuring empty state over a failed query.
+        if (error) setLoadError(error.message);
         setApps((data ?? []) as unknown as Application[]);
         setLoading(false);
       });
@@ -67,11 +71,22 @@ function Content() {
     } else {
       const { error } = await res.json().catch(() => ({ error: 'Action failed' }));
       toast(error ?? 'Action failed', 'error');
+      // 409 = another admin already decided it — refresh the queue.
+      if (res.status === 409) load();
     }
     setActing(null);
   };
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Couldn&apos;t load applications: {loadError}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -96,7 +111,7 @@ function Content() {
                     </p>
                   </div>
                   <Link
-                    href={`/artist/${a.slug}`}
+                    href={`/artist/${a.slug}?preview=1`}
                     target="_blank"
                     className="shrink-0 text-sm font-medium text-terra hover:underline"
                   >

@@ -32,12 +32,12 @@ export async function GET() {
     newOrdersRes,
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
-    supabase.from('artist_profiles').select('*', { count: 'exact', head: true }),
+    supabase.from('artist_profiles').select('id', { count: 'exact', head: true }),
     supabase.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'available'),
     supabase.from('orders').select('*', { count: 'exact', head: true }),
     supabase.from('orders').select('amount_cents, platform_fee_cents').in('status', ['paid', 'shipped', 'delivered']),
     supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('artist_profiles').select('*', { count: 'exact', head: true }).eq('application_status', 'pending'),
+    supabase.from('artist_profiles').select('id', { count: 'exact', head: true }).eq('application_status', 'pending'),
     supabase.from('profiles').select('created_at').gte('created_at', since).order('created_at', { ascending: true }),
     supabase.from('orders').select('amount_cents, platform_fee_cents, created_at').gte('created_at', since).in('status', ['paid', 'shipped', 'delivered']).order('created_at', { ascending: true }),
   ]);

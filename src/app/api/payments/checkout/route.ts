@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe';
 import { calcSplit } from '@/utils/commissionCalc';
 import { isPickupOnly } from '@/utils/fulfillment';
@@ -16,9 +17,12 @@ export async function POST(request: NextRequest) {
 
   const { listingId, shipping } = await request.json();
 
+  // User-context fetch: RLS enforces visibility (a non-live artist's listing
+  // 404s for buyers). The artist row comes via the service role because
+  // stripe_account_id is not client-readable (00033 column privacy).
   const { data: listing } = await supabase
     .from('listings')
-    .select('*, artist:artist_profiles(stripe_account_id, stripe_onboarded, slug, fulfillment_pref, profile_id)')
+    .select('*')
     .eq('id', listingId)
     .single();
 
@@ -30,13 +34,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Contact the artist for pricing on this piece' }, { status: 400 });
   }
 
-  const artist = listing.artist as unknown as {
-    stripe_account_id: string | null;
-    stripe_onboarded: boolean;
-    slug: string;
-    fulfillment_pref: string | null;
-    profile_id: string;
-  };
+  const { data: artist } = await createAdminSupabaseClient()
+    .from('artist_profiles')
+    .select('stripe_account_id, stripe_onboarded, slug, fulfillment_pref, profile_id, is_live')
+    .eq('id', listing.artist_id)
+    .single();
+  if (!artist) return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
+  // Belt-and-braces on the approval gate: even with a direct listing id, a
+  // non-live artist cannot take money.
+  if (!artist.is_live) {
+    return NextResponse.json({ error: 'This artist is not live on the platform yet' }, { status: 403 });
+  }
   if (artist.profile_id === user.id) {
     return NextResponse.json({ error: 'You cannot purchase your own listing' }, { status: 400 });
   }

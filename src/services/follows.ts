@@ -1,10 +1,11 @@
 import { supabase } from '@/lib/supabase';
 import { ArtistProfile } from '@/types/artist';
+import { ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 
 export async function getFollowedArtists(profileId: string): Promise<ArtistProfile[]> {
   const { data, error } = await supabase
     .from('follows')
-    .select('artist:artist_profiles(*)')
+    .select(`artist:artist_profiles(${ARTIST_PUBLIC_COLS})`)
     .eq('follower_id', profileId);
 
   if (error) throw error;

@@ -7,6 +7,7 @@ import { RelatedListings } from '@/components/listing/RelatedListings';
 import { TrackView } from '@/components/analytics/TrackView';
 import { notFound } from 'next/navigation';
 import type { ListingWithImages } from '@/types/listing';
+import { ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 
 interface Props {
   params: { id: string };
@@ -47,9 +48,10 @@ export default async function ListingPage({ params }: Props) {
   const [{ data: artist }, { data: relatedRaw }] = await Promise.all([
     supabase
       .from('artist_profiles')
-      .select('*')
+      .select(ARTIST_PUBLIC_COLS)
       .eq('id', listing.artist_id)
-      .single(),
+      // dynamic select string defeats supabase-js inference — pin the type
+      .single<import('@/types/artist').ArtistProfile>(),
     supabase
       .from('listings')
       .select('*, images:listing_images(*), tags:listing_tags(tag:tags(*))')

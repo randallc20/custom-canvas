@@ -181,7 +181,10 @@ def main():
         ap = rest_insert("artist_profiles", {
             "profile_id": uid, "slug": a["slug"], "display_name": a["name"], "city": "Houston",
             "neighborhood": a["hood"], "school": a["school"], "accent_color": a["accent"],
-            "bio_layout": "left", "is_live": True, "commissions_open": a["commissions"],
+            # Demo artists are pre-approved (approval gate, migration 00030/32):
+            # is_live alone would leave them stuck 'draft' in the review queue.
+            "bio_layout": "left", "is_live": True, "application_status": "approved",
+            "commissions_open": a["commissions"],
             "story": a["story"], "bio": a["story"][:140], "primary_mediums": a["mediums"],
             "fulfillment_pref": "pickup_only" if not a["commissions"] else "ships_national",
             "away_mode": a.get("away", False),
@@ -235,6 +238,19 @@ def main():
     save_targets = req("GET", "/rest/v1/listings?status=eq.available&select=id&limit=4")
     for t in save_targets:
         rest_insert("saved_listings", {"profile_id": buyer_uid, "listing_id": t["id"]})
+
+    # One PENDING applicant so the /admin/applications queue is always
+    # testable on staging (draft state is reachable by just signing up).
+    print("Creating pending applicant…")
+    pend_uid = create_user("pending.artist@cc-demo.com", "artist", "Piper Pending")
+    rest_insert("artist_profiles", {
+        "profile_id": pend_uid, "slug": "piper-pending", "display_name": "Piper Pending",
+        "city": "Houston", "neighborhood": "Montrose", "bio_layout": "left",
+        "is_live": False, "application_status": "pending", "commissions_open": False,
+        "story": "Ceramicist exploring Gulf Coast clay bodies. Applying to sell on Custom Canvas.",
+        "bio": "Ceramicist exploring Gulf Coast clay bodies.", "primary_mediums": ["Ceramics"],
+        "fulfillment_pref": "pickup_only",
+    })
 
     # Refresh completeness for all demo artists.
     for r in req("GET", "/rest/v1/artist_profiles?select=id"):

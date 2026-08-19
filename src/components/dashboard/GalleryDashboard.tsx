@@ -17,6 +17,7 @@ import { PARTNER_TYPE_LABELS, type GalleryProfile } from '@/types/gallery';
 import { PartnerBadge } from '@/components/gallery/PartnerBadge';
 import { PartnerPicksManager } from '@/components/gallery/PartnerPicksManager';
 import type { ArtistProfile } from '@/types/artist';
+import { ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 
 export function GalleryDashboard() {
   const { user } = useAuth();
@@ -48,7 +49,7 @@ export function GalleryDashboard() {
 
     const { data: ga } = await supabase
       .from('gallery_artists')
-      .select('role, artist:artist_profiles(*)')
+      .select(`role, artist:artist_profiles(${ARTIST_PUBLIC_COLS})`)
       .eq('gallery_id', g.id);
 
     const mapped = (ga ?? []).map((row: Record<string, unknown>) => ({

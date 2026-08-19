@@ -43,9 +43,7 @@ export default function StudioHomePage() {
         <Link href="/listings/new"><Button>New Listing</Button></Link>
       </div>
 
-      {artist && (
-        <ReviewStatusBanner status={artist.application_status} reason={artist.rejection_reason} />
-      )}
+      {artist && <ReviewStatusBanner status={artist.application_status} />}
 
       {!artist?.stripe_onboarded && (
         <div className="mb-6 rounded-xl border border-terra/30 bg-terraSoft/60 p-4">

@@ -8,6 +8,15 @@ export function createServerSupabaseClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // Next's Data Cache treats fetch GETs as cacheable and persists them in
+      // .next/cache across deploys — a marketplace can NEVER serve stale
+      // visibility/price/availability from a cached REST response (verified:
+      // a de-listed artist's page kept rendering from the fetch cache).
+      // Every server-side Supabase call is per-request fresh.
+      global: {
+        fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+          fetch(input, { ...init, cache: 'no-store' }),
+      },
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value;

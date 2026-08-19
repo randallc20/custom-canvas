@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { ARTIST_PROFILE_EMBED } from '@/lib/publicProfile';
+import { ARTIST_PROFILE_EMBED, ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 import { ProfileHero } from '@/components/artist/ProfileHero';
 import { StorySection } from '@/components/artist/StorySection';
 import { PinnedWork } from '@/components/artist/PinnedWork';
@@ -24,11 +24,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = createServerSupabaseClient();
   const { data } = await supabase
     .from('artist_profiles')
-    .select('display_name, bio')
+    .select('display_name, bio, is_live')
     .eq('slug', params.slug)
     .single();
 
-  if (!data) return { title: 'Artist Not Found' };
+  // Non-live shops must not leak the artist's name via <title>/og tags —
+  // the page body 404s, and the metadata must match (owner/admin previews
+  // just get the generic title; fine).
+  if (!data || !data.is_live) return { title: 'Artist Not Found' };
 
   return {
     title: data.display_name,
@@ -39,13 +42,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ArtistPage({ params }: Props) {
   const supabase = createServerSupabaseClient();
 
-  const { data: artist } = await supabase
+  // Dynamic select string defeats supabase-js inference — pin the type.
+  const { data: artist } = (await supabase
     .from('artist_profiles')
-    .select(`*, ${ARTIST_PROFILE_EMBED}`)
+    .select(`${ARTIST_PUBLIC_COLS}, ${ARTIST_PROFILE_EMBED}`)
     .eq('slug', params.slug)
-    .single();
+    .single()) as unknown as { data: import('@/types/artist').ArtistWithProfile | null };
 
   if (!artist) notFound();
+
+  // Draft/pending/rejected shops are not public. The owner still sees their
+  // page (the ?preview=1 flow), and admins see it from the review queue —
+  // everyone else gets a 404, same as a slug that never existed.
+  if (!artist.is_live) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const isOwner = user?.id === artist.profile_id;
+    let isAdmin = false;
+    if (user && !isOwner) {
+      const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+      isAdmin = me?.role === 'admin';
+    }
+    if (!isOwner && !isAdmin) notFound();
+  }
 
   const [listingsRes, reviewsRes, seriesRes, educationRes, photosRes] = await Promise.all([
     supabase

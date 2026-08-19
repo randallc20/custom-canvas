@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { ARTIST_PROFILE_EMBED } from '@/lib/publicProfile';
+import { ARTIST_PROFILE_EMBED, ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 import { GalleryHero } from '@/components/gallery/GalleryHero';
 import { ProfileCard } from '@/components/artist/ProfileCard';
 import { ListingShelf } from '@/components/feed/ListingShelf';
@@ -45,12 +45,12 @@ export default async function GalleryPage({ params }: Props) {
   const [{ data: galleryArtists }, { data: educationLinks }, { data: pickRows }] = await Promise.all([
     supabase
       .from('gallery_artists')
-      .select(`role, artist:artist_profiles(*, ${ARTIST_PROFILE_EMBED})`)
+      .select(`role, artist:artist_profiles(${ARTIST_PUBLIC_COLS}, ${ARTIST_PROFILE_EMBED})`)
       .eq('gallery_id', gallery.id)
       .order('added_at', { ascending: false }),
     supabase
       .from('artist_education')
-      .select(`artist:artist_profiles(*, ${ARTIST_PROFILE_EMBED})`)
+      .select(`artist:artist_profiles(${ARTIST_PUBLIC_COLS}, ${ARTIST_PROFILE_EMBED})`)
       .eq('partner_id', gallery.id),
     // Picks only exist publicly while the partner is verified — a revoked
     // partner's stale curation must not keep trading on the badge.
@@ -70,17 +70,19 @@ export default async function GalleryPage({ params }: Props) {
     if (row.blurb && row.listing?.id) pickBlurbs[row.listing.id] = row.blurb;
   }
 
+  // Only live artists appear on partner rosters — a draft/pending artist's
+  // card would link to a 404 (their page isn't public yet).
   const rosterArtists = (galleryArtists ?? [])
     .map((ga: Record<string, unknown>) => ({
       ...(ga.artist as Record<string, unknown>),
       gallery_role: ga.role as string,
     }) as Record<string, unknown>)
-    .filter((a) => a.id);
+    .filter((a) => a.id && a.is_live);
 
   const rosterIds = new Set(rosterArtists.map((a) => a.id as string));
   const alumniArtists = (educationLinks ?? [])
     .map((link: Record<string, unknown>) => link.artist as Record<string, unknown>)
-    .filter((a) => a?.id && !rosterIds.has(a.id as string))
+    .filter((a) => a?.id && a.is_live && !rosterIds.has(a.id as string))
     // an artist may list the same school in multiple entries
     .filter((a, i, arr) => arr.findIndex((b) => b.id === a.id) === i);
 

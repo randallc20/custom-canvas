@@ -8,7 +8,8 @@ export const contentType = 'image/png';
 export default async function Image({ params }: { params: { slug: string } }) {
   let name = 'Local Artist';
   try {
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/artist_profiles?slug=eq.${params.slug}&select=display_name`;
+    // is_live filter: non-live shops must not leak names via OG cards.
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/artist_profiles?slug=eq.${params.slug}&is_live=eq.true&select=display_name`;
     const res = await fetch(url, {
       headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}` },
     });

@@ -30,9 +30,11 @@ export interface ArtistProfile {
   is_featured: boolean;
   completeness_score: number;
   is_live: boolean;
-  stripe_account_id: string | null;
+  /** Service-role only (00033 column privacy) — absent from client reads. */
+  stripe_account_id?: string | null;
   stripe_onboarded: boolean;
-  search_vector: string | null;
+  /** Omitted from ARTIST_PUBLIC_COLS (useless payload) — absent from client reads. */
+  search_vector?: string | null;
   story: string | null;
   primary_mediums: string[] | null;
   pinned_listing_ids: string[] | null;

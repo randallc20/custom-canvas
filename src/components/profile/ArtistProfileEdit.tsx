@@ -22,6 +22,7 @@ import { calculateCompletenessScore } from '@/utils/completenessScore';
 import { useToast } from '@/components/ui/Toast';
 import { useEducation, usePersonalPhotos, useSaveEducation } from '@/hooks/useArtistContent';
 import { numberOrNull } from '@/utils/formNumber';
+import { ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 
 export function ArtistProfileEdit() {
   const { user } = useAuth();
@@ -65,7 +66,7 @@ export function ArtistProfileEdit() {
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      supabase.from('artist_profiles').select('*').eq('profile_id', user.id).single(),
+      supabase.from('artist_profiles').select(ARTIST_PUBLIC_COLS).eq('profile_id', user.id).single<import('@/types/artist').ArtistProfile>(),
       supabase.from('profiles').select('avatar_url').eq('id', user.id).single(),
     ]).then(async ([{ data: artistData }, { data: profileData }]) => {
       setArtist(artistData);

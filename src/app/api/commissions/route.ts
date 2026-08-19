@@ -35,11 +35,14 @@ export async function POST(request: NextRequest) {
 
   const { data: artist } = await supabase
     .from('artist_profiles')
-    .select('id, profile_id')
+    .select('id, profile_id, is_live')
     .eq('id', artist_id)
     .single();
 
   if (!artist) return NextResponse.json({ error: 'Artist not found' }, { status: 404 });
+  // Approval gate: non-live artists can't receive commission requests (their
+  // page is unreachable anyway — this closes the direct-id path).
+  if (!artist.is_live) return NextResponse.json({ error: 'Artist not found' }, { status: 404 });
 
   const { data: conversation, error: convError } = await supabase
     .from('conversations')
