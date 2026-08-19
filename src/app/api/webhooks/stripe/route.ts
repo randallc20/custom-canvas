@@ -30,6 +30,19 @@ export async function POST(request: NextRequest) {
 
       if (!listingId || !paymentIntentId) break;
 
+      // Delayed payment methods (ACH etc.) fire session.completed with
+      // payment_status 'unpaid' — funds don't exist yet. Card-only today,
+      // but this is one dashboard toggle away from recording unpaid orders
+      // as paid. Log and ignore; enable async_payment_succeeded handling
+      // before ever turning such methods on.
+      if (session.payment_status !== 'paid') {
+        Sentry.captureMessage(
+          `checkout.session.completed with payment_status=${session.payment_status} — ignored (${paymentIntentId})`,
+          'warning'
+        );
+        break;
+      }
+
       // Stripe delivers at-least-once: bail out if this payment was already
       // recorded (also enforced by the DB unique constraint below).
       const { data: existingOrder } = await supabase
@@ -48,11 +61,19 @@ export async function POST(request: NextRequest) {
 
       const artistObj = listing.artist as unknown as { id: string };
       const order = buildOrderRecord(
-        { payment_intent: paymentIntentId, metadata: session.metadata },
-        listing,
+        {
+          payment_intent: paymentIntentId,
+          metadata: session.metadata,
+          total_details: session.total_details,
+        },
         artistObj.id
       );
-      if (!order) break;
+      if (!order) {
+        // Money metadata missing — never fabricate amounts and never ack a
+        // paid session silently. 500 → Stripe retries and Sentry screams.
+        Sentry.captureException(new Error(`Unbuildable order for paid session ${paymentIntentId}`));
+        return NextResponse.json({ error: 'Order metadata missing' }, { status: 500 });
+      }
 
       // Claim the listing with a live order. The partial unique index
       // (one live order per listing) makes a concurrent second sale fail here.
@@ -75,7 +96,10 @@ export async function POST(request: NextRequest) {
 
           // Oversell: refund this buyer and reverse the artist transfer.
           try {
-            await getStripe().refunds.create({ payment_intent: paymentIntentId, reverse_transfer: true });
+            await getStripe().refunds.create(
+              { payment_intent: paymentIntentId, reverse_transfer: true },
+              { idempotencyKey: `oversell_${paymentIntentId}` }
+            );
           } catch (refundErr) {
             Sentry.captureException(refundErr);
             // Do NOT ack: Stripe retries the event, the insert 23505s again,
@@ -188,17 +212,49 @@ export async function POST(request: NextRequest) {
 
       const { data: order } = await supabase
         .from('orders')
-        .select('id, listing_id, status')
+        .select('id, listing_id, status, artist_payout_cents')
         .eq('stripe_payment_intent_id', paymentIntentId)
         .maybeSingle();
       if (!order) break;
       if (order.status === 'refunded') break; // already reconciled
 
+      const wasShipped = order.status === 'shipped' || order.status === 'delivered';
+
+      // A dashboard-initiated full refund may have skipped the artist
+      // transfer reversal (it's a checkbox an admin can forget). Verify and
+      // alert loudly — the platform would otherwise eat the payout silently.
+      if (order.artist_payout_cents > 0 && charge.transfer) {
+        try {
+          const transferId = typeof charge.transfer === 'string' ? charge.transfer : charge.transfer.id;
+          const transfer = await getStripe().transfers.retrieve(transferId);
+          if ((transfer.amount_reversed ?? 0) === 0) {
+            Sentry.captureMessage(
+              `Full refund WITHOUT transfer reversal: order ${order.id} — artist keeps ${order.artist_payout_cents}¢. Reverse it in the Stripe dashboard.`,
+              'error'
+            );
+            const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+            for (const a of admins ?? []) {
+              await supabase.from('notifications').insert({
+                user_id: a.id,
+                type: 'refund_approved',
+                title: 'Refund needs attention',
+                body: 'A full refund was issued without reversing the artist payout — check Stripe.',
+                link: '/admin/orders',
+              });
+            }
+          }
+        } catch (err) {
+          Sentry.captureException(err);
+        }
+      }
+
       await supabase.from('orders').update({ status: 'refunded' }).eq('id', order.id);
 
-      // Return the piece to the market only if no OTHER live order still holds
-      // it (protects the legit buyer when an oversell refund arrives).
-      if (order.listing_id) {
+      // Return the piece to the market ONLY if (a) it was never shipped —
+      // a delivered piece is physically with the buyer regardless of the
+      // refund — and (b) no OTHER live order still holds it (protects the
+      // legit buyer when an oversell refund arrives).
+      if (order.listing_id && !wasShipped) {
         const { count } = await supabase
           .from('orders')
           .select('id', { count: 'exact', head: true })

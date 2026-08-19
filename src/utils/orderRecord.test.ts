@@ -8,7 +8,7 @@ function mockSession(overrides: Partial<{
   shipping_cents: string;
   price_cents: string;
   buyer_fee_cents: string;
-}> = {}) {
+}> = {}, amountTax?: number) {
   return {
     payment_intent: 'pi_test_123',
     metadata: {
@@ -20,18 +20,20 @@ function mockSession(overrides: Partial<{
       buyer_fee_cents: '1500',
       ...overrides,
     },
+    total_details: amountTax === undefined ? null : { amount_tax: amountTax },
   };
 }
 
 describe('buildOrderRecord (webhook order-creation math)', () => {
   it('builds a correct order for a $300 sale with $20 shipping', () => {
-    const order = buildOrderRecord(mockSession(), { price_cents: 30000 }, 'artist-1');
+    const order = buildOrderRecord(mockSession(), 'artist-1');
     expect(order).not.toBeNull();
     expect(order!.amount_cents).toBe(30000);
     expect(order!.shipping_cents).toBe(2000);
     expect(order!.buyer_fee_cents).toBe(1500); // 5% of $300, at the cap
     expect(order!.artist_payout_cents).toBe(27500);
     expect(order!.platform_fee_cents).toBe(6000); // commission + buyer fee
+    expect(order!.amount_tax_cents).toBe(0); // no tax details on the session
     expect(order!.stripe_payment_intent_id).toBe('pi_test_123');
     expect(order!.status).toBe('paid');
     expect(order!.shipping_address).toEqual({
@@ -39,20 +41,25 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
     });
   });
 
-  it('uses the session-locked price, not the live listing price', () => {
+  it('captures Stripe Tax totals for merchant-of-record refunds', () => {
+    // 8.25% on $335 buyer total ≈ $27.64
+    const order = buildOrderRecord(mockSession({}, 2764), 'artist-1');
+    expect(order!.amount_tax_cents).toBe(2764);
+  });
+
+  it('uses the session-locked price — the webhook never reads the live listing', () => {
     // Artist raised the price to $500 after the buyer opened checkout; the
     // session (and Stripe's charge) locked $300.
-    const order = buildOrderRecord(mockSession({ price_cents: '30000' }), { price_cents: 50000 }, 'artist-1');
+    const order = buildOrderRecord(mockSession({ price_cents: '30000' }), 'artist-1');
     expect(order!.amount_cents).toBe(30000);
     expect(order!.artist_payout_cents).toBe(27500);
   });
 
   it('records the session-locked buyer fee, not the current formula', () => {
-    // Session created under the old flat-$10 fee completes after a deploy
-    // that changed the formula: the order must record what Stripe charged.
+    // Session created under an old fee completes after a deploy that changed
+    // the formula: the order must record what Stripe charged.
     const order = buildOrderRecord(
       mockSession({ price_cents: '5000', shipping_cents: '0', buyer_fee_cents: '1000' }),
-      { price_cents: 5000 },
       'artist-1'
     );
     expect(order!.buyer_fee_cents).toBe(1000);
@@ -61,26 +68,16 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
     expect(order!.artist_payout_cents + order!.platform_fee_cents).toBe(buyerTotal);
   });
 
-  it('records the legacy flat $10 when metadata lacks buyer_fee_cents (pre-deploy sessions)', () => {
-    const order = buildOrderRecord(
-      mockSession({ price_cents: '5000', shipping_cents: '0', buyer_fee_cents: '' }),
-      { price_cents: 5000 },
-      'artist-1'
-    );
-    expect(order!.buyer_fee_cents).toBe(1000); // what those sessions charged
-    expect(order!.platform_fee_cents).toBe(750 + 1000);
-  });
-
-  it('falls back to the listing price when metadata lacks price_cents (legacy sessions)', () => {
-    const order = buildOrderRecord(mockSession({ price_cents: '' }), { price_cents: 15000 }, 'artist-1');
-    expect(order!.amount_cents).toBe(15000);
-    expect(order!.artist_payout_cents).toBe(12750 + 2000);
+  it('returns null when money metadata is missing — never fabricates amounts', () => {
+    // The refund flow's exact payout reversal depends on recorded amounts
+    // matching what Stripe moved; fabricated fallbacks could mis-record.
+    expect(buildOrderRecord(mockSession({ buyer_fee_cents: '' }), 'artist-1')).toBeNull();
+    expect(buildOrderRecord(mockSession({ price_cents: '' }), 'artist-1')).toBeNull();
   });
 
   it('handles pickup orders: no shipping, no address', () => {
     const order = buildOrderRecord(
       mockSession({ shipping_cents: '0', shipping_address: '', price_cents: '15000', buyer_fee_cents: '750' }),
-      { price_cents: 15000 },
       'artist-1'
     );
     expect(order!.shipping_cents).toBe(0);
@@ -91,8 +88,7 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
 
   it('defaults malformed shipping_cents to 0', () => {
     const order = buildOrderRecord(
-      mockSession({ shipping_cents: 'not-a-number', price_cents: '10000' }),
-      { price_cents: 10000 },
+      mockSession({ shipping_cents: 'not-a-number', price_cents: '10000', buyer_fee_cents: '500' }),
       'artist-1'
     );
     expect(order!.shipping_cents).toBe(0);
@@ -101,17 +97,16 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
 
   it('returns null when metadata is missing ids', () => {
     expect(
-      buildOrderRecord({ payment_intent: 'pi_x', metadata: { listing_id: 'l1' } }, { price_cents: 1000 }, 'a1')
+      buildOrderRecord({ payment_intent: 'pi_x', metadata: { listing_id: 'l1' } }, 'a1')
     ).toBeNull();
     expect(
-      buildOrderRecord({ payment_intent: 'pi_x', metadata: null }, { price_cents: 1000 }, 'a1')
+      buildOrderRecord({ payment_intent: 'pi_x', metadata: null }, 'a1')
     ).toBeNull();
   });
 
   it('conserves money: payout + platform fee = buyer total components', () => {
     const order = buildOrderRecord(
       mockSession({ shipping_cents: '1234', price_cents: '33333' }),
-      { price_cents: 33333 },
       'artist-1'
     );
     const buyerTotal = order!.amount_cents + order!.buyer_fee_cents + order!.shipping_cents;
