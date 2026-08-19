@@ -6,7 +6,6 @@ import { PageShell } from '@/components/layout/PageShell';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
-import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/types/user';
 
 export default function AdminUsersPage() {
@@ -32,13 +31,11 @@ function UsersContent() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(200)
-      .then(({ data }) => {
-        setUsers(data ?? []);
+    // Emails aren't client-readable (00031) — go through the admin API.
+    fetch('/api/admin/users?limit=200')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        setUsers(Array.isArray(data) ? data : []);
         setLoading(false);
       });
   }, []);

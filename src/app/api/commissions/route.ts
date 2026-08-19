@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { commissionRequestSchema } from '@/schemas/commissionSchema';
 import { sendCommissionRequestEmail } from '@/services/email';
 
@@ -70,7 +71,9 @@ export async function POST(request: NextRequest) {
 
   await supabase.from('conversations').update({ context_id: commission.id }).eq('id', conversation.id);
 
-  const { data: artistProfile } = await supabase
+  // email is service-role-only (00031 column privacy) — the user-context
+  // client can no longer read it.
+  const { data: artistProfile } = await createAdminSupabaseClient()
     .from('profiles')
     .select('email, full_name')
     .eq('id', artist.profile_id)

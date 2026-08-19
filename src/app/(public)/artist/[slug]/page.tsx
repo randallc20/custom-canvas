@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { ARTIST_PROFILE_EMBED } from '@/lib/publicProfile';
 import { ProfileHero } from '@/components/artist/ProfileHero';
 import { StorySection } from '@/components/artist/StorySection';
 import { PinnedWork } from '@/components/artist/PinnedWork';
@@ -40,7 +41,7 @@ export default async function ArtistPage({ params }: Props) {
 
   const { data: artist } = await supabase
     .from('artist_profiles')
-    .select('*, profile:profiles(*)')
+    .select(`*, ${ARTIST_PROFILE_EMBED}`)
     .eq('slug', params.slug)
     .single();
 

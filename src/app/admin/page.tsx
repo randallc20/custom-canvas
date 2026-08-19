@@ -72,12 +72,8 @@ function AdminDashboard() {
         .order('created_at', { ascending: false })
         .limit(5)
         .then(({ data }) => data ?? []),
-      supabase
-        .from('profiles')
-        .select('id, full_name, email, role, created_at')
-        .order('created_at', { ascending: false })
-        .limit(5)
-        .then(({ data }) => data ?? []),
+      // Emails aren't client-readable (00031) — go through the admin API.
+      fetch('/api/admin/users?limit=5').then((r) => (r.ok ? r.json() : [])),
     ]).then(([statsData, ordersData, usersData]) => {
       setStats(statsData);
       setRecentOrders(ordersData as unknown as RecentOrder[]);

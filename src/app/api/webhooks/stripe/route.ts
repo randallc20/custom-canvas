@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 
       const [{ data: buyer }, { data: artistProf }] = await Promise.all([
         supabase.from('profiles').select('email, full_name').eq('id', order.buyer_id).single(),
-        supabase.from('artist_profiles').select('display_name, profile_id, profile:profiles(email)').eq('id', artistObj.id).single(),
+        supabase.from('artist_profiles').select('display_name, profile_id, profile:profiles!artist_profiles_profile_id_fkey(email)').eq('id', artistObj.id).single(),
       ]);
 
       // Local pickup: open/find the buyer↔artist thread and post a system

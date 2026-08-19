@@ -1,10 +1,11 @@
 import { supabase } from '@/lib/supabase';
 import { ArtistProfile, ArtistWithProfile } from '@/types/artist';
+import { ARTIST_PROFILE_EMBED } from '@/lib/publicProfile';
 
 export async function getArtistBySlug(slug: string): Promise<ArtistWithProfile | null> {
   const { data, error } = await supabase
     .from('artist_profiles')
-    .select('*, profile:profiles(*)')
+    .select(`*, ${ARTIST_PROFILE_EMBED}`)
     .eq('slug', slug)
     .single();
 

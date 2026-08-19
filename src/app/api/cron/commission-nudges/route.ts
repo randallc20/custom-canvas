@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   const { data: commissions } = await supabase
     .from('commissions')
-    .select('id, title, created_at, last_nudge_at, requester_id, artist:artist_profiles!inner(display_name, profile:profiles(email, full_name, email_preferences))')
+    .select('id, title, created_at, last_nudge_at, requester_id, artist:artist_profiles!inner(display_name, profile:profiles!artist_profiles_profile_id_fkey(email, full_name, email_preferences))')
     .in('status', ['accepted', 'in_progress'])
     .or(`last_nudge_at.is.null,last_nudge_at.lt.${cutoff}`);
 

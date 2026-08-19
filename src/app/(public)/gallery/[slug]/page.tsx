@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { ARTIST_PROFILE_EMBED } from '@/lib/publicProfile';
 import { GalleryHero } from '@/components/gallery/GalleryHero';
 import { ProfileCard } from '@/components/artist/ProfileCard';
 import { ListingShelf } from '@/components/feed/ListingShelf';
@@ -44,12 +45,12 @@ export default async function GalleryPage({ params }: Props) {
   const [{ data: galleryArtists }, { data: educationLinks }, { data: pickRows }] = await Promise.all([
     supabase
       .from('gallery_artists')
-      .select('role, artist:artist_profiles(*, profile:profiles(*))')
+      .select(`role, artist:artist_profiles(*, ${ARTIST_PROFILE_EMBED})`)
       .eq('gallery_id', gallery.id)
       .order('added_at', { ascending: false }),
     supabase
       .from('artist_education')
-      .select('artist:artist_profiles(*, profile:profiles(*))')
+      .select(`artist:artist_profiles(*, ${ARTIST_PROFILE_EMBED})`)
       .eq('partner_id', gallery.id),
     // Picks only exist publicly while the partner is verified — a revoked
     // partner's stale curation must not keep trading on the badge.

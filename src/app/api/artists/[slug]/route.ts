@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { ARTIST_PROFILE_EMBED } from '@/lib/publicProfile';
 
 export async function GET(_request: NextRequest, { params }: { params: { slug: string } }) {
   const supabase = createServerSupabaseClient();
 
   const { data, error } = await supabase
     .from('artist_profiles')
-    .select('*, profile:profiles(*)')
+    .select(`*, ${ARTIST_PROFILE_EMBED}`)
     .eq('slug', params.slug)
     .single();
 

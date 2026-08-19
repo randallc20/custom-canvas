@@ -4,7 +4,9 @@ import { test, expect } from '@playwright/test';
 test('home renders with the warm design system', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('link', { name: 'Custom Canvas' }).first()).toBeVisible();
-  await expect(page.getByRole('heading', { name: /emerging artists/i })).toBeVisible();
+  // Hero copy is location-aware since Build 4: "…{city}'s local artists" or
+  // "…your local community" before a city is chosen.
+  await expect(page.getByRole('heading', { name: /local (artists|community)/i })).toBeVisible();
 });
 
 test('register page gates on terms acceptance', async ({ page }) => {
