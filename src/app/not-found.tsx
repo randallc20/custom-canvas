@@ -16,10 +16,10 @@ export default function NotFound() {
           Explore Art
         </Link>
         <Link
-          href="/partners"
+          href="/about"
           className="rounded-lg border border-line px-5 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-sand/50"
         >
-          Browse Partners
+          About Custom Canvas
         </Link>
       </div>
     </div>

@@ -64,7 +64,7 @@ or a normal + private window — sessions are per-browser.
       **"Service fee (5%, max $15)" + estimated total + "artist keeps 85%"**
       note, related works below. Share button copies a link.
 - [ ] 1.6 Open an artist page: hero with accent color, pinned work, series
-      tabs, My Story, education, photos/videos, reviews, commission panel.
+      tabs, My Story, education, photos, reviews, commission panel.
 - [ ] 1.7 Open `/gallery/bayou-city-gallery`: banner + verified badge,
       **Our picks** shelf with the curator's note in quotes, artist roster,
       Alumni & Students section (on the school partner).
@@ -90,6 +90,30 @@ or a normal + private window — sessions are per-browser.
       partner on dashboard, admin on admin panel.
 - [ ] 2.5 Forgot password: request reset with a real address → email link →
       set new password → log in with it.
+
+### 2.x Artist approval (draft → submit → review → live)
+
+- [ ] 2.6 New artist's Studio shows the **setup checklist** ("Build your
+      shop, then submit it for review") with a progress bar; each row
+      deep-links to the right page and checks off as you complete it
+      (photo tips panel appears in the listing image uploader).
+- [ ] 2.7 **Submit is gated**: with no profile photo / story / listing the
+      button is disabled with an explanation; complete the essentials →
+      button enables.
+- [ ] 2.8 While in draft: your public page and your listing's page are NOT
+      reachable in a logged-out browser (direct URL → 404), your work is
+      absent from the feed/search/artists browse, and YOU can still preview
+      your own page.
+- [ ] 2.9 **Submit for review** → banner flips to "Your shop is in review";
+      admin gets an in-app notification; you can keep editing but a second
+      submit says it's already in review.
+- [ ] 2.10 As admin: `/admin/applications` lists the submission (story,
+      listing count, View profile preview). **Reject** with a reason →
+      artist sees the reason in Studio + rejection email → fix something →
+      **Resubmit** → back in the queue.
+- [ ] 2.11 **Approve** → artist gets "you're live" notification + email;
+      their page, listings, and browse presence all appear at once for a
+      logged-out browser.
 
 ## 3. Buyer journey (buyer.test)
 

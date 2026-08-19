@@ -93,11 +93,6 @@ export default async function ArtistPage({ params }: Props) {
       .select('*')
       .eq('artist_id', artist.id)
       .order('display_order'),
-    supabase
-      .from('artist_videos')
-      .select('*')
-      .eq('artist_id', artist.id)
-      .order('display_order'),
   ]);
 
   const processedListings = (listingsRes.data ?? []).map((l: Record<string, unknown>) => ({

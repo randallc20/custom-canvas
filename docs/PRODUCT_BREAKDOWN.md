@@ -260,7 +260,7 @@ Guards: quote only from `pending`; accept goes `quoted → in_progress` (`accept
 3. **Critical-path E2E suite is skipped** — needs seeded CI accounts to activate.
 4. **~25 files query Supabase inline** instead of through the services layer.
 5. **Auth gating is client-side only** — fine given RLS, but a redesign touching routing should consider server-side gates.
-6. **Launch checklist open** (LAUNCH.md): prod Supabase, live Stripe (LLC + Tax registration), Resend domain DNS, getcustomcanvas.com, key rotation, re-enable email confirm, prod smoke test.
+6. **Launch checklist open** (LAUNCH.md): prod Supabase, live Stripe (LLC + Tax registration), Resend domain DNS, customcanvas.shop, key rotation, re-enable email confirm, prod smoke test.
 7. **Backlog ideas parked:** collections, "view in a room", invoice downloads.
 
 ## 17. Redesign Friction Points (observations, not prescriptions)

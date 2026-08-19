@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     template: '%s | Custom Canvas',
   },
   description: 'Discover and buy original art from local artists in your community — browse, collect, and commission one-of-a-kind pieces.',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://customcanvas.art'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://customcanvas.shop'),
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }, { url: '/favicon.ico', sizes: 'any' }],
     apple: '/apple-touch-icon.png',

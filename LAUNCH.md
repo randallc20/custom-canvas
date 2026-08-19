@@ -1,92 +1,84 @@
 # Custom Canvas — Launch Checklist
 
-*Infra appendix to docs/GO-LIVE-PLAN.md — the company go-live plan lives there.*
+*Infra appendix to docs/MASTER-PLAN.md (the plan of record) and
+docs/GO-LIVE-PLAN.md. Updated 2026-08-18 to reflect reality: production
+EXISTS and is live at customcanvas.shop — only the Stripe-live steps and the
+final smoke test remain.*
 
-Everything needed to take the staging build to production. Work top to bottom.
+## ✅ DONE (verified 2026-08-18)
+- Production Supabase (`custom-canvas-prod`, ref `nxdbmaslsfaestusrapp`)
+  exists with **migrations through 00035 applied**; buckets, Realtime, seed
+  tags in place. Prod DB pooler host is `aws-0-us-east-2` (DEV is `aws-1`).
+- Vercel `custom-canvas-prod` project serves **customcanvas.shop** with prod
+  env (Supabase prod keys, Resend on the real domain,
+  `EMAIL_FROM=noreply@customcanvas.shop`, Turnstile, Sentry, CRON_SECRET,
+  4 crons). Staging (`custom-canvas` project → custom-canvas-chi.vercel.app)
+  stays on DEV Supabase + Stripe test as the permanent test bed.
+- Resend domain verified for customcanvas.shop.
+- Security migrations live on BOTH databases: profiles/artist_profiles
+  column privacy, listing-visibility RLS, approval gate (00030–00035).
 
-## 0. Staging catch-up (Build 3) — ✅ DONE 2026-07-06 (through migration 00029 as of 07-17)
-- [ ] Apply migrations 00024–00026 to the **DEV** project (same psql loop as §1,
-      IPv4 session pooler host):
-  ```bash
-  for f in supabase/migrations/00024_featured_listings.sql \
-           supabase/migrations/00025_publish_notifications.sql \
-           supabase/migrations/00026_partner_picks.sql; do
-    psql "$DEV_DB_URL" -f "$f"; done
-  ```
-- [ ] Verify on staging: homepage shelves render, `/admin/featured` curation works,
-      partner picks manager + shelves work, and one publish-email fan-out arrives.
-
-## 1. Production Supabase project
-- [ ] Create `custom-canvas-prod` (separate from `custom-canvas-staging`).
-- [ ] Apply all migrations in order:
-  ```bash
-  for f in supabase/migrations/000*.sql; do psql "$PROD_DB_URL" -f "$f"; done
-  ```
-  (Use the IPv4 **session pooler** host if your network is IPv6-only:
-  `postgres.<ref>@aws-1-<region>.pooler.supabase.com:5432`.)
-- [ ] Run `supabase/seed.sql` (tags).
-- [ ] Confirm 6 storage buckets exist with the size/MIME limits from migration 00012
-      (avatars 2MB, banners/listings/photos 5MB, videos 200MB, chat 10MB).
-- [ ] Enable Realtime on `messages`, `notifications`.
-- [ ] Copy the prod URL + anon (`sb_publishable_…`) + secret (`sb_secret_…`) keys.
-
-## 2. Stripe (live mode) — after Phil's LLC + bank
+## 1. Stripe (live mode) — after LLC + bank ✅ (bank exists as of 2026-08-18)
 - [ ] Activate the Stripe account (LLC details + bank for payouts).
 - [ ] Enable **Stripe Connect** (Express) in live mode.
 - [ ] Enable **Stripe Tax**: set origin address, add the **Texas** registration
       (and any other states once nexus is established). The platform is the
-      merchant of record — tax stays with the platform via `transfer_data.amount`.
-- [ ] Copy live `pk_live_…` / `sk_live_…`.
-- [ ] Register the live webhook → `https://getcustomcanvas.com/api/webhooks/stripe`
+      merchant of record — tax stays with the platform via `transfer_data.amount`;
+      refunds return the buyer's tax on price+shipping (00035 flow).
+- [ ] Copy live `pk_live_…` / `sk_live_…` into Vercel prod env
+      (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`).
+- [ ] Register the live webhook → `https://customcanvas.shop/api/webhooks/stripe`
       events: `checkout.session.completed`, `account.updated`,
-      `charge.refunded`, `payment_intent.payment_failed`. Copy `whsec_…`.
+      `charge.refunded`, `payment_intent.payment_failed`. Copy `whsec_…` →
+      `STRIPE_WEBHOOK_SECRET` in Vercel prod.
+- [ ] Stripe Dashboard → Branding: upload `brand/stripe-branding/` assets.
+- [ ] Flip `NEXT_PUBLIC_PAYMENTS_ENABLED=true` in Vercel prod + redeploy.
 
-## 3. Resend (production sending)
-- [ ] Verify the sending domain (DNS: SPF, DKIM) for `getcustomcanvas.com`.
-- [ ] Set `EMAIL_FROM="Custom Canvas <noreply@getcustomcanvas.com>"`.
-- [ ] Create a prod API key.
+## 2. Auth email (before real signups)
+- [ ] Supabase prod → Auth → SMTP: point at Resend with the verified domain
+      (the default auth mailer caps at ~2/hour — signups break without this).
+- [ ] Re-enable email confirmation on signup.
 
-## 4. Sentry
-- [ ] Create/confirm the prod project; set `NEXT_PUBLIC_SENTRY_DSN`.
-- [ ] Set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` for source maps.
+## 3. Hardening activations (runbook has details)
+- [ ] Upstash Redis (US East/iad1) → `UPSTASH_REDIS_REST_URL`/`_TOKEN` in
+      Vercel prod (activates global rate limiting).
+- [ ] Vercel Analytics + Speed Insights toggles; BetterStack uptime monitor;
+      Sentry alert rules.
+- [ ] GitHub repo secrets `E2E_BUYER_*` / `E2E_ARTIST_*` (+ optional
+      `E2E_DRAFT_ARTIST_*`/`E2E_ADMIN_*` for the approval spec) so CI runs
+      the authenticated suites.
 
-## 5. Vercel (production)
-- [ ] Point the project's Production environment at the prod values for every var:
-      `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
-      `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`,
-      `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`,
-      `RESEND_API_KEY`, `EMAIL_FROM`, `NEXT_PUBLIC_SENTRY_DSN`, `CRON_SECRET`,
-      `NEXT_PUBLIC_APP_URL=https://getcustomcanvas.com`.
-- [ ] (Optional, recommended) `UPSTASH_REDIS_REST_URL` / `_TOKEN` and switch the
-      rate-limit middleware from in-memory to Upstash for global limits.
-- [ ] Confirm the 4 cron jobs are scheduled (vercel.json: commission-nudges,
-      review-reminders, away-mode, onboarding-drips).
+## 4. Security rotation (IMPORTANT)
+- [ ] Rotate every key that was ever shared in development chat (DEV Supabase
+      keys + DB password, Stripe TEST keys, Resend key, Vercel token —
+      the Vercel token already lapsed and needs re-minting anyway).
+      Prod secrets that were created in dashboards and never left them are
+      fine.
 
-## 6. Domain
-- [ ] Add `getcustomcanvas.com` in Vercel; set DNS (A/CNAME) at the registrar.
-- [ ] Verify HTTPS + the apex/www redirect.
-
-## 7. Security rotation (IMPORTANT)
-- [ ] Rotate **every** key that was shared during development (Supabase keys,
-      Stripe test keys, Resend key, Vercel token) — generate fresh prod secrets.
-
-## 8. Smoke test on production
-- [ ] Register a buyer + an artist; artist completes profile (goes live).
-- [ ] Artist creates a listing with an image.
-- [ ] Buyer purchases with a real card (small amount) → order created, artist
-      payout shows in Stripe, tax collected, both emails arrive.
-- [ ] Fee model verified: 5% service fee (capped at $15) shows on the listing
-      page, checkout breakdown, order record, and both confirmation emails.
+## 5. Smoke test on production (Stage 3 of MASTER-PLAN)
+- [ ] Fresh artist signup → **setup checklist** → Submit for review →
+      admin approves from `/admin/applications` → shop is publicly visible.
+      Also exercise reject-with-reason → fix → resubmit once.
+- [ ] Verify a draft artist's listing/page is NOT publicly reachable
+      (anon browser + direct URL).
+- [ ] Buyer purchases with a real card (small amount) → order created, tax
+      collected for a TX address, artist payout visible in the connected
+      account, both emails arrive from noreply@customcanvas.shop, listing
+      sold, admin GMV ticks.
+- [ ] Fee model verified: 5% service fee (capped at $15) on listing page,
+      checkout breakdown, order record, and both confirmation emails.
 - [ ] Refund flow: buyer requests via chat → artist approves in Studio →
-      admin settles → buyer refunded price+shipping (fee kept), artist payout
-      reversed, order refunded, piece relisted.
-- [ ] Commission request → quote (in-thread) → accept → progress update → notify.
-- [ ] `npx playwright test` (set `E2E_BASE_URL`) — smoke specs green.
+      admin settles → buyer refunded price+shipping+their tax (fee + its tax
+      kept), artist payout reversed exactly, order refunded, never-shipped
+      piece relisted.
+- [ ] Commission request → quote (in-thread) → accept → progress update →
+      notify (no money moves — commissions are off-platform at launch).
+- [ ] `npx playwright test` against prod URL — smoke specs green.
+- [ ] First Stripe payout cycle (2–7 days): confirm money lands in the test
+      artist's real bank during soft launch.
 
 ## Known follow-ups (post-launch, non-blocking)
-- Wire listing-image upload into the create-listing form (ImageUpload exists; the
-  form still shows a placeholder).
-- Email fan-out for follower/price-drop alerts shipped in Build 3; future item is
-  a deliverability upgrade (move batch sends to a queue).
-- Move rate limiting to Upstash; expand Playwright critical-path coverage.
-- Cover the backlog in `docs/UPDATE_PLAN.md` (collections, "view in a room", etc.).
+- Email fan-out deliverability upgrade (move batch sends to a queue) at ~10k
+  users (GO-LIVE-PLAN §L4).
+- Commission deposits (quote flow exists; payment is off-platform today).
+- Backlog in `docs/UPDATE_PLAN.md` (collections, "view in a room", etc.).

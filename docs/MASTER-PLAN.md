@@ -31,6 +31,11 @@ activation is unblocked.
 
 # TRACK A — Code (me). Five fix PRs + two feature PRs.
 
+**STATUS 2026-08-18: ALL SEVEN PRs SHIPPED** — PR-1 (#1), PR-2 (#2),
+PR-5+6 (#3), PR-3 (#4), PR-4 (#5), PR-7 (#6); migrations 00030–00035 applied
+to DEV and PROD. Track A is COMPLETE. What remains is Track B (Chris) and
+the Final Sequence below.
+
 **MERGE ORDER (final, 2026-08-18): PR-1 → PR-2 → PR-5 → PR-6 → PR-3 → PR-4
 → PR-7.** Onboarding features (5/6) jump ahead of the refund work (3) so
 artist seeding can start ~2 days sooner — payments stay off during seeding,
