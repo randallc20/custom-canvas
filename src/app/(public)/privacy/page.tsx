@@ -63,7 +63,7 @@ export default function PrivacyPage() {
           <p>
             You may access, update, or delete your account information at any time through
             your account settings. To request complete data deletion, contact us at{' '}
-            <span className="font-medium text-terra">privacy@customcanvas.shop</span>.
+            <span className="font-medium text-terra">support@customcanvas.shop</span>.
           </p>
         </section>
 

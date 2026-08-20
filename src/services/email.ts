@@ -6,6 +6,8 @@ if (process.env.VERCEL_ENV === 'production' && !process.env.EMAIL_FROM) {
   throw new Error('EMAIL_FROM is required in production');
 }
 const FROM_EMAIL = process.env.EMAIL_FROM ?? 'Custom Canvas <onboarding@resend.dev>';
+// Replies to any transactional email land in a real, monitored inbox.
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? 'support@customcanvas.shop';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 // Every user-supplied value (names, titles, message previews, notes) MUST go
@@ -29,6 +31,7 @@ function plain(s: string): string {
 export async function sendArtistApprovedEmail(to: string, name: string): Promise<void> {
   await getResend().emails.send({
     from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
     to,
     subject: 'You\'re approved — your Custom Canvas shop is live',
     html: `
@@ -44,6 +47,7 @@ export async function sendArtistApprovedEmail(to: string, name: string): Promise
 export async function sendArtistRejectedEmail(to: string, name: string, reason: string): Promise<void> {
   await getResend().emails.send({
     from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
     to,
     subject: 'A note about your Custom Canvas application',
     html: `
@@ -66,6 +70,7 @@ export async function sendNewMessageEmail(
 ): Promise<void> {
   await getResend().emails.send({
     from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
     to,
     subject: `New message from ${plain(senderName)}`,
     html: `
@@ -85,6 +90,7 @@ export async function sendCommissionRequestEmail(
 ): Promise<void> {
   await getResend().emails.send({
     from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
     to,
     subject: `New commission request: ${plain(title)}`,
     html: `
@@ -106,6 +112,7 @@ export async function sendOrderConfirmationEmail(
 ): Promise<void> {
   await getResend().emails.send({
     from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
     to,
     subject: `Order confirmed: ${plain(listingTitle)}`,
     html: `
@@ -132,6 +139,7 @@ export async function sendNewSaleEmail(
 ): Promise<void> {
   await getResend().emails.send({
     from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
     to,
     subject: `You made a sale: ${plain(listingTitle)}`,
     html: `
@@ -165,6 +173,7 @@ export async function sendShippingUpdateEmail(
 
   await getResend().emails.send({
     from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
     to,
     subject: `Your order has shipped: ${plain(listingTitle)}`,
     html: `
@@ -189,6 +198,7 @@ export async function sendReviewReceivedEmail(
 
   await getResend().emails.send({
     from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
     to,
     subject: `New ${rating}-star review from ${plain(reviewerName)}`,
     html: `
@@ -215,6 +225,7 @@ export async function sendCommissionUpdateEmail(
 ): Promise<void> {
   await getResend().emails.send({
     from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
     to,
     subject: `${plain(artistName)} posted an update on your commission`,
     html: `
@@ -237,6 +248,7 @@ export async function sendCommissionNudgeEmail(
 ): Promise<void> {
   await getResend().emails.send({
     from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
     to,
     subject: `Buyers love progress updates — post one for ${plain(buyerName)}?`,
     html: `
@@ -257,6 +269,7 @@ export async function sendReviewRequestEmail(
 ): Promise<void> {
   await getResend().emails.send({
     from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
     to,
     subject: `How was ${plain(listingTitle)}?`,
     html: `
@@ -279,14 +292,14 @@ export async function sendArtistDripEmail(to: string, name: string, stage: strin
   };
   const c = content[stage] ?? content.artist_day1;
   await getResend().emails.send({
-    from: FROM_EMAIL, to, subject: c.subject,
+    from: FROM_EMAIL, replyTo: SUPPORT_EMAIL, to, subject: c.subject,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" /><h2 style="color:#111">${c.heading}</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, ${c.body}</p><a href="${APP_URL}/dashboard" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Finish my profile</a></div>`,
   });
 }
 
 export async function sendBuyerDripEmail(to: string, name: string): Promise<void> {
   await getResend().emails.send({
-    from: FROM_EMAIL, to, subject: 'Meet the artists near you',
+    from: FROM_EMAIL, replyTo: SUPPORT_EMAIL, to, subject: 'Meet the artists near you',
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" /><h2 style="color:#111">Discover local art</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, there's a whole community of local artists to explore on Custom Canvas. Find a piece — or an artist — you love.</p><a href="${APP_URL}/" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Explore art</a></div>`,
   });
 }
@@ -375,7 +388,7 @@ export async function sendBulkEmails(emails: BulkEmail[]): Promise<void> {
   for (let i = 0; i < emails.length; i += 100) {
     const chunk = emails.slice(i, i + 100);
     const { error } = await resend.batch.send(
-      chunk.map((e) => ({ from: FROM_EMAIL, ...e }))
+      chunk.map((e) => ({ from: FROM_EMAIL, replyTo: SUPPORT_EMAIL, ...e }))
     );
     if (error) {
       const Sentry = await import('@sentry/nextjs');

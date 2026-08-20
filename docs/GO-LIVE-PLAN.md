@@ -25,7 +25,7 @@ Nothing here is code, and everything here blocks live money.
       liability, artist-mediated refund policy, Connect artist agreement,
       Texas marketplace-facilitator tax language. A few hours of a startup
       lawyer's time now saves real pain later.
-- [ ] **Domain + email**: customcanvas.shop DNS access; hello@ mailbox
+- [ ] **Domain + email**: customcanvas.shop DNS access; support@ mailbox — ✅ DONE 2026-08-19
       (Google Workspace or similar) for support + Resend replies.
 - [ ] **Insurance** (optional now, revisit at revenue): general liability /
       media.
