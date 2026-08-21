@@ -60,37 +60,74 @@ test.describe('critical paths — money (opt-in)', () => {
   test.skip(!paymentsOn || !buyer, 'set E2E_PAYMENTS=1 + buyer creds against a payments-enabled target');
 
   test('buyer completes a Stripe test-card purchase', async ({ page }) => {
+    // Full journey: login → find listing → shipping form → Stripe hosted page
+    // → webhook → success banner. 30s default is not enough.
+    test.setTimeout(150_000);
     await login(page, buyer!.email, buyer!.password);
 
     // The real flow: pick an available listing via the API (home cards are
     // image links with artwork titles, not "view" buttons), open its page,
     // Buy Now → the app's /checkout/[id] shipping page → Stripe's HOSTED
     // checkout (a full-page redirect, NOT an iframe) → /orders?success=true.
+    // Find the Stripe-onboarded artist via the artists API (stripe_onboarded
+    // is public), then one of their available listings. Deliberately ZERO
+    // calls to /api/payments here — it's rate-limited to 10/min and probing
+    // it per-listing exhausts the budget before the real checkout.
+    const artists = await (await page.request.get('/api/artists')).json();
+    const seller = artists.find((a: { stripe_onboarded: boolean }) => a.stripe_onboarded);
+    expect(seller, 'no Stripe-onboarded artist seeded').toBeTruthy();
     const listings = await (await page.request.get('/api/listings')).json();
-    expect(Array.isArray(listings) && listings.length > 0).toBeTruthy();
-    await page.goto(`/listing/${listings[0].id}`);
+    const target = listings.find(
+      (l: { artist_id: string; price_visible: boolean | null }) =>
+        l.artist_id === seller.id && l.price_visible !== false
+    );
+    expect(target, 'onboarded artist has no purchasable listing').toBeTruthy();
+    await page.goto(`/listing/${target.id}`);
     await page.getByRole('button', { name: /buy now/i }).click();
 
     // App shipping page (pickup-only artists skip the address fields).
     await expect(page).toHaveURL(/\/checkout\//);
-    const street = page.getByLabel(/street address/i);
-    if (await street.isVisible().catch(() => false)) {
-      await street.fill('123 Main St');
-      await page.getByLabel(/city/i).fill('Houston');
-      await page.getByLabel(/state/i).fill('TX');
-      await page.getByLabel(/zip/i).fill('77001');
-    }
+    // The checkout Inputs have labels but no ids, and label-text queries can
+    // hit the navbar's location picker — target unique placeholders. WAIT for
+    // hydration explicitly: right after navigation the URL matches but the
+    // form isn't mounted, and a quick isVisible() check would skip the fills
+    // and strand the test on a disabled Pay button. (The seeded onboarded
+    // artist ships, so the address form is always present here.)
+    const street = page.getByPlaceholder('123 Main St');
+    await street.waitFor({ state: 'visible', timeout: 15_000 });
+    await street.fill('123 Main St');
+    await page.getByPlaceholder('Your city').fill('Houston');
+    await page.getByPlaceholder('TX').fill('TX');
+    await page.getByPlaceholder('77001').fill('77001');
     await page.getByRole('button', { name: /^pay/i }).click();
 
-    // Stripe hosted checkout: page-level inputs on checkout.stripe.com.
+    // Stripe hosted checkout: an accordion of payment methods; the card form
+    // (page-level inputs with stable name= attrs, verified by live inventory)
+    // expands after selecting the Card radio. Billing address is required.
     await page.waitForURL(/checkout\.stripe\.com/, { timeout: 30_000 });
-    await page.getByLabel(/card number/i).fill('4242424242424242');
-    await page.getByLabel(/expiration/i).fill('12/34');
-    await page.getByLabel(/cvc|security code/i).fill('123');
-    const nameField = page.getByLabel(/name on card|cardholder/i);
-    if (await nameField.isVisible().catch(() => false)) await nameField.fill('E2E Buyer');
-    const zipField = page.getByLabel(/zip|postal/i).last();
-    if (await zipField.isVisible().catch(() => false)) await zipField.fill('77001');
+    const field = (name: string) => page.locator(`input[name="${name}"]`).first();
+    await field('email').waitFor({ state: 'visible', timeout: 20_000 });
+    await field('email').fill(buyer!.email);
+    await page.getByRole('radio', { name: /card/i }).first().click({ force: true });
+    await field('cardNumber').waitFor({ state: 'visible', timeout: 15_000 });
+    await field('cardNumber').fill('4242424242424242');
+    await field('cardExpiry').fill('12/34');
+    await field('cardCvc').fill('123');
+    await field('billingName').fill('E2E Buyer');
+    await field('billingAddressLine1').fill('123 Main St');
+    // Address may collapse into an autocomplete — fill locality/ZIP if shown.
+    for (const nm of ['billingLocality', 'billingPostalCode'] as const) {
+      const f = field(nm);
+      if (await f.isVisible().catch(() => false)) {
+        await f.fill(nm === 'billingPostalCode' ? '77001' : 'Houston');
+      }
+    }
+    // Stripe pre-checks "Save my info" (Link), which makes phone REQUIRED —
+    // and an empty phone silently blocks Pay on validation. Opt out.
+    const linkOptIn = page.locator('input[name="enableStripePass"]').first();
+    if (await linkOptIn.isChecked().catch(() => false)) {
+      await linkOptIn.uncheck({ force: true });
+    }
     await page.getByTestId('hosted-payment-submit-button').click();
 
     // Back on the app: the orders page success banner.
