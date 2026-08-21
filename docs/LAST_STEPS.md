@@ -44,7 +44,7 @@ Notes:
 - [x] **Full purchase on staging** (webhook is configured there): buy a piece
       as buyer.test with Stripe test card `4242 4242 4242 4242` → order
       appears in /orders and /studio/sales, listing marked sold, both
-      confirmation emails show the tax-inclusive total and the 5% fee.
+      confirmation emails show the tax-inclusive total and the processing-fee service fee (~3% + 31¢, grossed up).
 
 ## 3. Stripe housekeeping (test mode)
 

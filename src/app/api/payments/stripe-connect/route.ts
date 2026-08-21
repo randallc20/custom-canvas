@@ -24,7 +24,15 @@ export async function POST() {
     const account = await getStripe().accounts.create({
       type: 'express',
       email: user.email!,
-      capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+      // transfers-only: destination charges mean artists never create charges,
+      // so card_payments (and its full merchant KYC) is unnecessary — this is
+      // the lighter recipient onboarding. Verified in test mode 2026-08-21:
+      // bank account (external_account) is still collected.
+      capabilities: { transfers: { requested: true } },
+      // 14-day payout delay: disputes arrive weeks after delivery; the buffer
+      // keeps the money in the artist's Stripe balance long enough that a
+      // refund reversal doesn't drive their checking account negative.
+      settings: { payouts: { schedule: { interval: 'daily', delay_days: 14 } } },
     });
     accountId = account.id;
 

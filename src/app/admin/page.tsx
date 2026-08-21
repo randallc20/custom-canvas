@@ -113,7 +113,7 @@ function AdminDashboard() {
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <StatCard label="Total Revenue" value={formatPrice(stats.total_revenue_cents)} highlight />
-        <StatCard label="Platform Fees (15%)" value={formatPrice(stats.platform_fees_cents)} highlight />
+        <StatCard label="Platform Revenue (15%)" value={formatPrice(stats.platform_fees_cents)} highlight />
         {stats.pending_reports > 0 ? (
           <Link href="/admin/disputes">
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">

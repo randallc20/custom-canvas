@@ -108,7 +108,8 @@ export async function sendOrderConfirmationEmail(
   buyerName: string,
   listingTitle: string,
   amount: string,
-  orderId: string
+  orderId: string,
+  artistName: string
 ): Promise<void> {
   await getResend().emails.send({
     from: FROM_EMAIL,
@@ -121,9 +122,11 @@ export async function sendOrderConfirmationEmail(
         <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, your purchase has been confirmed!</p>
         <div style="background:#f9f9f9;padding:16px;border-radius:8px;margin:16px 0">
           <p style="margin:0;font-weight:bold;color:#111">${escapeHtml(listingTitle)}</p>
+          <p style="margin:4px 0 0;color:#666">by ${escapeHtml(artistName)}</p>
           <p style="margin:4px 0 0;color:#666">Total: ${amount}</p>
           <p style="margin:4px 0 0;color:#999;font-size:13px">Order #${orderId.slice(0, 8)}</p>
         </div>
+        <p style="color:#666;font-size:14px;line-height:1.5">This charge will appear as <strong>CUSTOM CANVAS</strong> on your card statement.</p>
         <a href="${APP_URL}/orders" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View Order</a>
       </div>
     `,

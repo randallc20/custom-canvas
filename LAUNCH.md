@@ -56,6 +56,11 @@ final smoke test remain.*
       fine.
 
 ## 5. Smoke test on production (Stage 3 of MASTER-PLAN)
+- [ ] **FIRST, before anything else:** one live-mode `accounts.create` probe —
+      the Accounts-v1 dashboard toggle only showed a Test-mode row, and the
+      ugly failure mode is artist onboarding working in test and dying in
+      live. If the live call errors, it's a Stripe support ticket (see
+      DECISIONS.md). Ask Claude to run it the moment live keys exist.
 - [ ] Fresh artist signup → **setup checklist** → Submit for review →
       admin approves from `/admin/applications` → shop is publicly visible.
       Also exercise reject-with-reason → fix → resubmit once.

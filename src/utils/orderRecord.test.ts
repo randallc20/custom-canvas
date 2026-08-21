@@ -30,9 +30,9 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
     expect(order).not.toBeNull();
     expect(order!.amount_cents).toBe(30000);
     expect(order!.shipping_cents).toBe(2000);
-    expect(order!.buyer_fee_cents).toBe(1500); // 5% of $300, at the cap
+    expect(order!.buyer_fee_cents).toBe(1500); // session-locked fee
     expect(order!.artist_payout_cents).toBe(27500);
-    expect(order!.platform_fee_cents).toBe(6000); // commission + buyer fee
+    expect(order!.platform_fee_cents).toBe(4500); // 15% commission ONLY — the buyer fee is a Stripe pass-through, not revenue
     expect(order!.amount_tax_cents).toBe(0); // no tax details on the session
     expect(order!.stripe_payment_intent_id).toBe('pi_test_123');
     expect(order!.status).toBe('paid');
@@ -63,9 +63,11 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
       'artist-1'
     );
     expect(order!.buyer_fee_cents).toBe(1000);
-    expect(order!.platform_fee_cents).toBe(750 + 1000); // 15% commission + locked fee
+    expect(order!.platform_fee_cents).toBe(750); // 15% commission only
     const buyerTotal = order!.amount_cents + order!.buyer_fee_cents + order!.shipping_cents;
-    expect(order!.artist_payout_cents + order!.platform_fee_cents).toBe(buyerTotal);
+    // Money conservation under the pass-through model: what the buyer pays =
+    // artist payout + platform commission + the fee handed to Stripe.
+    expect(order!.artist_payout_cents + order!.platform_fee_cents + order!.buyer_fee_cents).toBe(buyerTotal);
   });
 
   it('returns null when money metadata is missing — never fabricates amounts', () => {
@@ -83,7 +85,7 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
     expect(order!.shipping_cents).toBe(0);
     expect(order!.shipping_address).toBeNull();
     expect(order!.artist_payout_cents).toBe(12750);
-    expect(order!.platform_fee_cents).toBe(3000); // 15% commission + $7.50 fee
+    expect(order!.platform_fee_cents).toBe(2250); // 15% commission only
   });
 
   it('defaults malformed shipping_cents to 0', () => {
@@ -110,6 +112,6 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
       'artist-1'
     );
     const buyerTotal = order!.amount_cents + order!.buyer_fee_cents + order!.shipping_cents;
-    expect(order!.artist_payout_cents + order!.platform_fee_cents).toBe(buyerTotal);
+    expect(order!.artist_payout_cents + order!.platform_fee_cents + order!.buyer_fee_cents).toBe(buyerTotal);
   });
 });

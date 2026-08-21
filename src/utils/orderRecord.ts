@@ -59,7 +59,10 @@ export function buildOrderRecord(
     buyer_id: buyerId,
     artist_id: artistId,
     amount_cents: priceCents,
-    platform_fee_cents: split.platformCommission + lockedFee,
+    // The buyer fee passes through to Stripe — it is NOT platform revenue.
+    // Reports summing platform_fee_cents now see the 15% commission alone;
+    // buyer_fee_cents keeps the fee for per-order accounting.
+    platform_fee_cents: split.platformCommission,
     artist_payout_cents: split.artistPayout,
     buyer_fee_cents: lockedFee,
     shipping_cents: split.shippingCents,

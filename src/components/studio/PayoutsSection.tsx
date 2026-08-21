@@ -68,7 +68,9 @@ export function PayoutsSection() {
               <span className="text-sm text-muted">Stripe account is active</span>
             </div>
             <p className="mt-4 text-sm text-muted">
-              Payouts are handled automatically by Stripe. You receive 85% of each sale.
+              Payouts are handled automatically by Stripe. You receive 85% of each sale,
+              plus your full shipping charge. Payouts arrive about 14 days after each
+              sale — the delay protects you and your buyers if a payment is disputed.
             </p>
             <p className="mt-2 text-sm text-muted">
               To view your payout schedule, balance, and bank account details, visit your Stripe dashboard.
