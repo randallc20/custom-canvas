@@ -41,10 +41,10 @@ export default function AboutPage() {
 
         <h2 className="text-xl font-semibold text-ink">Fair, Simple Pricing</h2>
         <p>
-          The price you see is the artist&apos;s price. Buyers pay a 5% service fee, capped
-          at $15 per order — shown on every listing before you check out. That fee, plus a
-          15% share of each sale, is how we keep the lights on while artists keep 85% and
-          all of their shipping.
+          The price you see is the artist&apos;s price. Buyers pay a small service fee that
+          covers payment processing — about 3% of the price plus shipping ($3.30 on a $100
+          piece), applied to every order regardless of payment method. Our 15% share of each
+          sale is how we keep the lights on while artists keep 85% and all of their shipping.
         </p>
 
         <h2 className="text-xl font-semibold text-ink">Contact</h2>

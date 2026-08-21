@@ -121,7 +121,7 @@ function CheckoutContent() {
             <span>Total</span>
             <span>{formatPrice(split.buyerTotal)}</span>
           </div>
-          <p className="pt-1 text-xs text-muted">Sales tax is calculated at payment.</p>
+          <p className="pt-1 text-xs text-muted">The service fee covers payment processing and applies to every order. Sales tax is calculated at payment.</p>
         </div>
       </div>
       {isPickup ? (

@@ -172,7 +172,8 @@ export async function POST(request: NextRequest) {
           buyer.full_name ?? 'Collector',
           listing.title,
           formatPrice(session.amount_total ?? (order.amount_cents + order.buyer_fee_cents + order.shipping_cents)),
-          inserted.id
+          inserted.id,
+          artistProf?.display_name ?? 'a Custom Canvas artist'
         ).catch(() => {});
       }
 
@@ -281,17 +282,26 @@ export async function POST(request: NextRequest) {
 
     case 'account.updated': {
       const account = event.data.object;
-      if (account.charges_enabled) {
-        const { data: artistRow } = await supabase
-          .from('artist_profiles')
-          .update({ stripe_onboarded: true })
-          .eq('stripe_account_id', account.id)
-          .select('id')
-          .maybeSingle();
-        if (artistRow) {
-          // Onboarding affects the completeness score — refresh canonically.
-          await supabase.rpc('refresh_completeness_score', { p_artist_id: artistRow.id });
-        }
+      // Destination charges: the artist never creates charges — the platform
+      // does, then transfers. charges_enabled is therefore the WRONG signal
+      // (it can be true with no bank attached, stranding money in a Stripe
+      // balance). Ready means: transfers capability active AND a working
+      // payout destination. Written unconditionally so an account that later
+      // falls out of good standing flips back off and checkout blocks with
+      // the clean "hasn't finished setting up payments" error instead of an
+      // opaque transfer failure.
+      const ready =
+        account.payouts_enabled === true &&
+        account.capabilities?.transfers === 'active';
+      const { data: artistRow } = await supabase
+        .from('artist_profiles')
+        .update({ stripe_onboarded: ready })
+        .eq('stripe_account_id', account.id)
+        .select('id')
+        .maybeSingle();
+      if (artistRow) {
+        // Onboarding affects the completeness score — refresh canonically.
+        await supabase.rpc('refresh_completeness_score', { p_artist_id: artistRow.id });
       }
       break;
     }

@@ -61,7 +61,7 @@ or a normal + private window — sessions are per-browser.
       results (tags are searchable; extra words don't zero the results).
       Nonsense ("zebra unicorn") still returns the empty state.
 - [ ] 1.5 Open a listing: image carousel, dimensions/medium/year, price,
-      **"Service fee (5%, max $15)" + estimated total + "artist keeps 85%"**
+      **"Service fee" + estimated total + "artist keeps 85%"** (fee covers payment processing, ~3% of price+shipping)
       note, related works below. Share button copies a link.
 - [ ] 1.6 Open an artist page: hero with accent color, pinned work, series
       tabs, My Story, education, photos, reviews, commission panel.
@@ -71,8 +71,9 @@ or a normal + private window — sessions are per-browser.
 - [ ] 1.8 `/partners`: directory renders, type filter chips work.
 - [ ] 1.9 Try to save a heart / Buy Now while logged out → pushed to login;
       after logging in you return to where you were (returnUrl).
-- [ ] 1.10 About page: mission + "Fair, Simple Pricing" section (5% fee, cap
-      $15, 85% to artists). Terms: fee terms + refund policy paragraph.
+- [ ] 1.10 About page: mission + "Fair, Simple Pricing" section (processing-fee
+      service fee, e.g. $3.30 on $100; 85% to artists). Terms: fee terms +
+      refund policy paragraph.
 - [ ] 1.11 Old URLs redirect: `/galleries` → `/partners`.
 - [ ] 1.12 Mobile (or narrow window): hamburger menu, shelves scroll
       horizontally, no sideways page scroll anywhere.
@@ -126,7 +127,7 @@ or a normal + private window — sessions are per-browser.
 **Purchase (the money path — do this one carefully)**
 - [ ] 3.4 Pick an available piece from "Ada Artist" (the Stripe-connected test
       artist) → Buy Now → checkout page shows price, shipping, **service fee
-      = 5% of price (capped at $15)**, total, "tax at payment" note.
+      covers payment processing (e.g. $3.30 on $100)**, total, "tax at payment" note.
 - [ ] 3.5 Fill a Houston address → Pay → Stripe hosted page (Custom Canvas
       branding once you upload it in Stripe) → pay with the test card →
       returned to `/orders?success=true` → order listed as **paid**.

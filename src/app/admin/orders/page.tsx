@@ -112,7 +112,7 @@ function OrdersContent() {
           <p className="text-2xl font-bold text-ink">{formatPrice(totalRevenue)}</p>
         </div>
         <div className="rounded-lg border border-line p-4">
-          <p className="text-sm text-muted">Platform Fees</p>
+          <p className="text-sm text-muted">Platform Revenue (15% commission)</p>
           <p className="text-2xl font-bold text-terra">{formatPrice(totalFees)}</p>
         </div>
         <div className="rounded-lg border border-line p-4">
@@ -144,7 +144,7 @@ function OrdersContent() {
               <th className="px-4 py-3 font-medium text-ink">Order</th>
               <th className="px-4 py-3 font-medium text-ink">Buyer</th>
               <th className="px-4 py-3 font-medium text-ink">Amount</th>
-              <th className="px-4 py-3 font-medium text-ink">Fee</th>
+              <th className="px-4 py-3 font-medium text-ink">Commission</th>
               <th className="px-4 py-3 font-medium text-ink">Status</th>
               <th className="px-4 py-3 font-medium text-ink">Date</th>
             </tr>
