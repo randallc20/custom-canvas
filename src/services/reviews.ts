@@ -25,8 +25,8 @@ export async function createReview(data: {
 export async function getReviewsByArtist(artistId: string): Promise<(Review & { reviewer_name?: string })[]> {
   const { data, error } = await supabase
     .from('reviews')
-    .select('*, order:orders!inner(artist_id), reviewer:profiles!reviews_reviewer_id_fkey(full_name)')
-    .eq('order.artist_id', artistId)
+    .select('*, reviewer:profiles!reviews_reviewer_id_fkey(full_name)')
+    .eq('artist_id', artistId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -59,8 +59,8 @@ export async function getReviewByOrderId(orderId: string): Promise<Review | null
 export async function getArtistRating(artistId: string): Promise<{ average: number; count: number }> {
   const { data, error } = await supabase
     .from('reviews')
-    .select('rating, order:orders!inner(artist_id)')
-    .eq('order.artist_id', artistId);
+    .select('rating')
+    .eq('artist_id', artistId);
 
   if (error) throw error;
 

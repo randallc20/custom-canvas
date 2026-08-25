@@ -74,8 +74,11 @@ export default async function ArtistPage({ params }: Props) {
       .order('created_at', { ascending: false }),
     supabase
       .from('reviews')
-      .select('*, order:orders!inner(artist_id), reviewer:profiles(full_name)')
-      .eq('order.artist_id', artist.id)
+      // NOT via orders!inner: orders RLS is buyer/artist/admin, so an inner
+      // join silently dropped every review for the shoppers reviews exist to
+      // persuade. reviews.artist_id (00038) is set by trigger from the order.
+      .select('*, reviewer:profiles(full_name)')
+      .eq('artist_id', artist.id)
       .order('created_at', { ascending: false })
       .limit(20),
     supabase

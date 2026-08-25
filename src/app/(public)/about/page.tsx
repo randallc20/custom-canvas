@@ -35,10 +35,9 @@ export default function AboutPage() {
 
         <h2 className="text-xl font-semibold text-ink">For Artists</h2>
         <p>
-          Keep the lion&apos;s share of every sale — the exact split is stated plainly in
-          your Artist Agreement the moment you join, before you list a single piece. We
-          handle payments, provide a storefront, and connect you with collectors who are
-          looking for exactly what you create.
+          Keep the lion&apos;s share of every sale. We handle payments, provide a
+          storefront, and connect you with collectors who are looking for exactly what
+          you create. Full terms are in the Artist Agreement you accept when you join.
         </p>
 
         <h2 className="text-xl font-semibold text-ink">Fair, Simple Pricing</h2>

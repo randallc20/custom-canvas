@@ -22,7 +22,10 @@ export default function LoginPage() {
     if (user) {
       // Honor a returnUrl (e.g. mid-checkout) before falling back to role home.
       const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
-      if (returnUrl && returnUrl.startsWith('/')) {
+      // A single leading slash only: '//evil.com' and '/\evil.com' both pass a
+      // bare startsWith('/') and resolve to an off-origin URL, handing a
+      // freshly-authenticated user to an attacker under our own login.
+      if (returnUrl && /^\/(?![/\\])/.test(returnUrl)) {
         router.push(returnUrl);
       } else if (user.role === 'artist') {
         router.push('/studio');
