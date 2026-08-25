@@ -1,6 +1,6 @@
 # Custom Canvas Seller Protection
 
-**DRAFT — for counsel review.** The system described here is **live in production** as
+**DRAFT — complete draft for counsel review.** The system described here is **live in production** as
 of 2026-08-25; this is the artist-facing document for it, which does not yet exist.
 
 ---

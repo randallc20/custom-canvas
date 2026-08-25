@@ -1,6 +1,6 @@
 # Prohibited & Restricted Items Policy
 
-**DRAFT — for counsel review.**
+**DRAFT — complete draft for counsel review.**
 
 Custom Canvas sells **original physical artwork by living, local artists**. Anything
 outside that is either restricted or prohibited.
@@ -37,6 +37,9 @@ outside that is either restricted or prohibited.
 - Mass-produced goods, dropshipped items, or resold merchandise
 - Purely digital goods, NFTs, or tokenised representations of work
 - Services, gift cards, or anything not a physical object
+- **Wholly AI-generated work** — work that is essentially the output of a generative
+  system. AI *assistance* within a piece you authored is allowed with disclosure; see
+  the Authenticity & Provenance Policy.
 
 ## Restricted — allowed with conditions
 
@@ -49,7 +52,7 @@ outside that is either restricted or prohibited.
 | Vintage or estate work | Only if the seller has the right to sell it, disclosed as not by the seller |
 | Fragile or oversized work | Must be packed and insured appropriately; shipping cost must be realistic |
 | Work incorporating organic material | Must comply with agricultural and wildlife shipping rules |
-| **AI-generated or AI-assisted work** | **[POLICY DECISION PENDING — see Authenticity & Provenance Policy]** |
+| **AI-assisted work** | Permitted **only with disclosure** in the description, stating what the artist contributed. Wholly AI-generated work is prohibited — see below. |
 
 ## Enforcement
 

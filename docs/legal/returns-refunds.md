@@ -1,6 +1,6 @@
 # Returns & Refunds Policy
 
-**DRAFT — for counsel review.** Card networks expect a refund policy to be
+**DRAFT — complete draft for counsel review.** Card networks expect a refund policy to be
 **conspicuous at checkout**, not buried in general terms. This is the standalone version.
 
 ---
@@ -39,10 +39,17 @@ wrong medium, wrong size, a reproduction sold as an original, undisclosed damage
 contact the artist and then **support@customcanvas.shop**. Keep the packaging and
 photograph everything, including the box.
 
-[**COUNSEL:** decide whether a substantiated misdescription **overrides** the artist's
-ordinary discretion to decline. It probably should — if the only remaining route is a
-chargeback, the outcome is worse for the artist, worse for Custom Canvas's card-network
-standing, and slower for the buyer.]
+**Where we substantiate that a piece arrived damaged or was materially misdescribed,
+Custom Canvas will refund you whether or not the artist agrees.** The artist's
+discretion covers changing your mind; it does not cover a piece that was not what the
+listing said it was.
+
+*[Counsel: confirm. The alternative — leaving it entirely to the artist — pushes the
+buyer to a chargeback, which is slower for them, worse for the artist, and damaging to
+Custom Canvas's card-network standing. This also needs to be reflected in the Artist
+Agreement §8, which currently says approval is the artist's decision "except where we
+must act on a card network's determination or a legal obligation" — that carve-out
+should be widened to include substantiated misdescription.]*
 
 ## Before you dispute with your bank
 

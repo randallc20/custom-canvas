@@ -1,6 +1,6 @@
 # Custom Canvas Terms of Sale
 
-**DRAFT v2 — for counsel review.** These govern **buying** on Custom Canvas. Displayed
+**DRAFT v2 — complete draft for counsel review.** These govern **buying** on Custom Canvas. Displayed
 in summary directly above the Pay button and accepted at checkout.
 
 ---
@@ -40,9 +40,12 @@ For local pickup, you arrange handoff with the artist in Messages after paying.
 tax charged. Please check it — we cannot reroute a shipment after the artist has posted
 it.
 
-[**RISK OF LOSS — COUNSEL TO SET.** When title and risk pass to the buyer, and who bears
-loss or damage in transit, is currently undefined. It must be stated here, and it must
-match how refunds and seller protection actually behave.]
+**Until your piece is delivered, it is the artist's risk, not yours.** If a work is
+lost, stolen or damaged in transit, you are entitled to a refund of the artwork price
+and shipping. Artists are required to insure every shipment for at least the artwork
+price.
+
+Once the piece is delivered to the address on your order, risk passes to you.
 
 ## 4. Originals, editions and condition
 
@@ -66,9 +69,14 @@ On an approved refund you receive the **artwork price + shipping + the sales tax
 on those amounts**. The **service fee and the tax on the fee are retained**.
 
 This is a marketplace of one-of-a-kind objects made by individual people, not a
-warehouse — which is why returns are the artist's decision rather than automatic. If a
-piece arrives **damaged, or is materially not as described**, contact the artist first
-and then support@customcanvas.shop; we will help resolve it.
+warehouse — which is why returns are the artist's decision rather than automatic.
+
+**But that discretion has a limit.** If a piece arrives **damaged**, or is **materially
+not as the listing described it** — wrong medium, wrong size, a reproduction sold as an
+original, undisclosed damage — contact the artist and then support@customcanvas.shop.
+Where we substantiate the claim, **we will refund you whether or not the artist
+agrees.** The artist decides about a change of mind; they do not decide whether the
+piece was what they said it was.
 
 Nothing here limits rights you have under law that cannot be excluded.
 

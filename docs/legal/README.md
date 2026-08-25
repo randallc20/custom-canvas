@@ -30,19 +30,29 @@ from anywhere else. It ends with eight questions that need a ruling.
 | [shipping-policy.md](shipping-policy.md) | New | Buyers |
 | [community-guidelines.md](community-guidelines.md) | New | Everyone |
 
-## Decisions that must be made before any of this is final
+## Decisions taken in these drafts — confirm or overrule
 
-1. **AI-generated work** — prohibit, permit with disclosure, or permit assisted only.
-   Affects the Artist Agreement, Authenticity and Prohibited Items.
-2. **Risk of loss** — when title and risk pass, who insures, who bears carrier damage.
-   Affects Terms of Sale, Shipping and the Artist Agreement, and is currently undefined
-   everywhere.
-3. **Arbitration and class-action waiver** — in or out. Currently absent.
-4. **Limitation of liability** — needs a stated cap.
-5. **Does substantiated misdescription override artist refund discretion?**
-6. **Data retention periods**, and how "delete my account" reconciles with records that
-   must be kept.
-7. **Repeat-infringer threshold** for the DMCA policy.
+Every open question is now answered in the text rather than left blank, so counsel edits
+rather than originates. Each is flagged inline as *[Counsel: …]* with the reasoning. The
+seven that carry real business consequence:
+
+| Decision | Position taken | Where |
+|---|---|---|
+| **AI work** | Wholly generated **prohibited**; assisted permitted **with disclosure** | Agreement §5, Authenticity, Prohibited Items |
+| **Risk of loss** | **Artist bears until delivery**; artist must insure for the artwork price | Agreement §7, Terms of Sale §3, Shipping |
+| **Misdescription** | **Overrides** artist refund discretion where substantiated | Terms of Sale §5, Returns, Authenticity, Agreement §8 |
+| **Arbitration** | **Included**, individually, with small-claims and injunctive carve-outs, a 30-day opt-out and fee-shifting | ToS §15, Agreement §13.6 |
+| **Liability cap** | Artists: greater of 12 months' commissions or $500. Everyone: greater of 12 months' transactions or $100 | Agreement §13.3, ToS §13.4 |
+| **Retention** | 7 years for order/tax records; 3 years messages; 30 days to delete an account; 90-day backup cycle | Privacy §6 |
+| **Repeat infringers** | **3 substantiated notices in 12 months**; immediate for deliberate or large-scale | DMCA |
+
+**Risk of loss is the one I would most want a second opinion on.** The default rule for
+shipment contracts passes risk on tender to the carrier; these drafts deliberately place
+it on the artist until delivery. The reasoning is that a buyer whose piece never arrives
+disputes the charge and wins, so the loss lands on the seller regardless of what the
+document says — stating it plainly makes artists insure for it rather than discover it.
+That is a commercial judgement, not a legal necessity, and counsel may prefer the
+default with an insurance requirement bolted on.
 
 ## Non-document actions
 

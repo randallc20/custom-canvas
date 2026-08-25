@@ -1,6 +1,6 @@
 # Shipping Policy
 
-**DRAFT — for counsel review.**
+**DRAFT — complete draft for counsel review.**
 
 ---
 
@@ -51,11 +51,18 @@ changed hands.
 Photograph the packaging and the piece before unpacking further, keep everything, and
 contact the artist and support@customcanvas.shop promptly.
 
-[**RISK OF LOSS — COUNSEL TO SET.** When title and risk pass to the buyer, who is
-required to insure a shipment, and who bears a carrier loss, are all currently
-undefined across every document. This is the most consequential open gap in the buyer
-documents, and the answer must be consistent here, in the Terms of Sale, and in the
-Artist Agreement.]
+## Risk of loss
+
+**The artist bears the risk until your piece is delivered.** If it is lost, stolen or
+damaged in transit you are entitled to a refund of the artwork price and shipping.
+Artists must insure every shipment for at least the artwork price.
+
+Once delivered to the address on your order, risk passes to you.
+
+This is stricter than the default rule for shipment contracts, and it is set this way
+deliberately: a buyer whose piece never arrives will dispute the charge and win, so the
+loss lands with the seller regardless. Saying so plainly means artists insure for it
+rather than discover it.
 
 ## International
 

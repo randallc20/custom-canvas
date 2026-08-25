@@ -1,6 +1,6 @@
 # Custom Canvas Privacy Policy
 
-**DRAFT v2 — for counsel review.** Rewritten 2026-08-25 against the actual code: the
+**DRAFT v2 — complete draft for counsel review.** Rewritten 2026-08-25 against the actual code: the
 previous version named three processors where the platform uses eight, and omitted
 geolocation entirely.
 
@@ -85,25 +85,58 @@ switched off in your account settings or by the unsubscribe link in any such mes
 
 ## 6. How long we keep it
 
-[**COUNSEL TO SET RETENTION PERIODS.** Current practice: order and transaction records
-are kept indefinitely for tax, accounting and dispute-defence purposes; account content
-is deleted on request. Counsel should set explicit periods, and reconcile "delete my
-account" against the records we must keep — a completed sale cannot simply vanish.]
+| What | How long | Why |
+|---|---|---|
+| Order and payment records | **7 years** after the sale | Tax, accounting, and defending a dispute or chargeback |
+| Artist payout and tax records | **7 years** | Same |
+| Messages between buyer and artist | **3 years** after the last message in the thread | Evidence for disputes and abuse reports |
+| Listings and images | Until you delete them, or **90 days** after account closure | Sold listings are retained as part of the order record |
+| Account profile | Deleted within **30 days** of a deletion request | — |
+| Error logs and diagnostics | **90 days** | — |
+| Analytics events | **24 months**, aggregated thereafter | — |
+| Backups | Purged on a rolling **90-day** cycle | Deleted data persists in backups until the cycle completes |
+
+**How deletion interacts with records we must keep.** If you ask us to delete your
+account we remove your profile, listings, saved items and preferences, and disconnect
+your identity from analytics. **We cannot delete a completed sale.** Tax law, accounting
+obligations and dispute defence require us to keep the transaction record — order
+amount, date, tax collected, and the shipping address the piece went to — for seven
+years. What we do is reduce it to what those obligations need and detach it from your
+active account.
+
+*[Counsel: confirm the seven-year figure against Texas and federal record-keeping
+requirements, and confirm that retaining a shipping address inside a closed order is
+the right call — it is needed to defend a chargeback, which can arrive long after
+account closure.]*
 
 ## 7. Your rights
 
 You can view and change your information in your account settings, adjust email
 preferences, or ask us to delete your account by writing to support@customcanvas.shop.
 
-**Texas residents.** The Texas Data Privacy and Security Act gives you rights to access,
-correct, delete and port your personal data, and to opt out of targeted advertising,
-sale, and certain profiling. We do not sell personal data or use it for targeted
-advertising. [Counsel: Custom Canvas is very likely an SBA "small business" and so
-largely exempt from the TDPSA — but the consent requirement before selling *sensitive*
-data applies regardless. Confirm and state the position.]
+**Texas residents.** The Texas Data Privacy and Security Act gives Texas consumers
+rights to access, correct, delete and port their personal data, and to opt out of
+targeted advertising, the sale of personal data, and certain profiling.
 
-**California residents.** [Counsel to confirm whether CCPA/CPRA thresholds are met —
-almost certainly not at launch — and decide whether to offer the rights voluntarily.]
+The TDPSA is unusual in having no revenue or headcount threshold: it applies to anyone
+doing business in Texas **unless they are a "small business" as defined by the U.S.
+Small Business Administration**. Custom Canvas is a small business by that definition,
+so most of the Act's obligations do not currently apply to us. One does regardless of
+size: **we will not sell sensitive personal data without your consent** — and we do not
+sell personal data at all.
+
+**We honour these rights anyway.** Being exempt is not a reason to behave differently,
+and we would rather not rebuild our practices the day we outgrow the exemption. Write to
+support@customcanvas.shop.
+
+**California residents.** We do not currently meet the CCPA/CPRA applicability
+thresholds. We extend the same rights described above to California residents
+voluntarily, and we do not sell or share personal data for cross-context behavioural
+advertising.
+
+*[Counsel: confirm the SBA size-standard analysis for our NAICS code, and confirm you
+are comfortable with the voluntary extension — offering rights we are not required to
+offer is a commitment, and withdrawing it later reads badly.]*
 
 We will not discriminate against you for exercising any of these rights.
 
@@ -114,8 +147,20 @@ what they are entitled to. Email addresses and sensitive artist fields are restr
 the database level, not merely hidden in the interface. Passwords are hashed by our auth
 provider. Rate limiting and CAPTCHA on sensitive endpoints.
 
-No system is perfectly secure. [**COUNSEL:** add breach-notification commitments
-consistent with Texas law.]
+No system is perfectly secure, and we will not claim otherwise.
+
+**If a breach affects your personal data**, we will notify you without unreasonable
+delay once we have determined what happened and what data was involved. Texas law
+requires notification to affected individuals **within 60 days** of determining that a
+breach occurred, and requires us to notify the Texas Attorney General where more than
+250 Texas residents are affected. We will meet those obligations and aim to tell you
+sooner where we can do so usefully.
+
+Our notice will describe what happened, what data was involved, what we have done, and
+what you can do.
+
+*[Counsel: confirm the 60-day figure and the AG-notification threshold against the
+current text of Tex. Bus. & Com. Code §521.053.]*
 
 ## 9. Children
 

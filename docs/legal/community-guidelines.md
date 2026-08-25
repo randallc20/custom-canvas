@@ -1,6 +1,6 @@
 # Community Guidelines
 
-**DRAFT — for counsel review.**
+**DRAFT — complete draft for counsel review.**
 
 Custom Canvas is a small marketplace built on local artists and the people who collect
 from them. These are the ground rules.

@@ -1,6 +1,6 @@
 # DMCA & Copyright Policy
 
-**DRAFT — for counsel review.**
+**DRAFT — complete draft for counsel review.**
 
 > ⚠️ **ACTION REQUIRED BEFORE LAUNCH.** Custom Canvas hosts artwork uploaded by users
 > and has **no designated agent registered** with the U.S. Copyright Office. Without a
@@ -68,9 +68,18 @@ days**.
 ## Repeat infringers
 
 We terminate, in appropriate circumstances, the accounts of users who repeatedly
-infringe. [**COUNSEL:** define the threshold — a stated, consistently applied standard
-is what courts look for. Note this must be reconciled with the Artist Agreement's
-suspension provisions.]
+infringe.
+
+Our standard: **three substantiated notices within twelve months** results in
+termination of the account. A notice is not counted where the artist files a
+counter-notice that we accept, or where the notice is withdrawn or plainly defective.
+We may terminate immediately, without reaching three, for deliberate or large-scale
+infringement — wholesale copying of another artist's catalogue, for example.
+
+*[Counsel: a stated, consistently applied standard is what courts look for when
+assessing a repeat-infringer policy. Confirm the threshold and, more importantly,
+confirm we will actually apply it as written — an unapplied policy is worse than a
+lenient one.]*
 
 ## Not a substitute for the Authenticity Policy
 
