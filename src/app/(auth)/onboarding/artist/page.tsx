@@ -7,16 +7,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { artistProfileSchema, ArtistProfileFormData } from '@/schemas/artistSchema';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
+import { AGREEMENT_SUMMARY, ARTIST_AGREEMENT_VERSION } from '@/lib/agreement';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/utils/slugify';
 
-const STEPS = ['Basics', 'About', 'Preferences'];
+const STEPS = ['Basics', 'About', 'Preferences', 'Agreement'];
 
 export default function ArtistOnboardingPage() {
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
+  const [agreed, setAgreed] = useState(false);
   const { user, loading } = useAuth();
   const router = useRouter();
   const { register, handleSubmit, formState: { errors, isSubmitting }, trigger } = useForm<ArtistProfileFormData>({
@@ -48,7 +50,7 @@ export default function ArtistOnboardingPage() {
   };
 
   const handleNext = async () => {
-    const fields = stepFields[step];
+    const fields = stepFields[step] ?? [];
     if (fields && fields.length > 0) {
       const valid = await trigger(fields);
       if (!valid) return;
@@ -58,11 +60,20 @@ export default function ArtistOnboardingPage() {
 
   const onSubmit = async (data: ArtistProfileFormData) => {
     setError('');
+    if (!agreed) {
+      setError('Please accept the Artist Agreement to continue.');
+      return;
+    }
     const slug = slugify(data.display_name) + '-' + Date.now().toString(36);
     const { error: insertError } = await supabase.from('artist_profiles').insert({
       profile_id: user.id,
       slug,
       ...data,
+      // Click-wrap record: the artist's own act of acceptance, stamped at
+      // creation and frozen thereafter (00037 guard). The submit-for-review
+      // API re-verifies this server-side.
+      agreement_accepted_at: new Date().toISOString(),
+      agreement_version: ARTIST_AGREEMENT_VERSION,
     });
 
     if (insertError) {
@@ -127,6 +138,39 @@ export default function ArtistOnboardingPage() {
             </>
           )}
 
+          {step === 3 && (
+            <div className="space-y-4">
+              <p className="text-sm font-semibold text-ink">The Artist Agreement — the short version</p>
+              <ul className="space-y-2 rounded-xl border border-line bg-sand/40 p-4">
+                {AGREEMENT_SUMMARY.map((point) => (
+                  <li key={point} className="flex gap-2 text-sm text-ink">
+                    <span aria-hidden className="text-terra">•</span>
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted">
+                The full agreement is available at{' '}
+                <a href="/artist-agreement" target="_blank" className="font-medium text-terra underline">
+                  Artist Agreement (v{ARTIST_AGREEMENT_VERSION})
+                </a>{' '}
+                and anytime from your Studio. Your acceptance and its date are recorded.
+              </p>
+              <label className="flex items-start gap-2 rounded-lg border border-terra/30 bg-terraSoft/40 p-3">
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  className="mt-0.5 rounded border-line"
+                />
+                <span className="text-sm text-ink">
+                  I agree to the Custom Canvas Artist Agreement, including the 15% platform
+                  commission on each sale.
+                </span>
+              </label>
+            </div>
+          )}
+
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="flex gap-3">
@@ -136,7 +180,7 @@ export default function ArtistOnboardingPage() {
             {step < STEPS.length - 1 ? (
               <Button type="button" onClick={handleNext}>Next</Button>
             ) : (
-              <Button type="submit" loading={isSubmitting}>Complete Setup</Button>
+              <Button type="submit" loading={isSubmitting} disabled={!agreed}>Complete Setup</Button>
             )}
           </div>
         </form>

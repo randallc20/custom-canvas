@@ -45,6 +45,8 @@ SVC = ENV.get("SUPABASE_SERVICE_ROLE_KEY")
 if not URL or not SVC:
     sys.exit("Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY")
 
+from datetime import datetime, timezone
+AGREED_AT = datetime.now(timezone.utc).isoformat()
 PASSWORD = "DemoPass123!"
 HEADERS = {"apikey": SVC, "Authorization": f"Bearer {SVC}", "Content-Type": "application/json"}
 
@@ -184,6 +186,7 @@ def main():
             # Demo artists are pre-approved (approval gate, migration 00030/32):
             # is_live alone would leave them stuck 'draft' in the review queue.
             "bio_layout": "left", "is_live": True, "application_status": "approved",
+            "agreement_accepted_at": AGREED_AT, "agreement_version": "1.0",
             "commissions_open": a["commissions"],
             "story": a["story"], "bio": a["story"][:140], "primary_mediums": a["mediums"],
             "fulfillment_pref": "pickup_only" if not a["commissions"] else "ships_national",
@@ -247,6 +250,7 @@ def main():
         "profile_id": pend_uid, "slug": "piper-pending", "display_name": "Piper Pending",
         "city": "Houston", "neighborhood": "Montrose", "bio_layout": "left",
         "is_live": False, "application_status": "pending", "commissions_open": False,
+        "agreement_accepted_at": AGREED_AT, "agreement_version": "1.0",
         "story": "Ceramicist exploring Gulf Coast clay bodies. Applying to sell on Custom Canvas.",
         "bio": "Ceramicist exploring Gulf Coast clay bodies.", "primary_mediums": ["Ceramics"],
         "fulfillment_pref": "pickup_only",

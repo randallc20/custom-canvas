@@ -116,7 +116,6 @@ export function PurchasePanel({ listing, artistProfileId, fulfillmentPref, awayM
               <span>Estimated total</span>
               <span>{formatPrice(split.buyerTotal)}</span>
             </div>
-            <p className="pt-1 text-xs text-muted">The artist keeps 85% of the price, plus all shipping.</p>
           </div>
           <Link href={`/checkout/${listing.id}`} className="block">
             <Button className="w-full">Buy Now</Button>
