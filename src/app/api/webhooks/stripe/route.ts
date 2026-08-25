@@ -310,22 +310,29 @@ export async function POST(request: NextRequest) {
         .eq('id', order.artist_id)
         .maybeSingle();
 
-      const recipients: string[] = [];
-      if (artistProf?.profile_id) recipients.push(artistProf.profile_id);
+      // Artist and admins get different links: /studio is artist-gated, so an
+      // admin sent there is bounced to the home page.
       const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
-      recipients.push(...(admins ?? []).map((a) => a.id));
-
-      if (recipients.length) {
-        await supabase.from('notifications').insert(
-          recipients.map((uid) => ({
-            user_id: uid,
-            type: 'order_disputed',
-            title: 'Payment disputed',
-            body: `The buyer's bank opened a dispute on "${title}". Send any shipping or delivery evidence to support@customcanvas.shop right away — the response deadline is set by the bank.`,
-            link: '/studio/sales',
-          }))
-        );
+      const rows: Array<Record<string, string>> = [];
+      if (artistProf?.profile_id) {
+        rows.push({
+          user_id: artistProf.profile_id,
+          type: 'order_disputed',
+          title: 'Payment disputed',
+          body: `The buyer's bank opened a dispute on "${title}". Send any shipping or delivery evidence to support@customcanvas.shop right away — the response deadline is set by the bank.`,
+          link: '/studio/sales',
+        });
       }
+      for (const a of admins ?? []) {
+        rows.push({
+          user_id: a.id,
+          type: 'order_disputed',
+          title: 'Payment disputed',
+          body: `A dispute was opened on "${title}". Respond in the Stripe dashboard before the bank's deadline and collect shipping evidence from the artist.`,
+          link: '/admin/orders',
+        });
+      }
+      if (rows.length) await supabase.from('notifications').insert(rows);
       Sentry.captureMessage(
         `Dispute opened on order ${order.id} (${dispute.reason}) — respond in Stripe before the deadline.`,
         'error'
