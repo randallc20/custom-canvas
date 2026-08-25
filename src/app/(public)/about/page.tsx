@@ -35,16 +35,19 @@ export default function AboutPage() {
 
         <h2 className="text-xl font-semibold text-ink">For Artists</h2>
         <p>
-          Keep 85% of every sale. We handle payments, provide a storefront, and connect
-          you with collectors who are looking for exactly what you create.
+          Keep the lion&apos;s share of every sale — the exact split is stated plainly in
+          your Artist Agreement the moment you join, before you list a single piece. We
+          handle payments, provide a storefront, and connect you with collectors who are
+          looking for exactly what you create.
         </p>
 
         <h2 className="text-xl font-semibold text-ink">Fair, Simple Pricing</h2>
         <p>
           The price you see is the artist&apos;s price. Buyers pay a small service fee that
           covers payment processing — about 3% of the price plus shipping ($3.30 on a $100
-          piece), applied to every order regardless of payment method. Our 15% share of each
-          sale is how we keep the lights on while artists keep 85% and all of their shipping.
+          piece), applied to every order regardless of payment method. Sales tax is
+          calculated at checkout. A share of each sale supports the platform; artists keep
+          the rest, plus all of their shipping.
         </p>
 
         <h2 className="text-xl font-semibold text-ink">Contact</h2>

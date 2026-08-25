@@ -61,7 +61,7 @@ or a normal + private window — sessions are per-browser.
       results (tags are searchable; extra words don't zero the results).
       Nonsense ("zebra unicorn") still returns the empty state.
 - [ ] 1.5 Open a listing: image carousel, dimensions/medium/year, price,
-      **"Service fee" + estimated total + "artist keeps 85%"** (fee covers payment processing, ~3% of price+shipping)
+      **"Service fee" + estimated total** (fee covers payment processing, ~3% of price+shipping; NO artist-split copy anywhere buyer-visible)
       note, related works below. Share button copies a link.
 - [ ] 1.6 Open an artist page: hero with accent color, pinned work, series
       tabs, My Story, education, photos, reviews, commission panel.
@@ -72,8 +72,10 @@ or a normal + private window — sessions are per-browser.
 - [ ] 1.9 Try to save a heart / Buy Now while logged out → pushed to login;
       after logging in you return to where you were (returnUrl).
 - [ ] 1.10 About page: mission + "Fair, Simple Pricing" section (processing-fee
-      service fee, e.g. $3.30 on $100; 85% to artists). Terms: fee terms +
-      refund policy paragraph.
+      service fee, e.g. $3.30 on $100; NO 85/15 split shown). Terms: fee terms +
+      refund policy + "Artists sell under a separate Artist Agreement" line.
+      Confirm the split appears NOWHERE while logged out (home stat, about,
+      terms, listing pages).
 - [ ] 1.11 Old URLs redirect: `/galleries` → `/partners`.
 - [ ] 1.12 Mobile (or narrow window): hamburger menu, shelves scroll
       horizontally, no sideways page scroll anywhere.

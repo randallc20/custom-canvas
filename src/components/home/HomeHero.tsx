@@ -51,8 +51,8 @@ export function HomeHero() {
         </div>
         <div className="mt-10 flex justify-center gap-8 text-sm text-muted">
           <div>
-            <p className="font-display text-2xl font-bold text-ink">85%</p>
-            <p>Goes to artists</p>
+            <p className="font-display text-2xl font-bold text-ink">Artist-first</p>
+            <p>Fair pay, stated up front</p>
           </div>
           <div className="border-l border-line" />
           <div>

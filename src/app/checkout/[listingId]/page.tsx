@@ -132,6 +132,13 @@ function CheckoutContent() {
               You&apos;ll coordinate pickup with the artist via Messages after purchase.
             </p>
           </div>
+          <p className="text-xs leading-relaxed text-muted">
+            By completing this purchase you agree to the{' '}
+            <a href="/terms" target="_blank" className="font-medium text-terra underline">Terms of Sale</a>,
+            including the artist-mediated refund policy and the non-refundable service fee.
+            This charge will appear as <span className="font-medium text-ink">CUSTOM CANVAS</span> on
+            your statement.
+          </p>
           <Button className="w-full" onClick={handleCheckout} loading={submitting}>
             Pay {formatPrice(split.buyerTotal)}
           </Button>
@@ -168,6 +175,13 @@ function CheckoutContent() {
             />
             <Input label="Country" value="US" disabled />
           </div>
+          <p className="text-xs leading-relaxed text-muted">
+            By completing this purchase you agree to the{' '}
+            <a href="/terms" target="_blank" className="font-medium text-terra underline">Terms of Sale</a>,
+            including the artist-mediated refund policy and the non-refundable service fee.
+            This charge will appear as <span className="font-medium text-ink">CUSTOM CANVAS</span> on
+            your statement.
+          </p>
           <Button
             className="w-full"
             onClick={handleCheckout}

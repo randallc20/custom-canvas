@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
+import { ARTIST_AGREEMENT_VERSION } from '@/lib/agreement';
 
 // The artist puts their shop in the review queue (draft → pending), or back
 // in after addressing rejection feedback (rejected → pending). Service role
@@ -17,10 +18,20 @@ export async function POST() {
   const admin = createAdminSupabaseClient();
   const { data: artist } = await admin
     .from('artist_profiles')
-    .select('id, application_status, story')
+    .select('id, application_status, story, agreement_accepted_at, agreement_version')
     .eq('profile_id', user.id)
     .single();
   if (!artist) return NextResponse.json({ error: 'No artist profile' }, { status: 404 });
+
+  // Click-wrap enforcement: no shop enters review without a recorded,
+  // current-version acceptance of the Artist Agreement. (Onboarding records
+  // it; a version bump after an agreement revision forces re-acceptance.)
+  if (!artist.agreement_accepted_at || artist.agreement_version !== ARTIST_AGREEMENT_VERSION) {
+    return NextResponse.json(
+      { error: 'Please review and accept the current Artist Agreement before submitting.' },
+      { status: 400 }
+    );
+  }
 
   // Server-side essentials — the checklist gates the button client-side, but
   // the product rule (photo + story + a listing before review) must hold for

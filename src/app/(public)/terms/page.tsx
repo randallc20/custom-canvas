@@ -39,11 +39,13 @@ export default function TermsPage() {
         <section>
           <h2 className="mb-2 text-lg font-semibold text-ink">4. Purchases &amp; Payments</h2>
           <p>
-            All transactions are processed through Stripe. Custom Canvas charges a 15% platform
-            fee on each sale. Buyers pay a service fee that covers payment processing — about 3%
-            of the artwork price plus shipping (for example, $3.30 on a $100 piece). The service
-            fee applies to every order regardless of payment method. Artists receive 85% of the
-            sale price via Stripe Connect payouts. Refunds are at the
+            All transactions are processed through Stripe. Buyers pay the artwork price, a
+            service fee that covers payment processing — about 3% of the artwork price plus
+            shipping (for example, $3.30 on a $100 piece) — and applicable sales tax. The
+            service fee applies to every order regardless of payment method. Every charge
+            appears as CUSTOM CANVAS on your statement. Artists sell on Custom Canvas under a
+            separate Artist Agreement accepted when they join, which governs commissions and
+            payouts. Refunds are at the
             artist&apos;s discretion: buyers request a refund from the artist directly, and if the
             artist approves it, Custom Canvas returns the artwork price and shipping, plus the
             sales tax collected on those amounts. The service fee (and the tax on it) is

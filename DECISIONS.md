@@ -3,6 +3,20 @@
 Deliberate choices with lasting consequences, recorded so they read as
 choices — not oversights. Newest first.
 
+## 2026-08-24 — The 85/15 split is artist-facing only; click-wrap Artist Agreement
+
+The commission split appears nowhere buyers can see (home stat, About, Terms,
+listing pages all swept); it lives in the Artist Agreement
+(/artist-agreement, artist-gated) and Studio surfaces. Artists accept the
+agreement via required checkbox at onboarding — acceptance is recorded as
+`agreement_accepted_at` + `agreement_version` (frozen after set, 00037) and
+re-verified server-side at submit-for-review; a future version bump forces
+re-acceptance. The agreement's display/marketing license is deliberately
+NARROW: no digital-reproduction/tokenization rights (tokenization explored
+2026-08-24 and parked post-launch — a v2 agreement would be required first).
+Buyers see a Terms-of-Sale notice + statement descriptor directly above the
+Pay button. Agreement text is v1 DRAFT pending counsel review.
+
 ## 2026-08-21 — Buyer service fee = Stripe processing pass-through (was 5% capped $15)
 
 The buyer fee is now sized to cover Stripe's base processing fee, grossed up
