@@ -7,7 +7,7 @@ final smoke test remain.*
 
 ## ✅ DONE (verified 2026-08-18)
 - Production Supabase (`custom-canvas-prod`, ref `nxdbmaslsfaestusrapp`)
-  exists with **migrations through 00035 applied**; buckets, Realtime, seed
+  exists with **migrations through 00038 applied**; buckets, Realtime, seed
   tags in place. Prod DB pooler host is `aws-0-us-east-2` (DEV is `aws-1`).
 - Vercel `custom-canvas-prod` project serves **customcanvas.shop** with prod
   env (Supabase prod keys, Resend on the real domain,
@@ -16,7 +16,10 @@ final smoke test remain.*
   stays on DEV Supabase + Stripe test as the permanent test bed.
 - Resend domain verified for customcanvas.shop.
 - Security migrations live on BOTH databases: profiles/artist_profiles
-  column privacy, listing-visibility RLS, approval gate (00030–00035).
+  column privacy, listing-visibility RLS + child-table follow-through,
+  approval gate, artist-agreement columns, and the 2026-08-25 review
+  remediation — order-forgery/status-guard/blocking/review-attribution
+  (00030–00038).
 
 ## 1. Stripe (live mode) — after LLC + bank ✅ (bank exists as of 2026-08-18)
 - [ ] Activate the Stripe account (LLC details + bank for payouts).
