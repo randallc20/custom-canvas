@@ -347,7 +347,8 @@ its owner. Nothing here is optional except where marked.*
 5. [ ] Chris: Stripe Dashboard → Developers → Webhooks → Add endpoint
        `https://customcanvas.shop/api/webhooks/stripe`, events:
        `checkout.session.completed`, `account.updated`, `charge.refunded`,
-       `payment_intent.payment_failed` → copy `whsec_…` → Vercel env
+       `payment_intent.payment_failed`, `charge.dispute.created`,
+       `charge.dispute.closed` → copy `whsec_…` → Vercel env
        `STRIPE_WEBHOOK_SECRET`.
 6. [ ] Chris: Stripe → Settings → Branding → upload the brushstroke assets
        (`brand/stripe-branding/`).

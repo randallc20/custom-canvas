@@ -32,8 +32,12 @@ final smoke test remain.*
       (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`).
 - [ ] Register the live webhook → `https://customcanvas.shop/api/webhooks/stripe`
       events: `checkout.session.completed`, `account.updated`,
-      `charge.refunded`, `payment_intent.payment_failed`. Copy `whsec_…` →
-      `STRIPE_WEBHOOK_SECRET` in Vercel prod.
+      `charge.refunded`, `payment_intent.payment_failed`,
+      **`charge.dispute.created`**, **`charge.dispute.closed`**. Copy `whsec_…` →
+      `STRIPE_WEBHOOK_SECRET` in Vercel prod. (The two dispute events are what
+      notify the artist to send shipping evidence and claw the payout back on a
+      lost chargeback — without them the Artist Agreement §4 promise has no
+      implementation and the platform silently eats every lost dispute.)
 - [ ] Stripe Dashboard → Branding: upload `brand/stripe-branding/` assets.
 - [ ] Flip `NEXT_PUBLIC_PAYMENTS_ENABLED=true` in Vercel prod + redeploy.
 
