@@ -57,7 +57,17 @@ export async function POST(request: NextRequest) {
         .select('*, artist:artist_profiles(id)')
         .eq('id', listingId)
         .single();
-      if (!listing) break;
+      if (!listing) {
+        // The listing row vanished between session creation and webhook
+        // delivery (artist/admin deleted it). The buyer HAS been charged and
+        // the artist transfer HAS been created, so acking 200 here stranded an
+        // orphaned charge with no order, no emails and no alert. Be loud: 500
+        // makes Stripe retry and pages the operator.
+        Sentry.captureException(
+          new Error(`Paid session ${paymentIntentId} for missing listing ${listingId} — orphaned charge`)
+        );
+        return NextResponse.json({ error: 'Listing missing for paid session' }, { status: 500 });
+      }
 
       const artistObj = listing.artist as unknown as { id: string };
       const order = buildOrderRecord(
@@ -65,6 +75,7 @@ export async function POST(request: NextRequest) {
           payment_intent: paymentIntentId,
           metadata: session.metadata,
           total_details: session.total_details,
+          collected_information: session.collected_information,
         },
         artistObj.id
       );
@@ -268,6 +279,119 @@ export async function POST(request: NextRequest) {
             .update({ status: 'available', sold_price_cents: null })
             .eq('id', order.listing_id);
         }
+      }
+      break;
+    }
+
+    case 'charge.dispute.created': {
+      // A card chargeback. The Artist Agreement (section 4) promises we handle
+      // the dispute response and ask the artist promptly for shipping
+      // evidence -- before this, no dispute event was handled at all, so that
+      // promise had no implementation and a lost dispute silently debited the
+      // platform while the artist kept their transfer.
+      const dispute = event.data.object;
+      const paymentIntentId = dispute.payment_intent as string | null;
+      if (!paymentIntentId) break;
+
+      const { data: order } = await supabase
+        .from('orders')
+        .select('id, status, artist_id, listing:listings(title)')
+        .eq('stripe_payment_intent_id', paymentIntentId)
+        .maybeSingle();
+      if (!order) break;
+      if (order.status === 'disputed') break; // already recorded
+
+      await supabase.from('orders').update({ status: 'disputed' }).eq('id', order.id);
+
+      const title = (order.listing as unknown as { title: string } | null)?.title ?? 'an order';
+      const { data: artistProf } = await supabase
+        .from('artist_profiles')
+        .select('profile_id')
+        .eq('id', order.artist_id)
+        .maybeSingle();
+
+      const recipients: string[] = [];
+      if (artistProf?.profile_id) recipients.push(artistProf.profile_id);
+      const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+      recipients.push(...(admins ?? []).map((a) => a.id));
+
+      if (recipients.length) {
+        await supabase.from('notifications').insert(
+          recipients.map((uid) => ({
+            user_id: uid,
+            type: 'order_disputed',
+            title: 'Payment disputed',
+            body: `The buyer's bank opened a dispute on "${title}". Send any shipping or delivery evidence to support@customcanvas.shop right away — the response deadline is set by the bank.`,
+            link: '/studio/sales',
+          }))
+        );
+      }
+      Sentry.captureMessage(
+        `Dispute opened on order ${order.id} (${dispute.reason}) — respond in Stripe before the deadline.`,
+        'error'
+      );
+      break;
+    }
+
+    case 'charge.dispute.closed': {
+      const dispute = event.data.object;
+      const paymentIntentId = dispute.payment_intent as string | null;
+      if (!paymentIntentId) break;
+
+      const { data: order } = await supabase
+        .from('orders')
+        .select('id, status, artist_payout_cents, delivered_at, stripe_reversal_id')
+        .eq('stripe_payment_intent_id', paymentIntentId)
+        .maybeSingle();
+      if (!order) break;
+
+      if (dispute.status === 'lost') {
+        // The bank took the money back from the platform. Claw the artist
+        // payout back the same way a settled refund does -- exact amount,
+        // idempotency-keyed, id persisted so a retry skips it. The piece is
+        // deliberately NOT relisted: after a chargeback its physical
+        // whereabouts is genuinely unclear, so that is an admin/artist call.
+        if (order.artist_payout_cents > 0 && !order.stripe_reversal_id) {
+          try {
+            const charge = await getStripe().charges.retrieve(dispute.charge as string);
+            if (charge.transfer) {
+              const reversal = await getStripe().transfers.createReversal(
+                typeof charge.transfer === 'string' ? charge.transfer : charge.transfer.id,
+                { amount: order.artist_payout_cents },
+                { idempotencyKey: `dispute_reversal_${order.id}` }
+              );
+              await supabase
+                .from('orders')
+                .update({ stripe_reversal_id: reversal.id })
+                .eq('id', order.id);
+            }
+          } catch (err) {
+            Sentry.captureException(err);
+            // Non-2xx so Stripe retries: the payout must not stay un-clawed.
+            return NextResponse.json({ error: 'Dispute reversal failed' }, { status: 500 });
+          }
+        }
+        await supabase.from('orders').update({ status: 'refunded' }).eq('id', order.id);
+        Sentry.captureMessage(`Dispute LOST on order ${order.id} — payout reversed.`, 'error');
+      } else if (dispute.status === 'won') {
+        // Money stays. Restore the pre-dispute state.
+        await supabase
+          .from('orders')
+          .update({ status: order.delivered_at ? 'delivered' : 'paid' })
+          .eq('id', order.id);
+      }
+
+      const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+      if (admins?.length) {
+        await supabase.from('notifications').insert(
+          admins.map((a) => ({
+            user_id: a.id,
+            type: 'order_disputed',
+            title: `Dispute ${dispute.status}`,
+            body: `The dispute on order ${order.id.slice(0, 8)} closed as ${dispute.status}.`,
+            link: '/admin/orders',
+          }))
+        );
       }
       break;
     }

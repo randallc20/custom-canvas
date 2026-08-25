@@ -1,10 +1,17 @@
 import { ARTIST_AGREEMENT_VERSION } from '@/lib/agreement';
 
-// The full Artist Agreement. Artist-gated by the (artist) layout — the split
-// and payout mechanics are deliberately not on public pages. v1 DRAFT
-// language: reviewed for accuracy against the platform's actual behavior;
-// pending counsel review before public launch (see DECISIONS.md).
-export const metadata = { title: 'Artist Agreement' };
+// The full Artist Agreement. Deliberately PUBLIC: a contract an artist must
+// accept should be readable before they commit, and it was never actually
+// gated — the old (artist) layout guarded it only with a client-side
+// AuthGuard, so the server shipped the full text to anyone who asked. It is
+// kept out of search instead (buyers have no reason to land on commission
+// terms) and is linked only from artist onboarding. v1 DRAFT language:
+// reviewed for accuracy against the platform's actual behavior; pending
+// counsel review before public launch (see DECISIONS.md).
+export const metadata = {
+  title: 'Artist Agreement',
+  robots: { index: false, follow: false },
+};
 
 function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (

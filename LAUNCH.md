@@ -7,7 +7,7 @@ final smoke test remain.*
 
 ## ✅ DONE (verified 2026-08-18)
 - Production Supabase (`custom-canvas-prod`, ref `nxdbmaslsfaestusrapp`)
-  exists with **migrations through 00035 applied**; buckets, Realtime, seed
+  exists with **migrations through 00038 applied**; buckets, Realtime, seed
   tags in place. Prod DB pooler host is `aws-0-us-east-2` (DEV is `aws-1`).
 - Vercel `custom-canvas-prod` project serves **customcanvas.shop** with prod
   env (Supabase prod keys, Resend on the real domain,
@@ -16,7 +16,10 @@ final smoke test remain.*
   stays on DEV Supabase + Stripe test as the permanent test bed.
 - Resend domain verified for customcanvas.shop.
 - Security migrations live on BOTH databases: profiles/artist_profiles
-  column privacy, listing-visibility RLS, approval gate (00030–00035).
+  column privacy, listing-visibility RLS + child-table follow-through,
+  approval gate, artist-agreement columns, and the 2026-08-25 review
+  remediation — order-forgery/status-guard/blocking/review-attribution
+  (00030–00038).
 
 ## 1. Stripe (live mode) — after LLC + bank ✅ (bank exists as of 2026-08-18)
 - [ ] Activate the Stripe account (LLC details + bank for payouts).
@@ -29,8 +32,12 @@ final smoke test remain.*
       (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`).
 - [ ] Register the live webhook → `https://customcanvas.shop/api/webhooks/stripe`
       events: `checkout.session.completed`, `account.updated`,
-      `charge.refunded`, `payment_intent.payment_failed`. Copy `whsec_…` →
-      `STRIPE_WEBHOOK_SECRET` in Vercel prod.
+      `charge.refunded`, `payment_intent.payment_failed`,
+      **`charge.dispute.created`**, **`charge.dispute.closed`**. Copy `whsec_…` →
+      `STRIPE_WEBHOOK_SECRET` in Vercel prod. (The two dispute events are what
+      notify the artist to send shipping evidence and claw the payout back on a
+      lost chargeback — without them the Artist Agreement §4 promise has no
+      implementation and the platform silently eats every lost dispute.)
 - [ ] Stripe Dashboard → Branding: upload `brand/stripe-branding/` assets.
 - [ ] Flip `NEXT_PUBLIC_PAYMENTS_ENABLED=true` in Vercel prod + redeploy.
 

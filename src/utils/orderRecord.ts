@@ -9,6 +9,24 @@ export interface CheckoutSessionLike {
     shipping_cents?: string;
     price_cents?: string;
     buyer_fee_cents?: string;
+    artist_payout_cents?: string;
+    platform_fee_cents?: string;
+    artist_id?: string;
+  } | null;
+  /** The ship-to address Stripe collected AND taxed. Authoritative over the
+   *  app-collected metadata copy: it is the address the tax was computed on. */
+  collected_information?: {
+    shipping_details?: {
+      name?: string | null;
+      address?: {
+        line1?: string | null;
+        line2?: string | null;
+        city?: string | null;
+        state?: string | null;
+        postal_code?: string | null;
+        country?: string | null;
+      } | null;
+    } | null;
   } | null;
   /** Stripe Tax total for the session — the platform is merchant of record
    *  and must return tax on refunded lines, so it's recorded per order. */
@@ -38,6 +56,23 @@ export interface OrderRecord {
 // metadata returns null — the webhook must NOT fabricate amounts (the old
 // live-listing-price and legacy-flat-fee fallbacks could mis-record the
 // exact payout the refund reversal depends on).
+// Stripe's Address -> the shape the app already stores and renders
+// (/orders reads .city/.state/.zip). Also captures the recipient NAME, which
+// the app's own form never collected.
+function stripeShippingAddress(session: CheckoutSessionLike): Record<string, string> | null {
+  const details = session.collected_information?.shipping_details;
+  const a = details?.address;
+  if (!a || !a.line1) return null;
+  return {
+    name: details?.name ?? '',
+    street: [a.line1, a.line2].filter(Boolean).join(', '),
+    city: a.city ?? '',
+    state: a.state ?? '',
+    zip: a.postal_code ?? '',
+    country: a.country ?? 'US',
+  };
+}
+
 export function buildOrderRecord(
   session: CheckoutSessionLike,
   artistId: string
@@ -51,7 +86,19 @@ export function buildOrderRecord(
   if (Number.isNaN(priceCents) || Number.isNaN(lockedFee)) return null;
 
   const shippingCents = parseInt(session.metadata?.shipping_cents ?? '0', 10) || 0;
+
+  // Prefer the payout/commission locked at session creation: the payout is the
+  // exact amount transfer_data moved to the artist, and the refund reversal
+  // depends on the record matching it. Recomputing here would diverge from the
+  // real transfer if PLATFORM_RATE were deployed mid-checkout. Sessions created
+  // before these keys existed fall back to the formula -- without that, every
+  // checkout in flight at deploy time would 500 forever.
+  const lockedPayout = parseInt(session.metadata?.artist_payout_cents ?? '', 10);
+  const lockedCommission = parseInt(session.metadata?.platform_fee_cents ?? '', 10);
   const split = calcSplit(priceCents, shippingCents);
+  const artistPayout = Number.isNaN(lockedPayout) ? split.artistPayout : lockedPayout;
+  const platformCommission = Number.isNaN(lockedCommission) ? split.platformCommission : lockedCommission;
+
   const shippingRaw = session.metadata?.shipping_address;
 
   return {
@@ -62,13 +109,13 @@ export function buildOrderRecord(
     // The buyer fee passes through to Stripe — it is NOT platform revenue.
     // Reports summing platform_fee_cents now see the 15% commission alone;
     // buyer_fee_cents keeps the fee for per-order accounting.
-    platform_fee_cents: split.platformCommission,
-    artist_payout_cents: split.artistPayout,
+    platform_fee_cents: platformCommission,
+    artist_payout_cents: artistPayout,
     buyer_fee_cents: lockedFee,
     shipping_cents: split.shippingCents,
     amount_tax_cents: session.total_details?.amount_tax ?? 0,
     stripe_payment_intent_id: session.payment_intent as string,
-    shipping_address: shippingRaw ? JSON.parse(shippingRaw) : null,
+    shipping_address: stripeShippingAddress(session) ?? (shippingRaw ? JSON.parse(shippingRaw) : null),
     status: 'paid',
   };
 }

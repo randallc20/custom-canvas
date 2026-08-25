@@ -34,6 +34,16 @@ Dashboard → Developers → Webhooks shows failed deliveries to
   balance → recurring 502. Fix by backfilling orders.stripe_refund_id with
   the refund id visible in Stripe, then retry (it will skip to the reversal).
 
+## Chargebacks (card disputes)
+`charge.dispute.created` marks the order `disputed`, notifies the artist AND
+every admin to send shipping/delivery evidence, and raises a Sentry error —
+**the bank sets the response deadline, so act the day it lands.** Respond in
+Stripe Dashboard → Payments → Disputes. On `charge.dispute.closed`: `lost`
+reverses the artist payout exactly (idempotency-keyed, id persisted) and marks
+the order `refunded`; `won` restores it to delivered/paid. The piece is NOT
+auto-relisted after a chargeback — its whereabouts is unclear, so relist it by
+hand if the artist still has it.
+
 ## Refund / dispute
 - **Refund** is artist-mediated: buyer requests in chat → artist "Approve refund"
   in Studio → admin "Settle refund" in `/admin`. Buyer gets price+shipping; the

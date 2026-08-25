@@ -77,7 +77,9 @@ export default function OrdersPage() {
         <div className="space-y-4">
           {orders.map((order) => {
             const badge = STATUS_BADGE[order.status];
-            const canReview = order.status === 'delivered' && !reviewedOrders.has(order.id);
+            const alreadyReviewed =
+              ((order as { reviews?: unknown[] }).reviews?.length ?? 0) > 0 || reviewedOrders.has(order.id);
+            const canReview = order.status === 'delivered' && !alreadyReviewed;
             return (
               <div key={order.id} className="rounded-lg border border-line p-4">
                 <div className="flex items-start justify-between">
@@ -108,7 +110,7 @@ export default function OrdersPage() {
                     </Button>
                   </div>
                 )}
-                {reviewedOrders.has(order.id) && (
+                {alreadyReviewed && (
                   <p className="mt-3 text-xs text-sage">Review submitted — thank you!</p>
                 )}
                 {['paid', 'shipped', 'delivered'].includes(order.status) && (

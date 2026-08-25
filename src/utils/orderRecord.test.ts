@@ -8,7 +8,9 @@ function mockSession(overrides: Partial<{
   shipping_cents: string;
   price_cents: string;
   buyer_fee_cents: string;
-}> = {}, amountTax?: number) {
+  artist_payout_cents: string;
+  platform_fee_cents: string;
+}> = {}, amountTax?: number, collected?: unknown) {
   return {
     payment_intent: 'pi_test_123',
     metadata: {
@@ -21,6 +23,7 @@ function mockSession(overrides: Partial<{
       ...overrides,
     },
     total_details: amountTax === undefined ? null : { amount_tax: amountTax },
+    ...(collected === undefined ? {} : { collected_information: collected }),
   };
 }
 
@@ -104,6 +107,61 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
     expect(
       buildOrderRecord({ payment_intent: 'pi_x', metadata: null }, 'a1')
     ).toBeNull();
+  });
+
+  it('records the session-locked payout, not a recomputed one', () => {
+    // The transfer Stripe made is fixed at session creation. If PLATFORM_RATE
+    // is deployed mid-checkout, recomputing here would diverge from the money
+    // that actually moved and corrupt the refund reversal.
+    const order = buildOrderRecord(
+      mockSession({ artist_payout_cents: '27500', platform_fee_cents: '4500' }),
+      'artist-1'
+    );
+    expect(order!.artist_payout_cents).toBe(27500);
+    expect(order!.platform_fee_cents).toBe(4500);
+  });
+
+  it('honors a locked payout that disagrees with the current formula', () => {
+    // Session created at a 15% rate; a 20% rate is live by webhook time.
+    // Stripe moved 27500 -- that is what must be recorded.
+    const order = buildOrderRecord(
+      mockSession({ artist_payout_cents: '27500', platform_fee_cents: '4500' }),
+      'artist-1'
+    );
+    expect(order!.artist_payout_cents).toBe(27500);
+    expect(order!.artist_payout_cents + order!.platform_fee_cents).toBe(32000);
+  });
+
+  it('falls back to the formula for sessions predating the locked keys', () => {
+    // In-flight-at-deploy sessions have no locked payout; they must still
+    // build (returning null here would 500 the webhook forever).
+    const order = buildOrderRecord(mockSession(), 'artist-1');
+    expect(order).not.toBeNull();
+    expect(order!.artist_payout_cents).toBe(27500);
+    expect(order!.platform_fee_cents).toBe(4500);
+  });
+
+  it('records the address Stripe collected and taxed, over the app metadata copy', () => {
+    const order = buildOrderRecord(
+      mockSession({}, 2764, {
+        shipping_details: {
+          name: 'Dana Buyer',
+          address: { line1: '900 Elm St', line2: 'Apt 4', city: 'Austin', state: 'TX', postal_code: '78701', country: 'US' },
+        },
+      }),
+      'artist-1'
+    );
+    expect(order!.shipping_address).toEqual({
+      name: 'Dana Buyer', street: '900 Elm St, Apt 4', city: 'Austin',
+      state: 'TX', zip: '78701', country: 'US',
+    });
+  });
+
+  it('falls back to metadata when Stripe collected no address (pickup / legacy)', () => {
+    const order = buildOrderRecord(mockSession(), 'artist-1');
+    expect(order!.shipping_address).toEqual({
+      street: '123 Main St', city: 'Houston', state: 'TX', zip: '77001', country: 'US',
+    });
   });
 
   it('conserves money: payout + platform fee = buyer total components', () => {

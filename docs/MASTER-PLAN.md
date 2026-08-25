@@ -32,7 +32,7 @@ activation is unblocked.
 # TRACK A — Code (me). Five fix PRs + two feature PRs.
 
 **STATUS 2026-08-18: ALL SEVEN PRs SHIPPED** — PR-1 (#1), PR-2 (#2),
-PR-5+6 (#3), PR-3 (#4), PR-4 (#5), PR-7 (#6); migrations 00030–00035 applied
+PR-5+6 (#3), PR-3 (#4), PR-4 (#5), PR-7 (#6); migrations 00030–00038 applied
 to DEV and PROD. Track A is COMPLETE. What remains is Track B (Chris) and
 the Final Sequence below.
 
@@ -195,7 +195,7 @@ into master AFTER PR-1.
 *~1 day + Stripe test-mode verification. Fee math itself verified correct —
 $100 → artist $95; $1000 → artist $860 (cap engaged); parts sum exactly.*
 
-- [ ] **3.1 Crash-safe settle**: migration `00034_refund_bookkeeping.sql`
+- [ ] **3.1 Crash-safe settle**: migration `00035_refund_bookkeeping.sql`
       (orders: `stripe_refund_id`, `stripe_reversal_id`, `amount_tax_cents`);
       Stripe idempotency keys on refund/reversal/oversell-refund/checkout
       creation; persist refund id immediately after refund succeeds so a
@@ -323,10 +323,15 @@ PR-6/7 are nice-to-have before public announce, not gates. Each step names
 its owner. Nothing here is optional except where marked.*
 
 ### Stage 1 — Production infrastructure catch-up (me, ~1 hour)
-1. [ ] Apply migrations to **PROD** Supabase in order:
-       `00030 … 00034` (approval gate, submit flow, listing visibility,
-       column privacy, refund bookkeeping) via the session pooler; verify
-       each with the same psql probes used on DEV.
+1. [x] Apply migrations to **PROD** Supabase in order:
+       `00030 … 00038` — approval gate, submit flow, listing visibility,
+       column privacy, refund bookkeeping, visibility follow-through,
+       artist-agreement columns, and launch hardening (order forgery,
+       order status guard, listing_series, blocking, review attribution)
+       — via the session pooler; verify each with the same psql probes
+       used on DEV. **Apply ALL of them: stopping short of 00036 reopens
+       the anon draft-artwork leak, and skipping 00037 makes every
+       artist 'Submit for review' 500.** (00030–00038 done 2026-08-25.)
 2. [ ] Anon-probe PROD: emails unreadable, rejection reasons unreadable,
        no non-live listings/artists visible. (Existing 7 demo artists were
        backfilled `approved` — decide: keep demo artists on prod or purge
@@ -342,7 +347,8 @@ its owner. Nothing here is optional except where marked.*
 5. [ ] Chris: Stripe Dashboard → Developers → Webhooks → Add endpoint
        `https://customcanvas.shop/api/webhooks/stripe`, events:
        `checkout.session.completed`, `account.updated`, `charge.refunded`,
-       `payment_intent.payment_failed` → copy `whsec_…` → Vercel env
+       `payment_intent.payment_failed`, `charge.dispute.created`,
+       `charge.dispute.closed` → copy `whsec_…` → Vercel env
        `STRIPE_WEBHOOK_SECRET`.
 6. [ ] Chris: Stripe → Settings → Branding → upload the brushstroke assets
        (`brand/stripe-branding/`).
