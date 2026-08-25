@@ -33,7 +33,7 @@ export function ProtectionBadge({ order }: { order: Order }) {
 
   const result = evaluateProtection({
     isPickup: !!order.is_pickup,
-    pickupHandoffConfirmed: false,
+    pickupHandoffConfirmed: !!order.pickup_confirmed_by_buyer_at && !!order.pickup_confirmed_by_artist_at,
     createdAt: order.created_at,
     shippedAt: order.shipped_at,
     deliveredAt: order.delivered_at ?? null,

@@ -12,6 +12,11 @@ export const listingSchema = z.object({
   year_created: z.number().int().min(1000).max(new Date().getFullYear()).optional().nullable(),
   price_dollars: z.number().min(1, 'Price must be at least $1'),
   shipping_dollars: z.number().min(0).optional().nullable(),
+  // Authenticity Policy: wholly AI-generated work is prohibited; AI-ASSISTED
+  // work is allowed with disclosure. Asked at listing time rather than left for
+  // the artist to remember to mention.
+  ai_involvement: z.enum(['none', 'assisted']),
+  ai_disclosure: z.string().trim().max(500).optional().nullable(),
   price_visible: z.boolean(),
   show_sold_price: z.boolean().optional(),
   sold_price_dollars: z.number().min(0).optional().nullable(),
@@ -38,6 +43,8 @@ export const listingWriteSchema = z.object({
   year_created: z.number().int().min(1000).max(new Date().getFullYear()).nullable().optional(),
   price_cents: z.number().int().min(100, 'Price must be at least $1'),
   shipping_rate_cents: z.number().int().min(0).nullable().optional(),
+  ai_involvement: z.enum(['none', 'assisted']).optional(),
+  ai_disclosure: z.string().trim().max(500).nullable().optional(),
   price_visible: z.boolean(),
   sold_price_cents: z.number().int().min(0).nullable().optional(),
   show_sold_price: z.boolean().optional(),

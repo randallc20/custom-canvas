@@ -59,7 +59,7 @@ async function artistRepliedInTime(
 async function assessProtection(supabase: AdminClient, orderId: string) {
   const { data: o } = await supabase
     .from('orders')
-    .select('id, listing_id, buyer_id, artist_id, created_at, shipped_at, delivered_at, tracking_number, carrier, signature_required, signature_confirmed, evidence_photo_count, evidence_has_condition_notes, fulfillment_window_days, is_pickup')
+    .select('id, listing_id, buyer_id, artist_id, created_at, shipped_at, delivered_at, tracking_number, carrier, signature_required, signature_confirmed, evidence_photo_count, evidence_has_condition_notes, fulfillment_window_days, is_pickup, pickup_confirmed_by_buyer_at, pickup_confirmed_by_artist_at')
     .eq('id', orderId)
     .single();
   if (!o) return null;
@@ -70,7 +70,7 @@ async function assessProtection(supabase: AdminClient, orderId: string) {
 
   const input: ProtectionInput = {
     isPickup,
-    pickupHandoffConfirmed: false,
+    pickupHandoffConfirmed: !!o.pickup_confirmed_by_buyer_at && !!o.pickup_confirmed_by_artist_at,
     createdAt: o.created_at as string,
     shippedAt: o.shipped_at as string | null,
     deliveredAt: o.delivered_at as string | null,

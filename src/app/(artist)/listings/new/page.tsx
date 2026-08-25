@@ -51,11 +51,12 @@ export default function NewListingPage() {
 
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
     resolver: zodResolver(listingSchema),
-    defaultValues: { status: 'available', tags: [], price_visible: true },
+    defaultValues: { status: 'available', tags: [], price_visible: true, ai_involvement: 'none' },
   });
 
   const priceVisible = watch('price_visible');
   const selectedTags = watch('tags');
+  const aiInvolvement = watch('ai_involvement');
 
   const onSubmit = async (data: ListingFormData, asDraft = false) => {
     const listing = await createListing.mutateAsync({
@@ -69,6 +70,8 @@ export default function NewListingPage() {
       year_created: data.year_created ?? null,
       price_cents: toCents(data.price_dollars),
       shipping_rate_cents: isPickupOnly ? 0 : toCents(data.shipping_dollars),
+      ai_involvement: data.ai_involvement,
+      ai_disclosure: data.ai_involvement === 'assisted' ? (data.ai_disclosure || null) : null,
       price_visible: data.price_visible,
       sold_price_cents: null,
       show_sold_price: false,
@@ -145,6 +148,39 @@ export default function NewListingPage() {
               {...register('shipping_dollars', { setValueAs: numberOrNull })}
               error={errors.shipping_dollars?.message}
             />
+          )}
+        </fieldset>
+
+        <fieldset className="space-y-3 rounded-xl border border-line p-4">
+          <legend className="px-1 text-sm font-semibold text-ink">How it was made</legend>
+          <p className="text-xs leading-relaxed text-muted">
+            Custom Canvas sells work made by people. Wholly AI-generated work isn&apos;t
+            permitted. If a generative tool was one step inside a piece you authored, say so
+            and say what you contributed — buyers are entitled to know, and undisclosed AI
+            use can be treated as misrepresentation.
+          </p>
+          <div className="space-y-2">
+            <label className="flex items-start gap-2 text-sm text-ink">
+              <input type="radio" value="none" className="mt-1" {...register('ai_involvement')} />
+              <span>No generative AI was used.</span>
+            </label>
+            <label className="flex items-start gap-2 text-sm text-ink">
+              <input type="radio" value="assisted" className="mt-1" {...register('ai_involvement')} />
+              <span>A generative tool was part of my process.</span>
+            </label>
+          </div>
+          {aiInvolvement === 'assisted' && (
+            <div>
+              <Input
+                label="What did you contribute?"
+                placeholder="e.g. generated a colour study, then painted the final work in oil"
+                {...register('ai_disclosure')}
+                error={errors.ai_disclosure?.message}
+              />
+              <p className="mt-1 text-xs text-muted">
+                Shown on the listing. At least 20 characters.
+              </p>
+            </div>
           )}
         </fieldset>
 

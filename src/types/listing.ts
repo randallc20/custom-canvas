@@ -13,6 +13,8 @@ export interface Listing {
   year_created: number | null;
   price_cents: number;
   shipping_rate_cents: number | null;
+  ai_involvement: 'none' | 'assisted';
+  ai_disclosure: string | null;
   price_visible: boolean;
   sold_price_cents: number | null;
   show_sold_price: boolean;

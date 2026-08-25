@@ -34,6 +34,8 @@ export interface Order {
   dispute_outcome: 'won' | 'lost' | 'accepted' | null;
   delivered_at: string | null;
   is_pickup: boolean;
+  pickup_confirmed_by_buyer_at: string | null;
+  pickup_confirmed_by_artist_at: string | null;
   evidence_photo_count: number;
   evidence_has_condition_notes: boolean;
   fulfillment_window_days: number;
