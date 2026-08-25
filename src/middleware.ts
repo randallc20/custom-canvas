@@ -38,9 +38,20 @@ function limitFor(pathname: string): number {
 // in-memory fallback below, this is shared across every serverless instance, so
 // a burst spread over many cold-started lambdas is actually caught. One limiter
 // is built per distinct limit value and reused across requests.
-const upstashConfigured =
-  !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
-const redis = upstashConfigured ? Redis.fromEnv() : null;
+// NOTE: this file is Next.js MIDDLEWARE, which runs on the Edge runtime where
+// `process.env` is statically inlined at BUILD time. Redis.fromEnv() reads the
+// variables dynamically from inside @upstash/redis, so nothing gets inlined,
+// the client is constructed with undefined credentials, every Redis call
+// fails, and the fail-open catch below silently drops us onto the in-memory
+// limiter — forever, with no global cap and no error surfaced. Verified in
+// production: 429s fired correctly while Upstash DBSIZE stayed at 0.
+// The credentials must therefore be referenced STATICALLY, right here.
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const upstashConfigured = !!UPSTASH_URL && !!UPSTASH_TOKEN;
+const redis = upstashConfigured
+  ? new Redis({ url: UPSTASH_URL as string, token: UPSTASH_TOKEN as string })
+  : null;
 const limiterCache = new Map<number, Ratelimit>();
 
 function globalLimiter(limit: number): Ratelimit | null {
