@@ -59,15 +59,14 @@ async function artistRepliedInTime(
 async function assessProtection(supabase: AdminClient, orderId: string) {
   const { data: o } = await supabase
     .from('orders')
-    .select('id, listing_id, buyer_id, artist_id, created_at, shipped_at, delivered_at, tracking_number, carrier, signature_required, signature_confirmed, evidence_photo_count, evidence_has_condition_notes, fulfillment_window_days, shipping_address')
+    .select('id, listing_id, buyer_id, artist_id, created_at, shipped_at, delivered_at, tracking_number, carrier, signature_required, signature_confirmed, evidence_photo_count, evidence_has_condition_notes, fulfillment_window_days, is_pickup')
     .eq('id', orderId)
     .single();
   if (!o) return null;
 
-  // Pickup orders carry no shipping address; handoff confirmation is a system
-  // message on the thread, which step 4 of the spec will write. Until then a
-  // pickup order cannot self-certify, so it evaluates as ineligible.
-  const isPickup = !o.shipping_address;
+  // Persisted at checkout (00041) — never inferred from a missing address,
+  // which would route shipped orders down the easier pickup branch.
+  const isPickup = !!o.is_pickup;
 
   const input: ProtectionInput = {
     isPickup,

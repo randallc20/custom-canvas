@@ -8,6 +8,7 @@ export interface CheckoutSessionLike {
     buyer_id?: string;
     shipping_address?: string;
     shipping_cents?: string;
+    pickup?: string;
     price_cents?: string;
     buyer_fee_cents?: string;
     artist_payout_cents?: string;
@@ -52,6 +53,7 @@ export interface OrderRecord {
   shipping_address: Record<string, string> | null;
   status: 'paid';
   // Seller-protection evidence, frozen at checkout.
+  is_pickup: boolean;
   evidence_photo_count: number;
   evidence_has_condition_notes: boolean;
   fulfillment_window_days: number;
@@ -128,6 +130,7 @@ export function buildOrderRecord(
     shipping_address: stripeShippingAddress(session) ?? (shippingRaw ? JSON.parse(shippingRaw) : null),
     // Defaults keep sessions created before this shipped buildable: they
     // simply evaluate as ineligible rather than 500ing the webhook forever.
+    is_pickup: session.metadata?.pickup === 'true',
     evidence_photo_count: parseInt(session.metadata?.evidence_photo_count ?? '', 10) || 0,
     evidence_has_condition_notes: session.metadata?.evidence_has_condition_notes === 'true',
     fulfillment_window_days:

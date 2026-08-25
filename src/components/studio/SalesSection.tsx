@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { ProtectionBadge } from './ProtectionBadge';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useQueryClient } from '@tanstack/react-query';
@@ -126,7 +127,13 @@ export function SalesSection() {
                 {order.tracking_number && (
                   <p className="mt-2 text-xs text-muted">
                     Tracking: <span className="font-mono">{order.tracking_number}</span>
+                    {order.carrier && <span className="uppercase"> · {order.carrier}</span>}
                   </p>
+                )}
+
+                {/* Seller protection standing, visible before any dispute. */}
+                {['paid', 'shipped', 'delivered', 'disputed', 'refunded'].includes(order.status) && (
+                  <ProtectionBadge order={order} />
                 )}
 
                 <div className="mt-3 flex items-center gap-2">
@@ -193,7 +200,9 @@ export function SalesSection() {
           />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => { setShipModal(null); setTrackingNumber(''); setCarrier(''); }}>Cancel</Button>
-            <Button onClick={handleShip} loading={updateStatus.isPending}>Confirm Shipment</Button>
+            <Button onClick={handleShip} loading={updateStatus.isPending} disabled={!carrier || !trackingNumber.trim()}>
+              Confirm Shipment
+            </Button>
           </div>
         </div>
       </Modal>

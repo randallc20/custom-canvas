@@ -32,6 +32,11 @@ export interface Order {
   protection_status: 'pending' | 'protected' | 'ineligible' | 'waived';
   dispute_id: string | null;
   dispute_outcome: 'won' | 'lost' | 'accepted' | null;
+  delivered_at: string | null;
+  is_pickup: boolean;
+  evidence_photo_count: number;
+  evidence_has_condition_notes: boolean;
+  fulfillment_window_days: number;
   created_at: string;
   updated_at: string;
 }
