@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
-import { getStripe, STRIPE_WEBHOOK_SECRET } from '@/lib/stripe';
+import { getStripe, STRIPE_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET } from '@/lib/stripe';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { buildOrderRecord } from '@/utils/orderRecord';
 import { sendOrderConfirmationEmail, sendNewSaleEmail } from '@/services/email';
@@ -12,10 +12,24 @@ export async function POST(request: NextRequest) {
 
   if (!signature) return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
 
+  // Two endpoints deliver here and they sign with DIFFERENT secrets: the
+  // account endpoint (payments, refunds, disputes) and the Connect endpoint
+  // (account.updated for connected artist accounts). Try each; accept the one
+  // that verifies. Previously only the account secret was tried, so every
+  // connected-account event was rejected as an invalid signature and
+  // stripe_onboarded — written nowhere else — never flipped. Artists
+  // completed onboarding and checkout kept refusing them.
+  const secrets = [STRIPE_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET].filter(Boolean) as string[];
   let event;
-  try {
-    event = getStripe().webhooks.constructEvent(body, signature, STRIPE_WEBHOOK_SECRET);
-  } catch {
+  for (const secret of secrets) {
+    try {
+      event = getStripe().webhooks.constructEvent(body, signature, secret);
+      break;
+    } catch {
+      // try the next secret
+    }
+  }
+  if (!event) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
@@ -400,6 +414,19 @@ export async function POST(request: NextRequest) {
           }))
         );
       }
+      break;
+    }
+
+    case 'charge.dispute.funds_withdrawn':
+    case 'charge.dispute.funds_reinstated': {
+      // Bookkeeping only (SELLER_PROTECTION_SPEC): log so the Stripe balance
+      // stays reconcilable against our order records. No state change here —
+      // dispute.created/closed own the order lifecycle.
+      const d = event.data.object;
+      Sentry.captureMessage(
+        `${event.type}: dispute ${d.id} on charge ${String(d.charge)} — ${d.amount}c`,
+        'info'
+      );
       break;
     }
 

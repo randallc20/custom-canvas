@@ -10,6 +10,9 @@ const LIMITS: Record<string, number> = {
   '/api/commissions': 5,
   '/api/reports': 5,
   '/api/reviews': 5,
+  // Each first call can mint a real Stripe connected account, so it gets a
+  // tighter bucket than the rest of /api/payments. Longest-prefix wins below.
+  '/api/payments/stripe-connect': 3,
   '/api/payments': 10,
   '/api/feed': 120,
 };
@@ -17,10 +20,17 @@ const DEFAULT_LIMIT = 60;
 const WINDOW_MS = 60_000;
 
 function limitFor(pathname: string): number {
+  // Longest prefix wins, so a specific entry ('/api/payments/stripe-connect')
+  // beats its parent ('/api/payments') regardless of where it sits in the map.
+  // Matching on insertion order instead would make the tighter limit silently
+  // depend on key ordering.
+  let best: string | null = null;
   for (const prefix in LIMITS) {
-    if (pathname.startsWith(prefix)) return LIMITS[prefix];
+    if (pathname.startsWith(prefix) && (best === null || prefix.length > best.length)) {
+      best = prefix;
+    }
   }
-  return DEFAULT_LIMIT;
+  return best === null ? DEFAULT_LIMIT : LIMITS[best];
 }
 
 // --- Global limiter (Upstash Redis) -----------------------------------------

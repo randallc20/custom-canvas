@@ -15,3 +15,9 @@ export function getStripe(): Stripe {
 }
 
 export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET!;
+
+// Connected-account events (account.updated for artists) are delivered by a
+// SEPARATE Connect endpoint, which signs with its own secret. Without this,
+// every such event fails signature verification and is silently rejected —
+// artists finish Stripe onboarding and never become sellable.
+export const STRIPE_CONNECT_WEBHOOK_SECRET = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
