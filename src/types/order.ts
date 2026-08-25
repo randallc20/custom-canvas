@@ -25,6 +25,13 @@ export interface Order {
   status: OrderStatus;
   shipping_address: ShippingAddress | null;
   tracking_number: string | null;
+  carrier: string | null;
+  shipped_at: string | null;
+  signature_required: boolean;
+  signature_confirmed: boolean;
+  protection_status: 'pending' | 'protected' | 'ineligible' | 'waived';
+  dispute_id: string | null;
+  dispute_outcome: 'won' | 'lost' | 'accepted' | null;
   created_at: string;
   updated_at: string;
 }

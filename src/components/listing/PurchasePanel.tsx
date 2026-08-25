@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { formatPrice, listingPriceLabel } from '@/utils/formatPrice';
 import { calcSplit, BUYER_FEE_LABEL } from '@/utils/commissionCalc';
+import { DEFAULT_FULFILLMENT_WINDOW_DAYS } from '@/utils/evaluateProtection';
 import { isPickupOnly } from '@/utils/fulfillment';
 import { paymentsEnabled } from '@/utils/features';
 import { useAuth } from '@/context/AuthContext';
@@ -116,6 +117,15 @@ export function PurchasePanel({ listing, artistProfileId, fulfillmentPref, awayM
               <span>Estimated total</span>
               <span>{formatPrice(split.buyerTotal)}</span>
             </div>
+            {!pickup && (
+              <p className="pt-1 text-xs">
+                Ships within{' '}
+                <span className="font-medium text-ink">
+                  {DEFAULT_FULFILLMENT_WINDOW_DAYS} business days
+                </span>{' '}
+                of purchase, with tracking.
+              </p>
+            )}
           </div>
           <Link href={`/checkout/${listing.id}`} className="block">
             <Button className="w-full">Buy Now</Button>

@@ -1,4 +1,5 @@
 import { calcSplit } from '@/utils/commissionCalc';
+import { DEFAULT_FULFILLMENT_WINDOW_DAYS } from '@/utils/evaluateProtection';
 
 export interface CheckoutSessionLike {
   payment_intent: string | null;
@@ -12,6 +13,10 @@ export interface CheckoutSessionLike {
     artist_payout_cents?: string;
     platform_fee_cents?: string;
     artist_id?: string;
+    evidence_photo_count?: string;
+    evidence_has_condition_notes?: string;
+    fulfillment_window_days?: string;
+    signature_required?: string;
   } | null;
   /** The ship-to address Stripe collected AND taxed. Authoritative over the
    *  app-collected metadata copy: it is the address the tax was computed on. */
@@ -46,6 +51,11 @@ export interface OrderRecord {
   stripe_payment_intent_id: string;
   shipping_address: Record<string, string> | null;
   status: 'paid';
+  // Seller-protection evidence, frozen at checkout.
+  evidence_photo_count: number;
+  evidence_has_condition_notes: boolean;
+  fulfillment_window_days: number;
+  signature_required: boolean;
 }
 
 // Pure money math for webhook order creation — kept side-effect-free so the
@@ -116,6 +126,13 @@ export function buildOrderRecord(
     amount_tax_cents: session.total_details?.amount_tax ?? 0,
     stripe_payment_intent_id: session.payment_intent as string,
     shipping_address: stripeShippingAddress(session) ?? (shippingRaw ? JSON.parse(shippingRaw) : null),
+    // Defaults keep sessions created before this shipped buildable: they
+    // simply evaluate as ineligible rather than 500ing the webhook forever.
+    evidence_photo_count: parseInt(session.metadata?.evidence_photo_count ?? '', 10) || 0,
+    evidence_has_condition_notes: session.metadata?.evidence_has_condition_notes === 'true',
+    fulfillment_window_days:
+      parseInt(session.metadata?.fulfillment_window_days ?? '', 10) || DEFAULT_FULFILLMENT_WINDOW_DAYS,
+    signature_required: session.metadata?.signature_required === 'true',
     status: 'paid',
   };
 }

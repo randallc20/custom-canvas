@@ -5,6 +5,11 @@ import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe';
 import { calcSplit } from '@/utils/commissionCalc';
 import { isPickupOnly } from '@/utils/fulfillment';
+import {
+  DEFAULT_FULFILLMENT_WINDOW_DAYS,
+  MIN_CONDITION_NOTES_CHARS,
+  SIGNATURE_REQUIRED_FROM_CENTS,
+} from '@/utils/evaluateProtection';
 import { z } from 'zod';
 
 // Only these keys, bounded lengths — the address rides Stripe metadata
@@ -75,6 +80,17 @@ export async function POST(request: NextRequest) {
   // a fallback for the deploy window, but it is no longer required.
   const parsedShipping = pickup ? null : shippingSchema.safeParse(shipping);
   const shippingAddress = parsedShipping?.success ? parsedShipping.data : null;
+
+  // Seller-protection evidence, SNAPSHOT at purchase. Listings stay editable
+  // after a sale, so evaluating against the live listing would let an artist
+  // add photos the day a dispute arrives and retroactively qualify.
+  const { count: photoCount } = await createAdminSupabaseClient()
+    .from('listing_images')
+    .select('id', { count: 'exact', head: true })
+    .eq('listing_id', listingId);
+  const evidencePhotoCount = photoCount ?? 0;
+  const hasConditionNotes = (listing.description ?? '').trim().length >= MIN_CONDITION_NOTES_CHARS;
+  const signatureRequired = listing.price_cents >= SIGNATURE_REQUIRED_FROM_CENTS;
 
   const split = calcSplit(listing.price_cents, shippingCents);
 
@@ -154,6 +170,11 @@ export async function POST(request: NextRequest) {
         artist_payout_cents: String(split.artistPayout),
         platform_fee_cents: String(split.platformCommission),
         artist_id: artist.id,
+        // Frozen seller-protection evidence — see above.
+        evidence_photo_count: String(evidencePhotoCount),
+        evidence_has_condition_notes: String(hasConditionNotes),
+        fulfillment_window_days: String(DEFAULT_FULFILLMENT_WINDOW_DAYS),
+        signature_required: String(signatureRequired),
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/orders?success=true`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/listing/${listingId}`,

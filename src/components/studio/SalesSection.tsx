@@ -34,6 +34,7 @@ export function SalesSection() {
   const queryClient = useQueryClient();
   const [shipModal, setShipModal] = useState<Order | null>(null);
   const [trackingNumber, setTrackingNumber] = useState('');
+  const [carrier, setCarrier] = useState('');
 
   if (loadingArtist || isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
@@ -43,11 +44,12 @@ export function SalesSection() {
       await updateStatus.mutateAsync({
         id: shipModal.id,
         status: 'shipped',
-        updates: { tracking_number: trackingNumber.trim() || null },
+        updates: { tracking_number: trackingNumber.trim() || null, carrier: carrier || null },
       });
       toast('Order marked as shipped!', 'success');
       setShipModal(null);
       setTrackingNumber('');
+      setCarrier('');
     } catch {
       toast('Failed to update order', 'error');
     }
@@ -155,11 +157,34 @@ export function SalesSection() {
         </div>
       )}
 
-      <Modal isOpen={!!shipModal} title="Ship Order" onClose={() => { setShipModal(null); setTrackingNumber(''); }}>
+      <Modal isOpen={!!shipModal} title="Ship Order" onClose={() => { setShipModal(null); setTrackingNumber(''); setCarrier(''); }}>
         <div className="space-y-4">
           <p className="text-sm text-muted">
-            Add a tracking number (optional) and mark this order as shipped.
+            Enter the carrier and tracking number, then mark this order as shipped.
           </p>
+          <div className="rounded-md bg-sand/50 px-3 py-2 text-xs leading-relaxed text-ink">
+            <span className="font-medium">Seller protection:</span> a supported carrier and a
+            tracking number are required for Custom Canvas to cover a chargeback on this order.
+            {shipModal?.signature_required && (
+              <> This order is <span className="font-medium">$750 or more</span>, so signature
+              confirmation is also required — select it when you buy the label.</>
+            )}
+          </div>
+          <div>
+            <label htmlFor="carrier" className="mb-1 block text-sm font-medium text-ink">Carrier</label>
+            <select
+              id="carrier"
+              className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink"
+              value={carrier}
+              onChange={(e) => setCarrier(e.target.value)}
+            >
+              <option value="">Select a carrier…</option>
+              <option value="usps">USPS</option>
+              <option value="ups">UPS</option>
+              <option value="fedex">FedEx</option>
+              <option value="dhl">DHL</option>
+            </select>
+          </div>
           <Input
             label="Tracking Number"
             placeholder="e.g. 1Z999AA10123456784"
@@ -167,7 +192,7 @@ export function SalesSection() {
             onChange={(e) => setTrackingNumber(e.target.value)}
           />
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => { setShipModal(null); setTrackingNumber(''); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setShipModal(null); setTrackingNumber(''); setCarrier(''); }}>Cancel</Button>
             <Button onClick={handleShip} loading={updateStatus.isPending}>Confirm Shipment</Button>
           </div>
         </div>

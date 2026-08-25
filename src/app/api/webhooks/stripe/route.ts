@@ -3,8 +3,93 @@ import * as Sentry from '@sentry/nextjs';
 import { getStripe, STRIPE_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET } from '@/lib/stripe';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { buildOrderRecord } from '@/utils/orderRecord';
+import { evaluateProtection, ProtectionInput } from '@/utils/evaluateProtection';
 import { sendOrderConfirmationEmail, sendNewSaleEmail } from '@/services/email';
 import { formatPrice } from '@/utils/formatPrice';
+
+
+type AdminClient = ReturnType<typeof createAdminSupabaseClient>;
+
+// Requirement 6 needs the message history. Conversations are keyed by
+// listing/commission, not by order, so we look at the buyer<->artist thread
+// for this order's listing. No buyer messages at all means there was nothing
+// to answer -- that must not fail the artist.
+async function artistRepliedInTime(
+  supabase: AdminClient,
+  order: { listing_id: string | null; buyer_id: string; artist_id: string },
+  windowBusinessDays: number
+): Promise<boolean> {
+  const { data: artist } = await supabase
+    .from('artist_profiles').select('profile_id').eq('id', order.artist_id).maybeSingle();
+  if (!artist?.profile_id || !order.listing_id) return true;
+
+  const { data: convo } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('context_type', 'listing')
+    .eq('context_id', order.listing_id)
+    .or(`and(participant_one.eq.${order.buyer_id},participant_two.eq.${artist.profile_id}),and(participant_one.eq.${artist.profile_id},participant_two.eq.${order.buyer_id})`)
+    .maybeSingle();
+  if (!convo) return true;
+
+  const { data: msgs } = await supabase
+    .from('messages')
+    .select('sender_id, created_at')
+    .eq('conversation_id', convo.id)
+    .order('created_at', { ascending: true });
+  if (!msgs?.length) return true;
+
+  const { businessDaysBetween } = await import('@/utils/evaluateProtection');
+  let awaitingSince: string | null = null;
+  for (const m of msgs) {
+    if (m.sender_id === order.buyer_id) {
+      if (!awaitingSince) awaitingSince = m.created_at as string;
+    } else if (m.sender_id === artist.profile_id && awaitingSince) {
+      if (businessDaysBetween(awaitingSince, m.created_at as string) > windowBusinessDays) return false;
+      awaitingSince = null;
+    }
+  }
+  // Still awaiting a reply right now: only a failure once the window is past.
+  if (awaitingSince) {
+    return businessDaysBetween(awaitingSince, new Date().toISOString()) <= windowBusinessDays;
+  }
+  return true;
+}
+
+async function assessProtection(supabase: AdminClient, orderId: string) {
+  const { data: o } = await supabase
+    .from('orders')
+    .select('id, listing_id, buyer_id, artist_id, created_at, shipped_at, delivered_at, tracking_number, carrier, signature_required, signature_confirmed, evidence_photo_count, evidence_has_condition_notes, fulfillment_window_days, shipping_address')
+    .eq('id', orderId)
+    .single();
+  if (!o) return null;
+
+  // Pickup orders carry no shipping address; handoff confirmation is a system
+  // message on the thread, which step 4 of the spec will write. Until then a
+  // pickup order cannot self-certify, so it evaluates as ineligible.
+  const isPickup = !o.shipping_address;
+
+  const input: ProtectionInput = {
+    isPickup,
+    pickupHandoffConfirmed: false,
+    createdAt: o.created_at as string,
+    shippedAt: o.shipped_at as string | null,
+    deliveredAt: o.delivered_at as string | null,
+    trackingNumber: o.tracking_number as string | null,
+    carrier: o.carrier as string | null,
+    signatureRequired: !!o.signature_required,
+    signatureConfirmed: !!o.signature_confirmed,
+    evidencePhotoCount: (o.evidence_photo_count as number) ?? 0,
+    evidenceHasConditionNotes: !!o.evidence_has_condition_notes,
+    fulfillmentWindowDays: (o.fulfillment_window_days as number) ?? 5,
+    artistRepliedWithinWindow: await artistRepliedInTime(
+      supabase,
+      { listing_id: o.listing_id as string | null, buyer_id: o.buyer_id as string, artist_id: o.artist_id as string },
+      (o.fulfillment_window_days as number) ?? 5
+    ),
+  };
+  return evaluateProtection(input);
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -315,7 +400,25 @@ export async function POST(request: NextRequest) {
       if (!order) break;
       if (order.status === 'disputed') break; // already recorded
 
-      await supabase.from('orders').update({ status: 'disputed' }).eq('id', order.id);
+      // Evaluate protection NOW, against the evidence frozen at checkout plus
+      // what the artist actually did, and persist it. The artist must never
+      // have to work out whether they are covered.
+      const assessment = await assessProtection(supabase, order.id);
+      const protectionStatus = assessment?.status ?? 'ineligible';
+
+      await supabase
+        .from('orders')
+        .update({
+          status: 'disputed',
+          dispute_id: dispute.id,
+          protection_status: protectionStatus,
+        })
+        .eq('id', order.id);
+
+      const covered = protectionStatus === 'protected';
+      const artistLine = covered
+        ? `Good news: this order was Protected, so Custom Canvas covers the loss — your payout is not affected.`
+        : `This order was not Protected, so the amount will be deducted from your payout. Reasons: ${(assessment?.failures ?? []).join(' ')}`;
 
       const title = (order.listing as unknown as { title: string } | null)?.title ?? 'an order';
       const { data: artistProf } = await supabase
@@ -333,7 +436,7 @@ export async function POST(request: NextRequest) {
           user_id: artistProf.profile_id,
           type: 'order_disputed',
           title: 'Payment disputed',
-          body: `The buyer's bank opened a dispute on "${title}". Send any shipping or delivery evidence to support@customcanvas.shop right away — the response deadline is set by the bank.`,
+          body: `${artistLine} A dispute was opened on "${title}". Send any shipping or delivery evidence to support@customcanvas.shop right away — the bank sets the response deadline.`,
           link: '/studio/sales',
         });
       }
@@ -342,7 +445,7 @@ export async function POST(request: NextRequest) {
           user_id: a.id,
           type: 'order_disputed',
           title: 'Payment disputed',
-          body: `A dispute was opened on "${title}". Respond in the Stripe dashboard before the bank's deadline and collect shipping evidence from the artist.`,
+          body: `A dispute was opened on "${title}" — protection: ${protectionStatus}. Respond in the Stripe dashboard before the bank's deadline.`,
           link: '/admin/orders',
         });
       }
@@ -361,25 +464,27 @@ export async function POST(request: NextRequest) {
 
       const { data: order } = await supabase
         .from('orders')
-        .select('id, status, artist_payout_cents, delivered_at, stripe_reversal_id')
+        .select('id, status, artist_payout_cents, delivered_at, stripe_reversal_id, protection_status')
         .eq('stripe_payment_intent_id', paymentIntentId)
         .maybeSingle();
       if (!order) break;
 
-      if (dispute.status === 'lost') {
-        // The bank took the money back from the platform. Claw the artist
-        // payout back the same way a settled refund does -- exact amount,
-        // idempotency-keyed, id persisted so a retry skips it. The piece is
-        // deliberately NOT relisted: after a chargeback its physical
-        // whereabouts is genuinely unclear, so that is an admin/artist call.
-        if (order.artist_payout_cents > 0 && !order.stripe_reversal_id) {
+      const lost = dispute.status === 'lost';
+      if (lost) {
+        // THE BARGAIN. A Protected order means the artist did the things that
+        // would have won this dispute, so Custom Canvas absorbs the loss and
+        // the payout is NOT reversed. An ineligible order is reversed exactly,
+        // idempotency-keyed on the dispute so a Stripe retry can't double it.
+        const protectedOrder = order.protection_status === 'protected';
+
+        if (!protectedOrder && order.artist_payout_cents > 0 && !order.stripe_reversal_id) {
           try {
             const charge = await getStripe().charges.retrieve(dispute.charge as string);
             if (charge.transfer) {
               const reversal = await getStripe().transfers.createReversal(
                 typeof charge.transfer === 'string' ? charge.transfer : charge.transfer.id,
                 { amount: order.artist_payout_cents },
-                { idempotencyKey: `dispute_reversal_${order.id}` }
+                { idempotencyKey: `dispute_${dispute.id}` }
               );
               await supabase
                 .from('orders')
@@ -392,13 +497,27 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Dispute reversal failed' }, { status: 500 });
           }
         }
-        await supabase.from('orders').update({ status: 'refunded' }).eq('id', order.id);
-        Sentry.captureMessage(`Dispute LOST on order ${order.id} — payout reversed.`, 'error');
+
+        await supabase
+          .from('orders')
+          .update({ status: 'refunded', dispute_outcome: 'lost' })
+          .eq('id', order.id);
+
+        Sentry.captureMessage(
+          protectedOrder
+            ? `Dispute LOST on PROTECTED order ${order.id} — platform absorbs ${order.artist_payout_cents}c, payout NOT reversed.`
+            : `Dispute LOST on ineligible order ${order.id} — payout reversed.`,
+          'error'
+        );
       } else if (dispute.status === 'won') {
         // Money stays. Restore the pre-dispute state.
         await supabase
           .from('orders')
-          .update({ status: order.delivered_at ? 'delivered' : 'paid' })
+          .update({
+            status: order.delivered_at ? 'delivered' : 'paid',
+            dispute_outcome: 'won',
+            dispute_id: null,
+          })
           .eq('id', order.id);
       }
 
