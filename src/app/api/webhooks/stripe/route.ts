@@ -57,7 +57,17 @@ export async function POST(request: NextRequest) {
         .select('*, artist:artist_profiles(id)')
         .eq('id', listingId)
         .single();
-      if (!listing) break;
+      if (!listing) {
+        // The listing row vanished between session creation and webhook
+        // delivery (artist/admin deleted it). The buyer HAS been charged and
+        // the artist transfer HAS been created, so acking 200 here stranded an
+        // orphaned charge with no order, no emails and no alert. Be loud: 500
+        // makes Stripe retry and pages the operator.
+        Sentry.captureException(
+          new Error(`Paid session ${paymentIntentId} for missing listing ${listingId} — orphaned charge`)
+        );
+        return NextResponse.json({ error: 'Listing missing for paid session' }, { status: 500 });
+      }
 
       const artistObj = listing.artist as unknown as { id: string };
       const order = buildOrderRecord(
@@ -65,6 +75,7 @@ export async function POST(request: NextRequest) {
           payment_intent: paymentIntentId,
           metadata: session.metadata,
           total_details: session.total_details,
+          collected_information: session.collected_information,
         },
         artistObj.id
       );

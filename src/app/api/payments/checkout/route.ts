@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
   const { data: artist } = await createAdminSupabaseClient()
     .from('artist_profiles')
-    .select('stripe_account_id, stripe_onboarded, slug, fulfillment_pref, profile_id, is_live')
+    .select('id, stripe_account_id, stripe_onboarded, slug, fulfillment_pref, profile_id, is_live')
     .eq('id', listing.artist_id)
     .single();
   if (!artist) return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
@@ -68,14 +68,13 @@ export async function POST(request: NextRequest) {
 
   const pickup = isPickupOnly(artist.fulfillment_pref);
   const shippingCents = pickup ? 0 : (listing.shipping_rate_cents ?? 0);
-  let shippingAddress: z.infer<typeof shippingSchema> | null = null;
-  if (!pickup) {
-    const parsed = shippingSchema.safeParse(shipping);
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'A complete shipping address is required' }, { status: 400 });
-    }
-    shippingAddress = parsed.data;
-  }
+  // Stripe collects the ship-to address at Checkout (shipping_address_collection
+  // below) so Stripe Tax sources the jurisdiction from where the art is
+  // DELIVERED, and so the recorded address is the one Stripe actually taxed.
+  // An address posted by an older client build is still accepted and carried as
+  // a fallback for the deploy window, but it is no longer required.
+  const parsedShipping = pickup ? null : shippingSchema.safeParse(shipping);
+  const shippingAddress = parsedShipping?.success ? parsedShipping.data : null;
 
   const split = calcSplit(listing.price_cents, shippingCents);
 
@@ -113,6 +112,12 @@ export async function POST(request: NextRequest) {
       mode: 'payment',
       line_items: lineItems,
       automatic_tax: { enabled: true },
+      // WITHOUT this, Stripe Tax sources tax from the card's BILLING address:
+      // a buyer with an out-of-state card shipping into Houston was charged $0
+      // Texas tax while the platform -- merchant of record, TX-registered --
+      // still owed it. Collecting the destination makes the taxed address and
+      // the fulfilled address the same address.
+      ...(pickup ? {} : { shipping_address_collection: { allowed_countries: ['US' as const] } }),
       payment_intent_data: {
         // A fixed transfer amount (rather than application_fee_amount) keeps
         // Stripe Tax money with the platform: the artist receives exactly
@@ -134,6 +139,13 @@ export async function POST(request: NextRequest) {
         // the fee formula (which may change between deploys).
         price_cents: String(listing.price_cents),
         buyer_fee_cents: String(split.buyerFee),
+        // The payout below is the EXACT amount transferred by transfer_data
+        // above. Recording it (rather than recomputing from PLATFORM_RATE at
+        // webhook time) keeps the refund reversal exact even if the commission
+        // rate is deployed mid-checkout.
+        artist_payout_cents: String(split.artistPayout),
+        platform_fee_cents: String(split.platformCommission),
+        artist_id: artist.id,
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/orders?success=true`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/listing/${listingId}`,

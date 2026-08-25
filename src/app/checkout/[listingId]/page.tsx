@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import { useListing } from '@/hooks/useListings';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { formatPrice } from '@/utils/formatPrice';
@@ -31,13 +30,6 @@ function CheckoutContent() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
-  const [shipping, setShipping] = useState({
-    street: '',
-    city: '',
-    state: '',
-    zip: '',
-    country: 'US',
-  });
 
   if (!paymentsEnabled) {
     return (
@@ -64,21 +56,16 @@ function CheckoutContent() {
   const shippingCents = isPickup ? 0 : (listing.shipping_rate_cents ?? 0);
   const split = calcSplit(listing.price_cents, shippingCents);
 
-  const isShippingValid =
-    isPickup ||
-    (shipping.street.trim() && shipping.city.trim() && shipping.state.trim() && shipping.zip.trim());
-
   const handleCheckout = async () => {
-    if (!user || !isShippingValid) return;
+    if (!user) return;
     setSubmitting(true);
     try {
       const response = await fetch('/api/payments/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          listingId,
-          shipping: isPickup ? null : shipping,
-        }),
+        // The delivery address is collected by Stripe Checkout, so that Stripe
+        // Tax sources the jurisdiction from where the piece actually ships.
+        body: JSON.stringify({ listingId }),
       });
 
       if (!response.ok) {
@@ -145,35 +132,12 @@ function CheckoutContent() {
         </div>
       ) : (
         <div className="space-y-4">
-          <h2 className="font-medium text-ink">Shipping Address</h2>
-          <Input
-            label="Street Address"
-            placeholder="123 Main St"
-            value={shipping.street}
-            onChange={(e) => setShipping((s) => ({ ...s, street: e.target.value }))}
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="City"
-              placeholder="Your city"
-              value={shipping.city}
-              onChange={(e) => setShipping((s) => ({ ...s, city: e.target.value }))}
-            />
-            <Input
-              label="State"
-              placeholder="TX"
-              value={shipping.state}
-              onChange={(e) => setShipping((s) => ({ ...s, state: e.target.value }))}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="ZIP Code"
-              placeholder="77001"
-              value={shipping.zip}
-              onChange={(e) => setShipping((s) => ({ ...s, zip: e.target.value }))}
-            />
-            <Input label="Country" value="US" disabled />
+          <div className="rounded-xl border border-line bg-sand/50 p-4 text-sm text-ink">
+            <p className="font-medium">Shipping</p>
+            <p className="mt-1 text-muted">
+              You&apos;ll enter your delivery address on the next step. Sales tax is
+              calculated from where the piece ships.
+            </p>
           </div>
           <p className="text-xs leading-relaxed text-muted">
             By completing this purchase you agree to the{' '}
@@ -182,12 +146,7 @@ function CheckoutContent() {
             This charge will appear as <span className="font-medium text-ink">CUSTOM CANVAS</span> on
             your statement.
           </p>
-          <Button
-            className="w-full"
-            onClick={handleCheckout}
-            loading={submitting}
-            disabled={!isShippingValid}
-          >
+          <Button className="w-full" onClick={handleCheckout} loading={submitting}>
             Pay {formatPrice(split.buyerTotal)}
           </Button>
         </div>
