@@ -111,6 +111,14 @@ export async function POST(request: NextRequest) {
     const session = await getStripe().checkout.sessions.create({
       mode: 'payment',
       line_items: lineItems,
+      // Pinned deliberately. The buyer fee is grossed up for CARD pricing
+      // (2.9% + 30c); BNPL methods cost materially more, and that difference
+      // comes straight out of the 15% commission. Leaving this unset lets the
+      // Stripe dashboard's payment-method configuration silently change the
+      // platform's unit economics with no code change and no review.
+      // Apple Pay / Google Pay still appear -- wallets ride along with 'card'.
+      // Widen this only alongside a fee model that covers the method.
+      payment_method_types: ['card'],
       automatic_tax: { enabled: true },
       // WITHOUT this, Stripe Tax sources tax from the card's BILLING address:
       // a buyer with an out-of-state card shipping into Houston was charged $0
