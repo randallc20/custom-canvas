@@ -36,3 +36,23 @@ export function useUpdateOrderStatus() {
     },
   });
 }
+
+/** Both sides of a local-pickup handoff confirm through this. Invalidation
+ *  runs on SETTLED, not just success: the route can 500 with the confirmation
+ *  already stamped (only the delivered-promotion failed), and skipping the
+ *  refetch there would leave the button rendered over a succeeded write. */
+export function useConfirmPickup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const res = await fetch(`/api/orders/${orderId}/confirm-pickup`, { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? 'Could not confirm the handoff.');
+      return body as { confirmed: boolean; bothConfirmed: boolean; alreadyConfirmed?: boolean };
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+}

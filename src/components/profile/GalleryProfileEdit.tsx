@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { galleryProfileSchema, GalleryProfileFormData } from '@/schemas/gallerySchema';
@@ -15,14 +16,23 @@ import { PARTNER_TYPE_LABELS, type PartnerType } from '@/types/gallery';
 export function GalleryProfileEdit() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [galleryId, setGalleryId] = useState('');
   const [loading, setLoading] = useState(true);
   const [gallery, setGallery] = useState<GalleryProfileFormData | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('gallery_profiles').select('*').eq('profile_id', user.id).single()
-      .then(({ data }) => {
+    supabase.from('gallery_profiles').select('*').eq('profile_id', user.id).maybeSingle()
+      .then(({ data, error }) => {
+        // No organisation yet: this form would render empty and its Save would
+        // update zero rows while toasting success. Send them to the setup form
+        // instead — but only when the row is GENUINELY absent, never on an
+        // error, which must not bounce an established partner into onboarding.
+        if (!data && !error) {
+          router.replace('/onboarding/gallery');
+          return;
+        }
         if (data) {
           setGalleryId(data.id);
           setGallery({

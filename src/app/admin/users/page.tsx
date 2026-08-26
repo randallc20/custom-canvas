@@ -44,14 +44,19 @@ function UsersContent() {
     });
     if (!ok) return;
     setResetting(u.id);
-    const res = await fetch(`/api/admin/users/${u.id}/reset-password`, { method: 'POST' });
-    if (res.ok) {
-      toast(`Reset email sent to ${u.email}`, 'success');
-    } else {
-      const { error } = await res.json().catch(() => ({ error: null }));
-      toast(error ?? 'Could not send the reset email', 'error');
+    try {
+      const res = await fetch(`/api/admin/users/${u.id}/reset-password`, { method: 'POST' });
+      if (res.ok) {
+        toast(`Reset email sent to ${u.email}`, 'success');
+      } else {
+        const { error } = await res.json().catch(() => ({ error: null }));
+        toast(error ?? 'Could not send the reset email', 'error');
+      }
+    } catch {
+      toast('Could not send the reset email — check your connection and try again.', 'error');
+    } finally {
+      setResetting(null);
     }
-    setResetting(null);
   };
 
   useEffect(() => {

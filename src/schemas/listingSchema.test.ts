@@ -34,3 +34,18 @@ describe('AI disclosure rule (mirrors DB CHECK listings_ai_disclosure_required)'
     expect(listingWriteSchema.safeParse({ ...writeBase, ai_involvement: 'none', ai_disclosure: null }).success).toBe(true);
   });
 });
+
+describe('PATCH schema (zod 4 partial regression)', () => {
+  it('listingWritePatchSchema exists and parses a partial without throwing', async () => {
+    const { listingWritePatchSchema, AI_DISCLOSURE_MIN } = await import('./listingSchema');
+    expect(AI_DISCLOSURE_MIN).toBe(20); // pinned: the DB CHECK in 00042 mirrors this
+    const r = listingWritePatchSchema.safeParse({ price_cents: 12345 });
+    expect(r.success).toBe(true);
+  });
+  it('patch declaring assisted without a real disclosure fails on the field', async () => {
+    const { listingWritePatchSchema } = await import('./listingSchema');
+    const r = listingWritePatchSchema.safeParse({ ai_involvement: 'assisted', ai_disclosure: 'short' });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0].path).toEqual(['ai_disclosure']);
+  });
+});

@@ -28,7 +28,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
   const admin = createAdminSupabaseClient();
   const { data: order } = await admin
     .from('orders')
-    .select('id, status, is_pickup, buyer_id, artist:artist_profiles(profile_id), pickup_confirmed_by_buyer_at, pickup_confirmed_by_artist_at')
+    .select('id, status, is_pickup, buyer_id, refund_approved_at, artist:artist_profiles(profile_id), pickup_confirmed_by_buyer_at, pickup_confirmed_by_artist_at')
     .eq('id', params.id)
     .maybeSingle();
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -37,11 +37,19 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ error: 'This order ships — there is no pickup to confirm.' }, { status: 400 });
   }
   // 'delivered' stays confirmable: the second party's late confirmation is what
-  // earns protection. 'disputed' is deliberately NOT confirmable — protection
-  // evidence must exist when the dispute arrives; a post-dispute self-
-  // attestation would let either party manufacture it after money is at stake.
-  if (!['paid', 'delivered'].includes(order.status)) {
+  // earns protection. 'shipped' shouldn't occur for pickup, but legacy rows
+  // reached it via the old Mark-as-Shipped button — excluding them would
+  // strand those orders unconfirmable forever. 'disputed' is deliberately NOT
+  // confirmable — protection evidence must exist when the dispute arrives; a
+  // post-dispute self-attestation would let either party manufacture it after
+  // money is at stake. Same logic for a refund in flight: confirming a handoff
+  // on an order the artist already agreed to refund would manufacture
+  // protection evidence after the refund decision.
+  if (!['paid', 'shipped', 'delivered'].includes(order.status)) {
     return NextResponse.json({ error: 'This order is not open.' }, { status: 409 });
+  }
+  if (order.refund_approved_at) {
+    return NextResponse.json({ error: 'A refund is in progress on this order — the handoff can no longer be confirmed.' }, { status: 409 });
   }
 
   const artistProfileId = (order.artist as unknown as { profile_id: string } | null)?.profile_id;
@@ -50,12 +58,22 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
   if (!isBuyer && !isArtist) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const column = isBuyer ? 'pickup_confirmed_by_buyer_at' : 'pickup_confirmed_by_artist_at';
+  const otherAlreadyConfirmed = isBuyer
+    ? !!order.pickup_confirmed_by_artist_at
+    : !!order.pickup_confirmed_by_buyer_at;
 
   // Atomic stamp: only writes if this party hasn't confirmed yet, and the
-  // returned row reflects the state AFTER this write.
+  // returned row reflects the state AFTER this write. When the pre-read
+  // already shows the counterpart confirmed, the delivered promotion rides
+  // the same single write — confirmations are set-once, so that read can only
+  // be stale in the safe direction (the concurrent case falls through to the
+  // post-write promotion below).
   const { data: fresh, error } = await admin
     .from('orders')
-    .update({ [column]: new Date().toISOString() })
+    .update({
+      [column]: new Date().toISOString(),
+      ...(otherAlreadyConfirmed && order.status !== 'delivered' ? { status: 'delivered' } : {}),
+    })
     .eq('id', order.id)
     .is(column, null)
     .select('status, pickup_confirmed_by_buyer_at, pickup_confirmed_by_artist_at')
@@ -74,7 +92,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
       .from('orders')
       .update({ status: 'delivered' })
       .eq('id', order.id)
-      .in('status', ['paid']);
+      .in('status', ['paid', 'shipped']);
     if (promoteError) {
       // The confirmation itself stood — surface the failed promotion honestly
       // rather than a clean 200 over a half-finished transition.

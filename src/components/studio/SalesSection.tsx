@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useArtistOrders, useUpdateOrderStatus } from '@/hooks/useOrders';
+import { useConfirmPickup, useArtistOrders, useUpdateOrderStatus } from '@/hooks/useOrders';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Badge } from '@/components/ui/Badge';
@@ -36,21 +36,16 @@ export function SalesSection() {
   const [shipModal, setShipModal] = useState<Order | null>(null);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrier, setCarrier] = useState('');
-  const [confirmingHandoff, setConfirmingHandoff] = useState<string | null>(null);
+  const confirmPickup = useConfirmPickup();
 
   // Local pickup: your half of the handoff confirmation. Protection for a
   // pickup order attaches only when the buyer confirms too.
-  const handleConfirmHandoff = async (order: Order) => {
-    setConfirmingHandoff(order.id);
-    const res = await fetch(`/api/orders/${order.id}/confirm-pickup`, { method: 'POST' });
-    const body = await res.json().catch(() => ({}));
-    if (res.ok) {
-      toast(body.bothConfirmed ? 'Handoff confirmed by both of you.' : 'Confirmed — the buyer still needs to confirm their side.', 'success');
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-    } else {
-      toast(body.error ?? 'Could not confirm the handoff.', 'error');
-    }
-    setConfirmingHandoff(null);
+  const handleConfirmHandoff = (order: Order) => {
+    confirmPickup.mutate(order.id, {
+      onSuccess: (body) =>
+        toast(body.bothConfirmed ? 'Handoff confirmed by both of you.' : 'Confirmed — the buyer still needs to confirm their side.', 'success'),
+      onError: (e) => toast(e.message, 'error'),
+    });
   };
 
   if (loadingArtist || isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
@@ -155,13 +150,17 @@ export function SalesSection() {
                 <div className="mt-3 flex items-center gap-2">
                   {/* Pickup orders never ship — their path to delivered is the
                       two-sided handoff confirmation. */}
-                  {order.is_pickup && ['paid', 'delivered'].includes(order.status) && (
+                  {order.is_pickup && ['paid', 'shipped', 'delivered'].includes(order.status) && !order.refund_approved_at && (
                     !order.pickup_confirmed_by_artist_at ? (
-                      <Button size="sm" loading={confirmingHandoff === order.id} onClick={() => handleConfirmHandoff(order)}>
+                      <Button size="sm" loading={confirmPickup.isPending && confirmPickup.variables === order.id} onClick={() => handleConfirmHandoff(order)}>
                         Confirm pickup handoff
                       </Button>
                     ) : !order.pickup_confirmed_by_buyer_at ? (
                       <span className="text-xs text-muted">You confirmed the handoff — waiting on the buyer.</span>
+                    ) : order.status !== 'delivered' ? (
+                      <Button size="sm" variant="outline" loading={confirmPickup.isPending && confirmPickup.variables === order.id} onClick={() => handleConfirmHandoff(order)}>
+                        Finish confirming handoff
+                      </Button>
                     ) : null
                   )}
                   {!order.is_pickup && order.status === 'paid' && (

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { listingWriteSchema } from '@/schemas/listingSchema';
+import { listingWritePatchSchema } from '@/schemas/listingSchema';
 import { fanOutNewListingEmails, fanOutPriceDropEmails } from '@/lib/listingAlerts';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
@@ -38,7 +38,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
 
   const body = await request.json();
-  const parsed = listingWriteSchema.partial().safeParse(body);
+  const parsed = listingWritePatchSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid listing data', details: parsed.error.flatten() }, { status: 400 });
   }

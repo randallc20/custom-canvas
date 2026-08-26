@@ -14,7 +14,18 @@ import { Spinner } from '@/components/ui/Spinner';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/utils/slugify';
 
-const STEPS = ['Basics', 'About', 'Preferences', 'Agreement'];
+// One structure drives the progress bar, per-step validation on Next, and the
+// submit-time "which step is wrong" message — they can no longer drift apart.
+const STEP_DEFS: { name: string; fields: (keyof ArtistProfileFormData)[] }[] = [
+  { name: 'Basics', fields: ['display_name', 'bio', 'school'] },
+  { name: 'About', fields: ['artist_statement', 'influences'] },
+  { name: 'Preferences', fields: ['city', 'neighborhood', 'fulfillment_pref', 'commissions_open', 'accent_color', 'bio_layout'] },
+  { name: 'Agreement', fields: [] },
+];
+const STEPS = STEP_DEFS.map((s) => s.name);
+const FIELD_STEP: Record<string, string> = Object.fromEntries(
+  STEP_DEFS.flatMap((s) => s.fields.map((f) => [f, s.name]))
+);
 
 export default function ArtistOnboardingPage() {
   const [step, setStep] = useState(0);
@@ -45,15 +56,9 @@ export default function ArtistOnboardingPage() {
     return null;
   }
 
-  const stepFields: Record<number, (keyof ArtistProfileFormData)[]> = {
-    0: ['display_name'],
-    1: [],
-    2: ['commissions_open', 'accent_color', 'bio_layout', 'city'],
-  };
-
   const handleNext = async () => {
-    const fields = stepFields[step] ?? [];
-    if (fields && fields.length > 0) {
+    const fields = STEP_DEFS[step]?.fields ?? [];
+    if (fields.length > 0) {
       const valid = await trigger(fields);
       if (!valid) return;
     }
@@ -65,15 +70,9 @@ export default function ArtistOnboardingPage() {
    *  broken. Name the step so they know where to go back to. */
   const onInvalid = (errs: Record<string, unknown>) => {
     const first = Object.keys(errs)[0];
-    const stepOf: Record<string, string> = {
-      display_name: 'Basics', bio: 'Basics', school: 'Basics',
-      artist_statement: 'About', influences: 'About',
-      city: 'Preferences', neighborhood: 'Preferences',
-      fulfillment_pref: 'Preferences', commissions_open: 'Preferences',
-    };
     setError(
-      first && stepOf[first]
-        ? `Something on the ${stepOf[first]} step needs fixing — go back and check it.`
+      first && FIELD_STEP[first]
+        ? `Something on the ${FIELD_STEP[first]} step needs fixing — go back and check it.`
         : 'Something above needs fixing before you can finish.'
     );
   };
@@ -84,6 +83,21 @@ export default function ArtistOnboardingPage() {
       setError('Please accept the Artist Agreement to continue.');
       return;
     }
+    // Backstop for the guard's silent-empty edge (an expired token can make an
+    // existing row invisible without an error): never insert a second profile —
+    // if one exists, this account is already set up.
+    const { data: existing } = await supabase
+      .from('artist_profiles')
+      .select('id')
+      .eq('profile_id', user.id)
+      .maybeSingle();
+    if (existing) {
+      await queryClient.invalidateQueries({ queryKey: ['artist-profile-exists', user.id] });
+      await queryClient.invalidateQueries({ queryKey: ['own-artist-profile', user.id] });
+      router.push('/studio');
+      return;
+    }
+
     const slug = slugify(data.display_name) + '-' + Date.now().toString(36);
     const { error: insertError } = await supabase.from('artist_profiles').insert({
       profile_id: user.id,
@@ -104,6 +118,7 @@ export default function ArtistOnboardingPage() {
     // The Studio's shared profile query is React Query-cached; without this the
     // freshly-created artist can land on a Studio that still believes it has no
     // profile row.
+    await queryClient.invalidateQueries({ queryKey: ['artist-profile-exists', user.id] });
     await queryClient.invalidateQueries({ queryKey: ['own-artist-profile', user.id] });
     router.push('/studio');
   };

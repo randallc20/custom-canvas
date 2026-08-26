@@ -5,7 +5,7 @@ import { z } from 'zod';
 // `listings_ai_disclosure_required` (00042) so the artist gets the inline
 // field error instead of a raw constraint violation. Applied to BOTH the form
 // schema and the server write schema via superRefine below.
-const AI_DISCLOSURE_MIN = 20;
+export const AI_DISCLOSURE_MIN = 20;
 function aiDisclosureRule(
   data: { ai_involvement?: 'none' | 'assisted'; ai_disclosure?: string | null },
   ctx: z.RefinementCtx
@@ -21,7 +21,7 @@ function aiDisclosureRule(
 
 // Forms work in dollars; submit handlers convert to integer cents via
 // Math.round before anything touches the database.
-export const listingSchema = z.object({
+const listingObject = z.object({
   title: z.string().min(2).max(200),
   description: z.string().max(5000).optional().or(z.literal('')),
   medium: z.string().min(1).max(100),
@@ -42,7 +42,8 @@ export const listingSchema = z.object({
   series_id: z.string().optional().or(z.literal('')),
   status: z.enum(['available', 'sold', 'commission_only', 'hidden', 'draft']),
   tags: z.array(z.string()).max(10),
-}).superRefine(aiDisclosureRule);
+});
+export const listingSchema = listingObject.superRefine(aiDisclosureRule);
 
 export type ListingFormData = z.infer<typeof listingSchema>;
 
@@ -52,7 +53,7 @@ export function toCents(dollars: number | null | undefined): number {
 
 // Server-side shape for the listing write API: integer cents (forms convert
 // at the edge), no artist_id (the route derives it from the session).
-export const listingWriteSchema = z.object({
+const listingWriteObject = z.object({
   title: z.string().min(2).max(200),
   description: z.string().max(5000).nullable().optional(),
   medium: z.string().min(1).max(100),
@@ -69,6 +70,14 @@ export const listingWriteSchema = z.object({
   show_sold_price: z.boolean().optional(),
   series_id: z.string().uuid().nullable().optional(),
   status: z.enum(['available', 'sold', 'commission_only', 'hidden', 'draft']),
-}).superRefine(aiDisclosureRule);
+});
+export const listingWriteSchema = listingWriteObject.superRefine(aiDisclosureRule);
+
+// PATCH shape. zod 4 refuses .partial() on a refined schema (it throws at
+// RUNTIME, invisible to tsc — this took down every listing edit once), so the
+// partial derives from the unrefined object and re-applies the rule. On a
+// partial the rule fires only when the patch itself declares 'assisted';
+// clearing or omitting fields still ends at the DB CHECK.
+export const listingWritePatchSchema = listingWriteObject.partial().superRefine(aiDisclosureRule);
 
 export type ListingWriteData = z.infer<typeof listingWriteSchema>;

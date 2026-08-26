@@ -73,7 +73,7 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
             <button
               onClick={() => goTo(selectedIndex - 1)}
               disabled={selectedIndex === 0}
-              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow transition-opacity hover:bg-white disabled:opacity-0"
+              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow transition-opacity hover:bg-white disabled:opacity-0 disabled:pointer-events-none"
               aria-label="Previous image"
             >
               <svg className="h-5 w-5 text-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -83,7 +83,7 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
             <button
               onClick={() => goTo(selectedIndex + 1)}
               disabled={selectedIndex === sorted.length - 1}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow transition-opacity hover:bg-white disabled:opacity-0"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow transition-opacity hover:bg-white disabled:opacity-0 disabled:pointer-events-none"
               aria-label="Next image"
             >
               <svg className="h-5 w-5 text-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -116,7 +116,7 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
               <button
                 onClick={(e) => { e.stopPropagation(); goTo(selectedIndex - 1); }}
                 disabled={selectedIndex === 0}
-                className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow hover:bg-white disabled:opacity-0"
+                className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow hover:bg-white disabled:opacity-0 disabled:pointer-events-none"
                 aria-label="Previous image"
               >
                 <svg className="h-5 w-5 text-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -126,7 +126,7 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
               <button
                 onClick={(e) => { e.stopPropagation(); goTo(selectedIndex + 1); }}
                 disabled={selectedIndex === sorted.length - 1}
-                className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow hover:bg-white disabled:opacity-0"
+                className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow hover:bg-white disabled:opacity-0 disabled:pointer-events-none"
                 aria-label="Next image"
               >
                 <svg className="h-5 w-5 text-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -177,11 +177,20 @@ export function ArtistProfileEdit() {
       <form
         onSubmit={handleSubmit(onSubmit, (errs) => {
           // This page is long enough that an invalid field can be far offscreen;
-          // silently doing nothing reads as a broken Save button.
+          // silently doing nothing reads as a broken Save button. Name the field
+          // by its VISIBLE label, not its schema key.
+          const labels: Record<string, string> = {
+            display_name: 'Display Name', bio: 'Bio', school: 'School',
+            graduation_year: 'Graduation Year', artist_statement: 'Artist Statement',
+            influences: 'Influences', website_url: 'Website', city: 'City',
+            neighborhood: 'Neighborhood', fulfillment_pref: 'Fulfillment Preference',
+            commission_desc: 'Commission Description', commission_min_dollars: 'Minimum Price',
+            commission_turnaround: 'Turnaround Time', accent_color: 'Accent Color',
+          };
           const first = Object.keys(errs)[0];
           toast(
             first
-              ? `Check the "${first.replace(/_/g, ' ')}" field — it needs fixing before this can save.`
+              ? `Check the "${labels[first] ?? first.replace(/_/g, ' ')}" field — it needs fixing before this can save.`
               : 'Something on this page needs fixing before it can save.',
             'error'
           );

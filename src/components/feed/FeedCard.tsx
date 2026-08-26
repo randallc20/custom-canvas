@@ -42,28 +42,15 @@ export function FeedCard({ listing, revealDelayMs = 0, natural = false }: FeedCa
         style={{ '--reveal-delay': `${revealDelayMs}ms` } as React.CSSProperties}
       >
         {primaryImage ? (
-          natural ? (
-            <div className="overflow-hidden">
-              <Image
-                src={primaryImage.image_url}
-                alt={listing.title}
-                width={600}
-                height={750}
-                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="h-auto w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-              />
-            </div>
-          ) : (
-            <div className="relative aspect-[4/5] w-full overflow-hidden">
-              <Image
-                src={primaryImage.image_url}
-                alt={listing.title}
-                fill
-                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-              />
-            </div>
-          )
+          <div className={natural ? 'overflow-hidden' : 'relative aspect-[4/5] w-full overflow-hidden'}>
+            <Image
+              src={primaryImage.image_url}
+              alt={listing.title}
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className={`object-cover transition-transform duration-300 group-hover:scale-[1.03] ${natural ? 'h-auto w-full' : ''}`}
+              {...(natural ? { width: 600, height: 750 } : { fill: true })}
+            />
+          </div>
         ) : (
           <div className="flex aspect-[4/5] items-center justify-center bg-sand">
             <span className="text-sm text-muted">No image</span>
