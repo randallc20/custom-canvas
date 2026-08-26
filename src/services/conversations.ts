@@ -99,15 +99,3 @@ export async function findOrCreateConversation(
 
   return createConversation(userId, otherUserId, contextType, contextId);
 }
-
-export async function updateLastMessage(conversationId: string, text: string): Promise<void> {
-  const { error } = await supabase
-    .from('conversations')
-    .update({
-      last_message_text: text,
-      last_message_at: new Date().toISOString(),
-    })
-    .eq('id', conversationId);
-
-  if (error) throw error;
-}

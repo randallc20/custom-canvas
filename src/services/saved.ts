@@ -28,13 +28,17 @@ export async function saveListing(profileId: string, listingId: string): Promise
 }
 
 export async function unsaveListing(profileId: string, listingId: string): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('saved_listings')
     .delete()
     .eq('profile_id', profileId)
-    .eq('listing_id', listingId);
+    .eq('listing_id', listingId)
+    .select('listing_id');
 
   if (error) throw error;
+  // Zero rows = RLS refused the delete (or state is stale) — the heart would
+  // un-fill while the save silently survived.
+  if (!data?.length) throw new Error('Could not remove the save — please refresh and try again.');
 }
 
 export async function isListingSaved(profileId: string, listingId: string): Promise<boolean> {

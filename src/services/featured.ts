@@ -93,16 +93,24 @@ export async function addFeatured(listingId: string, displayOrder: number): Prom
 }
 
 export async function removeFeatured(listingId: string): Promise<void> {
-  const { error } = await supabase.from('featured_listings').delete().eq('listing_id', listingId);
+  const { data, error } = await supabase
+    .from('featured_listings')
+    .delete()
+    .eq('listing_id', listingId)
+    .select('listing_id');
   if (error) throw error;
+  // RLS silently matches 0 rows when the session's admin role lapsed.
+  if (!data?.length) throw new Error('Listing could not be un-featured — your session may have changed.');
 }
 
 export async function updateFeaturedOrder(listingId: string, displayOrder: number): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('featured_listings')
     .update({ display_order: displayOrder })
-    .eq('listing_id', listingId);
+    .eq('listing_id', listingId)
+    .select('listing_id');
   if (error) throw error;
+  if (!data?.length) throw new Error('Order could not be saved — your session may have changed.');
 }
 
 /** Search available listings to feature (excluding already-featured ids). */

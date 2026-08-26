@@ -23,6 +23,8 @@ export async function saveEducation(
   entries: Array<Omit<ArtistEducation, 'id' | 'artist_id' | 'created_at'> & { id?: string }>
 ): Promise<void> {
   // Replace-all: simplest correct sync for a small repeatable fieldset.
+  // Zero rows deleted is legitimate (first save has nothing to clear) — an
+  // RLS refusal would surface on the insert below instead.
   const { error: delError } = await supabase.from('artist_education').delete().eq('artist_id', artistId);
   if (delError) throw delError;
   if (entries.length === 0) return;
@@ -70,13 +72,18 @@ export async function addPersonalPhotos(artistId: string, imageUrls: string[], s
 }
 
 export async function updatePersonalPhoto(id: string, updates: { caption?: string | null; display_order?: number }): Promise<void> {
-  const { error } = await supabase.from('artist_personal_photos').update(updates).eq('id', id);
+  const { data, error } = await supabase
+    .from('artist_personal_photos').update(updates).eq('id', id).select('id').maybeSingle();
   if (error) throw error;
+  // Zero rows = RLS refused — the caption/reorder would look saved but not be.
+  if (!data) throw new Error('Could not save the photo change — please refresh and try again.');
 }
 
 export async function deletePersonalPhoto(id: string): Promise<void> {
-  const { error } = await supabase.from('artist_personal_photos').delete().eq('id', id);
+  const { data, error } = await supabase
+    .from('artist_personal_photos').delete().eq('id', id).select('id').maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error('Could not delete the photo — please refresh and try again.');
 }
 
 // --- Videos ---
@@ -100,13 +107,18 @@ export async function addVideo(
 }
 
 export async function updateVideo(id: string, updates: { title?: string | null; description?: string | null; display_order?: number }): Promise<void> {
-  const { error } = await supabase.from('artist_videos').update(updates).eq('id', id);
+  const { data, error } = await supabase
+    .from('artist_videos').update(updates).eq('id', id).select('id').maybeSingle();
   if (error) throw error;
+  // Zero rows = RLS refused — see docs/CONVENTIONS.md.
+  if (!data) throw new Error('Could not save the video change — please refresh and try again.');
 }
 
 export async function deleteVideo(id: string): Promise<void> {
-  const { error } = await supabase.from('artist_videos').delete().eq('id', id);
+  const { data, error } = await supabase
+    .from('artist_videos').delete().eq('id', id).select('id').maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error('Could not delete the video — please refresh and try again.');
 }
 
 // --- Series ---
@@ -138,16 +150,22 @@ export async function updateSeries(
   id: string,
   updates: { name?: string; description?: string | null; cover_image_url?: string | null; display_order?: number }
 ): Promise<void> {
-  const { error } = await supabase.from('listing_series').update(updates).eq('id', id);
+  const { data, error } = await supabase
+    .from('listing_series').update(updates).eq('id', id).select('id').maybeSingle();
   if (error) throw error;
+  // Zero rows = RLS refused — the edit would look saved but not be.
+  if (!data) throw new Error('Could not save the series — please refresh and try again.');
 }
 
 export async function deleteSeries(id: string): Promise<void> {
-  // Listings keep existing but leave the series.
+  // Listings keep existing but leave the series. Zero rows here is legitimate
+  // (an empty series has no listings to detach) — no row assertion.
   const { error: clearError } = await supabase.from('listings').update({ series_id: null }).eq('series_id', id);
   if (clearError) throw clearError;
-  const { error } = await supabase.from('listing_series').delete().eq('id', id);
+  const { data, error } = await supabase
+    .from('listing_series').delete().eq('id', id).select('id').maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error('Could not delete the series — please refresh and try again.');
 }
 
 // --- Pinned work (server-validated: max 3 + ownership) ---

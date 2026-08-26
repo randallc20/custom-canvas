@@ -21,13 +21,17 @@ export async function followArtist(profileId: string, artistId: string): Promise
 }
 
 export async function unfollowArtist(profileId: string, artistId: string): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('follows')
     .delete()
     .eq('follower_id', profileId)
-    .eq('artist_id', artistId);
+    .eq('artist_id', artistId)
+    .select('artist_id');
 
   if (error) throw error;
+  // Zero rows = RLS refused the delete — the button would flip to "Follow"
+  // while the follow silently survived.
+  if (!data?.length) throw new Error('Could not unfollow — please refresh and try again.');
 }
 
 export async function isFollowing(profileId: string, artistId: string): Promise<boolean> {

@@ -19,12 +19,16 @@ export async function blockUser(blockerId: string, blockedId: string): Promise<v
 }
 
 export async function unblockUser(blockerId: string, blockedId: string): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('blocked_users')
     .delete()
     .eq('blocker_id', blockerId)
-    .eq('blocked_id', blockedId);
+    .eq('blocked_id', blockedId)
+    .select('blocked_id');
   if (error) throw error;
+  // Zero rows = RLS refused the delete — the UI would say "unblocked" while
+  // the block silently survived.
+  if (!data?.length) throw new Error('Could not unblock — please refresh and try again.');
 }
 
 // --- Muting ---
@@ -46,10 +50,14 @@ export async function muteConversation(profileId: string, conversationId: string
 }
 
 export async function unmuteConversation(profileId: string, conversationId: string): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('muted_conversations')
     .delete()
     .eq('profile_id', profileId)
-    .eq('conversation_id', conversationId);
+    .eq('conversation_id', conversationId)
+    .select('conversation_id');
   if (error) throw error;
+  // Zero rows = RLS refused the delete — the thread would look unmuted while
+  // staying muted.
+  if (!data?.length) throw new Error('Could not unmute — please refresh and try again.');
 }

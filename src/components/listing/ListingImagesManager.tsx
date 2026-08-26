@@ -5,6 +5,7 @@ import { ImageUpload } from '@/components/upload/ImageUpload';
 import { ImageThumbGrid } from '@/components/upload/ImageThumbGrid';
 import { addListingImages, updateListingImage, deleteListingImage } from '@/services/listings';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { swapDisplayOrder } from '@/utils/reorder';
 import { ListingImage } from '@/types/listing';
 
@@ -18,6 +19,7 @@ interface ListingImagesManagerProps {
 export function ListingImagesManager({ listingId, images }: ListingImagesManagerProps) {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
+  const { toast } = useToast();
   const sorted = [...images].sort((a, b) => a.display_order - b.display_order);
 
   const invalidate = () => {
@@ -39,21 +41,35 @@ export function ListingImagesManager({ listingId, images }: ListingImagesManager
   };
 
   const handleUpload = async (urls: string[]) => {
-    await addListingImages(listingId, urls.slice(0, MAX_LISTING_IMAGES - sorted.length), sorted.length);
+    try {
+      await addListingImages(listingId, urls.slice(0, MAX_LISTING_IMAGES - sorted.length), sorted.length);
+    } catch {
+      toast('Could not save the uploaded images', 'error');
+      return;
+    }
     invalidate();
   };
 
   const handleMove = async (i: number, dir: -1 | 1) => {
-    const moved = await swapDisplayOrder(sorted, i, dir, (id, order) =>
-      updateListingImage(id, { display_order: order, is_primary: order === 0 })
-    );
-    if (moved) invalidate();
+    try {
+      const moved = await swapDisplayOrder(sorted, i, dir, (id, order) =>
+        updateListingImage(id, { display_order: order, is_primary: order === 0 })
+      );
+      if (moved) invalidate();
+    } catch {
+      toast('Could not reorder the images', 'error');
+    }
   };
 
   const handleRemove = async (i: number) => {
     if (!(await confirm({ title: 'Remove image?', message: 'This image will be removed from the listing.', confirmLabel: 'Remove', destructive: true }))) return;
-    await deleteListingImage(sorted[i].id);
-    await renumber(sorted.filter((_, j) => j !== i));
+    try {
+      await deleteListingImage(sorted[i].id);
+      await renumber(sorted.filter((_, j) => j !== i));
+    } catch {
+      toast('Could not remove the image', 'error');
+      return;
+    }
     invalidate();
   };
 

@@ -1,17 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { Order } from '@/types/order';
 
-export async function createOrder(data: Omit<Order, 'id' | 'created_at' | 'updated_at'>): Promise<Order> {
-  const { data: order, error } = await supabase
-    .from('orders')
-    .insert(data)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return order;
-}
-
 export async function getOrdersByBuyer(buyerId: string): Promise<Order[]> {
   const { data, error } = await supabase
     .from('orders')

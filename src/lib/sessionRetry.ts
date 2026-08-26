@@ -1,5 +1,8 @@
 import { supabase } from '@/lib/supabase';
 
+// Client-side writes must assert affected rows and surface failures —
+// the full rule lives in docs/CONVENTIONS.md.
+
 /**
  * Right after signup, a write can go out before the fresh session cookie is
  * attached, so RLS sees an anonymous request. The symptom differs by verb —

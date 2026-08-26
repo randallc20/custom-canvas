@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getListingById, createListing, updateListing, deleteListing } from '@/services/listings';
 import { Listing } from '@/types/listing';
 import { useToast } from '@/components/ui/Toast';
+import { toastError } from '@/hooks/toastError';
 
 export function useListing(id: string) {
   return useQuery({
@@ -9,14 +10,6 @@ export function useListing(id: string) {
     queryFn: () => getListingById(id),
     enabled: !!id,
   });
-}
-
-// Listing writes go over HTTP now (rate-limitable, can fail with 429/401),
-// so every mutation surfaces its error as a toast — callers that .mutate()
-// without onError no longer fail silently.
-function toastError(toast: ReturnType<typeof useToast>['toast']) {
-  return (err: unknown) =>
-    toast(err instanceof Error ? err.message : 'Something went wrong', 'error');
 }
 
 export function useCreateListing() {

@@ -110,17 +110,21 @@ export function GalleryDashboard() {
   const handleRemoveArtist = async (artistId: string) => {
     if (!gallery) return;
     if (!(await confirm({ title: 'Remove artist?', message: 'They will no longer appear on your roster.', confirmLabel: 'Remove', destructive: true }))) return;
-    try {
-      await supabase
-        .from('gallery_artists')
-        .delete()
-        .eq('gallery_id', gallery.id)
-        .eq('artist_id', artistId);
-      toast('Artist removed.', 'success');
-      setArtists((prev) => prev.filter((a) => a.id !== artistId));
-    } catch {
+    // supabase-js returns errors, it doesn't throw — the old try/catch here
+    // never fired and every failure toasted success. Check the error AND
+    // assert a row came back (zero rows = RLS refused the delete).
+    const { data, error } = await supabase
+      .from('gallery_artists')
+      .delete()
+      .eq('gallery_id', gallery.id)
+      .eq('artist_id', artistId)
+      .select('artist_id');
+    if (error || !data?.length) {
       toast('Failed to remove artist.', 'error');
+      return;
     }
+    toast('Artist removed.', 'success');
+    setArtists((prev) => prev.filter((a) => a.id !== artistId));
   };
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;

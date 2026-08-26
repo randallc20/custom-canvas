@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Notification, NotificationType } from '@/types/notification';
+import type { Notification } from '@/types/notification';
 
 export async function getNotifications(userId: string): Promise<Notification[]> {
   const { data, error } = await supabase
@@ -14,39 +14,25 @@ export async function getNotifications(userId: string): Promise<Notification[]> 
 }
 
 export async function markNotificationRead(notificationId: string): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('notifications')
     .update({ is_read: true })
-    .eq('id', notificationId);
+    .eq('id', notificationId)
+    .select('id')
+    .maybeSingle();
 
   if (error) throw error;
+  // Zero rows = RLS refused the update — the badge count would never clear.
+  if (!data) throw new Error('Could not mark the notification read.');
 }
 
 export async function markAllNotificationsRead(userId: string): Promise<void> {
+  // Zero rows is legitimate here (nothing unread) — no row assertion.
   const { error } = await supabase
     .from('notifications')
     .update({ is_read: true })
     .eq('user_id', userId)
     .eq('is_read', false);
-
-  if (error) throw error;
-}
-
-export async function createNotification(params: {
-  userId: string;
-  type: NotificationType;
-  title: string;
-  body: string;
-  link?: string;
-}): Promise<void> {
-  const { error } = await supabase.from('notifications').insert({
-    user_id: params.userId,
-    type: params.type,
-    title: params.title,
-    body: params.body,
-    link: params.link ?? null,
-    is_read: false,
-  });
 
   if (error) throw error;
 }

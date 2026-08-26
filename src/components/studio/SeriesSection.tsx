@@ -82,8 +82,12 @@ export function SeriesSection() {
   };
 
   const move = async (i: number, dir: -1 | 1) => {
-    const moved = await swapDisplayOrder(series, i, dir, (id, order) => updateSeries(id, { display_order: order }));
-    if (moved) invalidate(artistId, 'series');
+    try {
+      const moved = await swapDisplayOrder(series, i, dir, (id, order) => updateSeries(id, { display_order: order }));
+      if (moved) invalidate(artistId, 'series');
+    } catch {
+      toast('Could not reorder the series', 'error');
+    }
   };
 
   if (loadingArtist || isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;

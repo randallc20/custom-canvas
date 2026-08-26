@@ -57,8 +57,11 @@ export function GalleryProfileEdit() {
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
   const onSubmit = async (data: GalleryProfileFormData) => {
-    const { error } = await supabase.from('gallery_profiles').update(data).eq('id', galleryId);
-    if (error) {
+    // .select('id').maybeSingle(): a zero-row update (RLS refusal) must fail
+    // visibly instead of toasting success over an unsaved profile.
+    const { data: updated, error } = await supabase
+      .from('gallery_profiles').update(data).eq('id', galleryId).select('id').maybeSingle();
+    if (error || !updated) {
       toast('Failed to save changes.', 'error');
     } else {
       toast('Profile updated!', 'success');

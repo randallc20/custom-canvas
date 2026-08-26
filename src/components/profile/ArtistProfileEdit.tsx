@@ -132,8 +132,11 @@ export function ArtistProfileEdit() {
 
   const handleAvatarUploaded = async (url: string) => {
     if (!user) return;
-    const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', user.id);
-    if (error) toast('Failed to save profile photo', 'error');
+    // .select('id').maybeSingle(): a zero-row update (RLS refusal) must fail
+    // visibly, not preview an avatar that never saved.
+    const { data: updated, error } = await supabase
+      .from('profiles').update({ avatar_url: url }).eq('id', user.id).select('id').maybeSingle();
+    if (error || !updated) toast('Failed to save profile photo', 'error');
     else {
       setAvatarUrl(url);
       toast('Profile photo updated', 'success');
@@ -143,8 +146,9 @@ export function ArtistProfileEdit() {
   };
 
   const handleBannerUploaded = async (url: string) => {
-    const { error } = await supabase.from('artist_profiles').update({ banner_image_url: url }).eq('id', artist.id);
-    if (error) toast('Failed to save banner', 'error');
+    const { data: updated, error } = await supabase
+      .from('artist_profiles').update({ banner_image_url: url }).eq('id', artist.id).select('id').maybeSingle();
+    if (error || !updated) toast('Failed to save banner', 'error');
     else {
       setArtist((a) => (a ? { ...a, banner_image_url: url } : a));
       toast('Banner updated', 'success');

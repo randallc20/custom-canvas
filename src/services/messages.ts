@@ -66,6 +66,7 @@ export async function sendMessage(data: {
 }
 
 export async function markMessagesAsRead(conversationId: string, userId: string): Promise<void> {
+  // Zero rows is legitimate here (nothing unread) — no row assertion.
   const { error } = await supabase
     .from('messages')
     .update({ is_read: true })

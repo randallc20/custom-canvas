@@ -51,6 +51,8 @@ export async function updateListing(id: string, updates: Partial<Listing>): Prom
 /** Replace a listing's tag set (curated names → ids). Fires the DB trigger
  *  that refreshes the listing's search vector, so tag words are searchable. */
 export async function setListingTags(listingId: string, tagNames: string[]): Promise<void> {
+  // Zero rows is legitimate here (listing may have had no tags) — no row
+  // assertion; an RLS refusal on the delete would surface on the insert below.
   const { error: clearError } = await supabase
     .from('listing_tags')
     .delete()
@@ -89,21 +91,29 @@ export async function addListingImages(listingId: string, urls: string[], startO
 }
 
 export async function updateListingImage(id: string, updates: Partial<Pick<ListingImage, 'display_order' | 'is_primary'>>): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('listing_images')
     .update(updates)
-    .eq('id', id);
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
 
   if (error) throw error;
+  // Zero rows = RLS refused — a reorder would look done but not persist.
+  if (!data) throw new Error('Could not update the image — please refresh and try again.');
 }
 
 export async function deleteListingImage(id: string): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('listing_images')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
 
   if (error) throw error;
+  // Zero rows = RLS refused — the image would vanish from the UI but survive.
+  if (!data) throw new Error('Could not remove the image — please refresh and try again.');
 }
 
 export async function getListingImages(listingId: string) {

@@ -63,22 +63,3 @@ export async function getReports(): Promise<Report[]> {
   if (error) throw error;
   return data ?? [];
 }
-
-export async function updateReportStatus(
-  reportId: string,
-  status: Report['status'],
-  adminNotes?: string,
-  resolvedBy?: string
-): Promise<void> {
-  const { error } = await supabase
-    .from('reports')
-    .update({
-      status,
-      admin_notes: adminNotes ?? null,
-      resolved_by: resolvedBy ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', reportId);
-
-  if (error) throw error;
-}

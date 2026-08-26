@@ -62,12 +62,16 @@ function ListingsContent() {
 
   const handleRemove = async (id: string) => {
     if (!(await confirm({ title: 'Hide listing?', message: 'This listing will be hidden from buyers.', confirmLabel: 'Hide', destructive: true }))) return;
-    const { error } = await supabase
+    // .select('id').maybeSingle(): a zero-row update (RLS refusal) must fail
+    // visibly — the listing would look hidden while staying live for buyers.
+    const { data: updated, error } = await supabase
       .from('listings')
       .update({ status: 'hidden' })
-      .eq('id', id);
+      .eq('id', id)
+      .select('id')
+      .maybeSingle();
 
-    if (error) {
+    if (error || !updated) {
       toast('Failed to hide listing.', 'error');
       return;
     }

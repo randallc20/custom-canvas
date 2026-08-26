@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getFollowedArtists, followArtist, unfollowArtist, isFollowing, getFollowerCount } from '@/services/follows';
+import { useToast } from '@/components/ui/Toast';
+import { toastError } from '@/hooks/toastError';
 
 export function useFollowedArtists(profileId: string) {
   return useQuery({
@@ -27,6 +29,7 @@ export function useFollowerCount(artistId: string) {
 
 export function useToggleFollow() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({
@@ -49,5 +52,7 @@ export function useToggleFollow() {
       queryClient.invalidateQueries({ queryKey: ['following', profileId, artistId] });
       queryClient.invalidateQueries({ queryKey: ['follower-count', artistId] });
     },
+    // Call sites fire-and-forget with .mutate() — surface failures here.
+    onError: toastError(toast),
   });
 }

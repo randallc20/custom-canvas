@@ -31,8 +31,11 @@ export default function AccountPage() {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', user.id);
-    if (error) {
+    // .select('id').maybeSingle(): a zero-row update (RLS refusal) must fail
+    // visibly instead of toasting success over an unsaved name.
+    const { data: updated, error } = await supabase
+      .from('profiles').update({ full_name: fullName }).eq('id', user.id).select('id').maybeSingle();
+    if (error || !updated) {
       toast('Failed to save changes.', 'error');
     } else {
       toast('Profile updated!', 'success');

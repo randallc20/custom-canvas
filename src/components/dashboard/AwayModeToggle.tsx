@@ -33,14 +33,16 @@ export function AwayModeToggle() {
     setSaving(true);
     // Read the current commission state fresh so we restore the right value later.
     const { data: fresh } = await supabase.from('artist_profiles').select('commissions_open').eq('id', artist.id).single();
-    const { error } = await supabase.from('artist_profiles').update({
+    // .select('id').maybeSingle(): a zero-row update (RLS refusal) must fail
+    // visibly, not toast success over a shop that never paused.
+    const { data: updated, error } = await supabase.from('artist_profiles').update({
       away_mode: true,
       away_message: message || null,
       away_until: until || null,
       commissions_open_before_away: fresh?.commissions_open ?? artist.commissions_open,
       commissions_open: false,
-    }).eq('id', artist.id);
-    if (error) toast('Could not enable away mode', 'error');
+    }).eq('id', artist.id).select('id').maybeSingle();
+    if (error || !updated) toast('Could not enable away mode', 'error');
     else { setArtist({ ...artist, away_mode: true }); toast('Away mode on — your shop is paused.', 'success'); }
     setSaving(false);
   };
@@ -48,14 +50,14 @@ export function AwayModeToggle() {
   const disable = async () => {
     setSaving(true);
     const { data } = await supabase.from('artist_profiles').select('commissions_open_before_away').eq('id', artist.id).single();
-    const { error } = await supabase.from('artist_profiles').update({
+    const { data: updated, error } = await supabase.from('artist_profiles').update({
       away_mode: false,
       away_message: null,
       away_until: null,
       commissions_open: data?.commissions_open_before_away ?? true,
       commissions_open_before_away: null,
-    }).eq('id', artist.id);
-    if (error) toast('Could not turn off away mode', 'error');
+    }).eq('id', artist.id).select('id').maybeSingle();
+    if (error || !updated) toast('Could not turn off away mode', 'error');
     else { setArtist({ ...artist, away_mode: false }); toast('Welcome back — your shop is live again.', 'success'); }
     setSaving(false);
   };

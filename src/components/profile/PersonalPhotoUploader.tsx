@@ -22,7 +22,12 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
   const confirm = useConfirm();
 
   const handleUpload = async (urls: string[]) => {
-    await addPersonalPhotos(artistId, urls.slice(0, MAX_PHOTOS - photos.length), photos.length);
+    try {
+      await addPersonalPhotos(artistId, urls.slice(0, MAX_PHOTOS - photos.length), photos.length);
+    } catch {
+      toast('Could not save the uploaded photos', 'error');
+      return;
+    }
     invalidate(artistId, 'personal-photos');
     supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
   };
@@ -37,14 +42,23 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
 
   const handleDelete = async (id: string) => {
     if (!(await confirm({ title: 'Delete photo?', message: 'This photo will be permanently removed.', confirmLabel: 'Delete', destructive: true }))) return;
-    await deletePersonalPhoto(id);
+    try {
+      await deletePersonalPhoto(id);
+    } catch {
+      toast('Could not delete the photo', 'error');
+      return;
+    }
     invalidate(artistId, 'personal-photos');
     supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
   };
 
   const move = async (i: number, dir: -1 | 1) => {
-    const moved = await swapDisplayOrder(photos, i, dir, (id, order) => updatePersonalPhoto(id, { display_order: order }));
-    if (moved) invalidate(artistId, 'personal-photos');
+    try {
+      const moved = await swapDisplayOrder(photos, i, dir, (id, order) => updatePersonalPhoto(id, { display_order: order }));
+      if (moved) invalidate(artistId, 'personal-photos');
+    } catch {
+      toast('Could not reorder the photos', 'error');
+    }
   };
 
   return (
