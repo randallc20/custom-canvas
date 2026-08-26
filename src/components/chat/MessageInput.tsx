@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { uploadWithProgress } from '@/components/upload/uploadWithProgress';
+import { useToast } from '@/components/ui/Toast';
 
 export interface OutgoingAttachment {
   attachment_type: 'image' | 'file';
@@ -16,6 +17,7 @@ interface MessageInputProps {
 }
 
 export function MessageInput({ onSend, onSendAttachment, disabled }: MessageInputProps) {
+  const { toast } = useToast();
   const [text, setText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -60,7 +62,9 @@ export function MessageInput({ onSend, onSendAttachment, disabled }: MessageInpu
       // Store the object path; rendered via a signed URL (private bucket).
       onSendAttachment({ attachment_type: kind, url: path, fileName: file.name });
     } catch {
-      // surfaced via the disabled state resetting; toast handled by parent on send
+      // A silent catch here hid a storage cap AND a broken message type for
+      // months — say something.
+      toast('Couldn’t attach that file — it may be too large (10MB max). Try again.', 'error');
     } finally {
       setUploading(false);
       if (imageRef.current) imageRef.current.value = '';

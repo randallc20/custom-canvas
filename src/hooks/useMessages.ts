@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMessages, sendMessage, markMessagesAsRead, getUnreadCounts } from '@/services/messages';
+import { useToast } from '@/components/ui/Toast';
 import { supabase } from '@/lib/supabase';
 import { Message } from '@/types/message';
 
@@ -54,6 +55,7 @@ export function useMessages(conversationId: string) {
 
 export function useSendMessage() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   return useMutation({
     mutationFn: sendMessage,
@@ -61,6 +63,9 @@ export function useSendMessage() {
       queryClient.invalidateQueries({ queryKey: ['messages', variables.conversation_id] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
+    // The composer clears optimistically — without this, a refused send
+    // (blocked user, bad payload) just vanishes with zero feedback.
+    onError: () => toast('Your message didn’t send — please try again.', 'error'),
   });
 }
 

@@ -199,10 +199,14 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
         .filter({ has: page.locator('button[aria-label="Save"]') })
         .first();
     }
-    const savedTitle = (await card.locator('h3').first().innerText()).trim();
-    await card.locator('button[aria-label="Save"]').first().click();
+    // Pin the card by href BEFORE saving: the filter above selects on "has a
+    // Save button", so a successful save makes the card stop matching itself.
+    const savedHref = await card.getAttribute('href');
+    const pinned = page.locator(`a[href="${savedHref}"]`).first();
+    const savedTitle = (await pinned.locator('h3').first().innerText()).trim();
+    await pinned.locator('button[aria-label="Save"]').first().click();
     // Responds instantly: the heart flips to Unsave.
-    await expect(card.locator('button[aria-label="Unsave"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(pinned.locator('button[aria-label="Unsave"]').first()).toBeVisible({ timeout: 10_000 });
 
     await page.goto('/saved');
     await expect(page.getByText(savedTitle).first()).toBeVisible({ timeout: 15_000 });

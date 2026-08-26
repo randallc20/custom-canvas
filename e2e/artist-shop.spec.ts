@@ -483,7 +483,11 @@ test.describe.serial('artist shop building, reject → resubmit → approve, goi
     await page.getByRole('button', { name: 'Request verification' }).click();
     // Details are required.
     await page.getByRole('button', { name: 'Submit', exact: true }).click();
-    await expect(page.getByText(/tell us how you.re connected/i)).toBeVisible({ timeout: 15_000 });
+    // The refusal toast — scoped to the alert region, since the card's own
+    // static copy contains the same phrase.
+    await expect(
+      page.locator('[role="alert"]').getByText(/tell us how you.re connected/i)
+    ).toBeVisible({ timeout: 15_000 });
     await page.getByLabel('Details').fill('Coursework at Glassell School of Art; shared studio space in Montrose.');
     await page.getByRole('button', { name: 'Submit', exact: true }).click();
     await expect(page.getByText(/request submitted/i)).toBeVisible({ timeout: 15_000 });
