@@ -547,9 +547,18 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
     // app path is verified good (probed: 200 + bubble before AND after a
     // password change). Recover the way a person does: reload and resend.
     const bubble = page.locator('p.whitespace-pre-wrap', { hasText: question });
+    const threadUrl = page.url();
     await expect(async () => {
       if (!(await bubble.first().isVisible().catch(() => false))) {
-        await page.reload();
+        // Same degraded-session recovery as the navigation above: a reload
+        // can land on /login when the session actually died — sign back in
+        // and return to the thread, the way a person would.
+        if (/\/login/.test(page.url())) {
+          await login(page, loverEmail, loverNewPassword);
+          await page.goto(threadUrl);
+        } else {
+          await page.reload();
+        }
         const again = chatTextarea(page);
         await again.waitFor({ state: 'visible', timeout: 15_000 });
         await again.fill(question);

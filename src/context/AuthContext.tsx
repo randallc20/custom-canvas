@@ -40,18 +40,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // auth session is the source of truth for the user's own email, so we
     // select the public columns and merge session email into the Profile.
     const fetchProfile = async (userId: string, email: string) => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, role, full_name, avatar_url, created_at, updated_at')
-        .eq('id', userId)
-        .single();
+      const run = () =>
+        supabase
+          .from('profiles')
+          .select('id, role, full_name, avatar_url, created_at, updated_at')
+          .eq('id', userId)
+          .single();
+
+      let { data, error } = await run();
+      // An expired access token mid-refresh errors here; re-sync and retry
+      // once before believing it. PGRST116 (zero rows) is a real answer, not
+      // a transient — no retry for it.
+      if (error && error.code !== 'PGRST116') {
+        await supabase.auth.refreshSession();
+        ({ data, error } = await run());
+      }
 
       if (isMounted) {
-        if (error) {
-          setUser(null);
-        } else {
+        if (data) {
           setUser({ ...data, email });
+        } else if (error?.code === 'PGRST116') {
+          // The profile row is genuinely gone (deleted account) — signed out.
+          setUser(null);
         }
+        // Any other persistent error: KEEP the current user state. This used
+        // to setUser(null), which made AuthGuard bounce a still-authenticated
+        // user to /login (or / on a role check) on any transient failure —
+        // and every onAuthStateChange event re-fetches, so each blip was a
+        // fresh chance to fake-sign-out the user mid-session.
         setLoading(false);
       }
     };
