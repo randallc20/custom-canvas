@@ -335,16 +335,12 @@ work for the first time.
 
 ### 4.2 — Finish setting up your artist profile
 
-When you registered as an artist you were meant to be walked through a four-step
-setup wizard. If you left that page to click the confirmation email, you may
-have skipped past it.
-
-- **Do:** If the Studio looks bare and there's no checklist on it, go to
-  https://customcanvas.shop/onboarding/artist directly.
-- **Expect:** A wizard with a progress bar and four steps: **Basics**, **About**,
-  **Preferences**, **Agreement**.
-- **Report:** If you had to type that address in by hand to find the wizard,
-  **note it as a finding** — a real artist would never know to do that.
+- **Expect:** The site takes you to the setup wizard **on its own** — a progress
+  bar and four steps: **Basics**, **About**, **Preferences**, **Agreement**.
+  However you arrive (straight after confirming your email, or by signing in
+  later), an artist who hasn't finished setup should always land here.
+- **Report:** If you ever see a bare Studio page with empty numbers and no
+  wizard — the automatic hand-off failed.
 
 ### 4.3 — Step one: Basics
 
@@ -954,12 +950,12 @@ We need to know the rejection path works, so use it before you approve.
 ### 8.15 — Unsubscribe from an email
 
 - **Do:** Find any email Custom Canvas has sent you and click its unsubscribe
-  link.
-- **Expect:** A page confirming you're unsubscribed. It says you can turn
-  categories back on in your account.
-- **Do:** **Now go to My Account and try to turn them back on.**
-- **Report:** whether you can actually find a way to do that. If the page
-  promises something the account doesn't offer, that's a finding — write it down.
+  link. Then go to **My Account**.
+- **Expect:** An **Email Preferences** section with four switches — messages, new
+  work from artists you follow, price drops, product news — now all **off**.
+  Turn them back on and save.
+- **Report:** If the section is missing, the switches don't reflect the
+  unsubscribe, or saving fails.
 
 ### 8.16 — Notifications page
 
@@ -1362,11 +1358,11 @@ your `+partner` account.*
 ### 12.1 — Finish the partner setup
 
 - **Do:** Sign in with your `+partner` address.
-- **Expect:** A partner dashboard.
-- **Do:** If the dashboard looks empty and there's no sign of a setup form, go to
-  https://customcanvas.shop/onboarding/gallery directly.
-- **Report:** If you had to type that address to find the form, **note it** — the
-  same problem as 4.2.
+- **Expect:** The site takes you to the **Set Up Your Partner Profile** form on
+  its own — a partner who hasn't filled it in should always land there, however
+  they arrive.
+- **Report:** If you instead see a dashboard with a "Pending Review" badge before
+  you've set anything up — the automatic hand-off failed.
 
 ### 12.2 — Fill in the organisation
 
@@ -1472,9 +1468,13 @@ your `+partner` account.*
 
 - **Do:** Open **Users**.
 - **Expect:** All your accounts listed with names, email addresses and roles.
-  Search by name and by email.
-- **Note:** This page is **read-only** — there's no way to create a user or
-  change someone's role. That's expected right now, not a bug.
+  Search by name and by email. Each row has a **Send password reset** button.
+- **Do:** Click **Send password reset** on your **artist** account and confirm.
+  Check your inbox: an email **"Reset your Custom Canvas password"** saying an
+  administrator started the reset. Click its link, set a new password, sign in
+  with it — then set it back to your usual one.
+- **Note:** There is still no way to create a user or change someone's role
+  here. Expected, not a bug.
 
 ### 13.2 — Listings
 
@@ -1756,6 +1756,7 @@ that didn't, anything that went to spam, and anything that looked wrong.
 | 9 | New 5-star review from … | Step 9.16 |
 | 10 | New commission request: A portrait of my dog | Step 11.2 |
 | 11 | … posted an update on your commission | Step 11.6 |
+| 12 | Reset your Custom Canvas password (admin-started) | Step 13.1 |
 
 **For each one, tell us:** did it arrive, how long did it take, did it land in
 the inbox or in spam, does it look like a real company sent it, and does it say

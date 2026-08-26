@@ -1,93 +1,44 @@
 # Live test round — pre-flight (Chris only)
 
-*Companion to `docs/LIVE-TEST-PLAN.md`, which is the tester-facing document.
-Verified against production on 2026-08-25: prod is serving `f25587d`,
-migrations through 00042 applied, and the database is effectively empty.*
+*Companion to `docs/LIVE-TEST-PLAN.md`, the tester-facing document.
+Re-verified 2026-08-26.*
 
-## Production, as of today
+## Production, as of 2026-08-26
 
 | Thing | State |
 |---|---|
-| Site | `https://customcanvas.shop`, serving `f25587d` |
-| Database | `profiles` = **1 row** (`support@customcanvas.shop`, role `user`). 0 artists, 0 listings, 0 orders, 0 services. Tags seeded. |
-| **Admin account** | **None exists.** No profile on prod has `role = 'admin'`. |
-| Payments | **Off.** `NEXT_PUBLIC_PAYMENTS_ENABLED` is unset — `/api/payments/checkout` returns 403 "Purchasing is not open yet", and listing pages show "Purchasing opens soon". |
-| Auth email | Custom SMTP is live (Resend, `noreply@customcanvas.shop`), **email confirmation is required** (`mailer_autoconfirm = false`), Turnstile captcha is on. LAUNCH.md §2 is done — update it. |
-| Site URL / redirects | `https://customcanvas.shop` + `/**` allow-list. Correct. |
+| Site | `https://customcanvas.shop`, serving `f25587d` — the onboarding/reset fixes are committed on `fix/onboarding-dead-ends` and **awaiting deploy** (blocked on a fresh Vercel token) |
+| Database | `profiles` = 1 row: `support@customcanvas.shop`, **role `admin`**, confirmed, password set |
+| Payments | **LIVE.** Stripe live account activated + configured (descriptor `CUSTOM CANVAS`, branding, TX tax, both webhook endpoints); `NEXT_PUBLIC_PAYMENTS_ENABLED=true` deployed; Accounts v1 probe passed. Zero live charges so far — the first real purchase is still the proof |
+| Auth email | Resend SMTP, confirmation required, Turnstile on |
 
-## Blockers — the test round cannot start until these are done
+## Blockers
 
-### 1. Stripe live mode (LAUNCH.md §1, in full)
-
-The plan has the tester buying with a real card, so every item in LAUNCH.md §1
-has to land first:
-
-- [ ] Activate the account (LLC + bank).
-- [ ] Enable Connect (Express) in live mode.
-- [ ] **Run one live-mode `accounts.create` probe before the tester reaches step
-      6.7.** The Accounts-v1 compatibility flag only showed a Test-mode row. If
-      live rejects v1, artist onboarding dies at exactly the step the tester is
-      told to do first, with real identity details already typed in. Ask me to
-      run the probe the moment live keys exist.
-- [ ] Stripe Tax: origin address + Texas registration.
-- [ ] Live keys into Vercel prod (`STRIPE_SECRET_KEY`,
-      `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`).
-- [ ] Live webhook → `https://customcanvas.shop/api/webhooks/stripe` with all six
-      events including `charge.dispute.created` / `charge.dispute.closed`.
-      `whsec_…` → `STRIPE_WEBHOOK_SECRET`.
-- [ ] Branding assets from `brand/stripe-branding/` — the tester is asked at
-      steps 6.7 and 9.5 whether the Stripe pages look like Custom Canvas, so
-      upload these first or the answer is a foregone "no".
-- [ ] `NEXT_PUBLIC_PAYMENTS_ENABLED=true` + redeploy.
-
-### 2. Create and promote an admin account
-
-There is no admin on production. Until there is, the tester's artist application
-sits in a queue nobody can see, and Parts 5, 12 and 13 are dead.
-
-The plan (step 1.5) has the tester register `their+admin@…` as an **Art Lover**
-and message you. Then:
-
-```sql
-update profiles set role = 'admin' where email = 'THEIR+admin@example.com';
-```
-
-Have them sign out and back in afterwards — the role is read at sign-in.
-
-Doing it this way rather than handing over a pre-made account means they own the
-password and the inbox, and the registration flow itself gets tested.
-
-### 3. Decide who does the artist's Stripe onboarding
-
-Live Express onboarding collects legal name, DOB, address, SSN last four and a
-bank account. Step 6.7 tells the tester they can hand that step to you instead.
-Decide before you send the document, and tell them which it is — otherwise they
-hit it cold and either stall or over-share.
-
-Whoever's bank it is, that's where the ~$22 payout lands, and it lands 14 days
-later. Worth confirming it does.
+1. **Fresh Vercel token** — the old one lapsed; the fix branch can't deploy
+   without it. Mint at vercel.com → Account Settings → Tokens, scope
+   `chrisfrandall-gmailcoms-projects`.
+2. **Rotate `sk_live_`** (it passed through chat) → I update Vercel in the same
+   deploy.
+3. **Confirm `support@customcanvas.shop` receives mail** — send it a test email.
+   It's the admin account's only recovery path.
+4. **Decide who does the artist's Stripe onboarding** (step 6.7): live Express
+   collects DOB, SSN last-4 and a bank account, and the ~$22 payout lands in
+   that bank ~14 days later. Tell the tester which way before they start.
 
 ## Should-fix before sending
 
 These are real gaps the plan currently works around. Each one costs the tester
 time or produces a finding you already know about.
 
-### A. New artists and partners have no route into their own setup wizard
+### A. ✅ FIXED (2026-08-26, `fix/onboarding-dead-ends`) — onboarding dead ends
 
-`/onboarding/artist` and `/onboarding/gallery` are only reachable from the
-"Check Your Email" screen's *"Already confirmed? Continue to setup"* link. A
-tester (or a real artist) who clicks the confirmation email in another tab —
-which is what everyone does — signs in and lands on:
-
-- **Artists:** `/studio` with `artist` null. No checklist, no banner, no prompt.
-  Bare stat cards reading zero. `src/app/(artist)/studio/page.tsx:47` only
-  renders the checklist when an `artist_profiles` row exists.
-- **Partners:** `/dashboard` showing "Pending Review (Gallery)" for a gallery
-  that was never created. `GalleryDashboard` reads `gallery?.partner_type ?? 'gallery'`.
-
-A one-line redirect in each — no profile row → send to onboarding — closes it.
-Steps 4.2 and 12.1 currently tell the tester to type the URL by hand and report
-that they had to.
+`ArtistSetupGuard` on the `(artist)` layout and a redirect in `GalleryDashboard`
+now route anyone without a profile row into their own wizard. Both redirect only
+when the row is genuinely absent, never on a query error. Six Playwright cases.
+Also fixed in the same commit: the **dead "Complete Setup" button** — an empty
+fulfillment-preference select failed whole-schema validation with the error
+offscreen on an earlier wizard step; `setValueAs` + `onInvalid` on both forms.
+Steps 4.2 / 12.1 of the plan now expect the automatic hand-off.
 
 ### B. Local pickup can never be confirmed
 
@@ -102,13 +53,20 @@ anywhere in the app** — no button for the buyer, none for the artist. So:
 Listed in the tester's "don't report these" section as a known gap. It only
 needs a button on each side of the order.
 
-### C. Unsubscribe promises a preferences screen that doesn't exist
+### C. ~~Unsubscribe preferences screen~~ — NOT A GAP (my error)
 
-`/api/unsubscribe` sets all four `email_preferences` to false, and the
-confirmation page says *"You can re-enable categories anytime in your account."*
-`/account` has profile, password and delete — no email preferences at all. Step
-8.15 asks the tester to go and look, so this comes back as a finding unless it's
-fixed.
+`/account` renders an `EmailPreferences` component with all four toggles; the
+original finding came from a grep that silently failed. Step 8.15 now tests the
+unsubscribe → re-enable round trip as a working feature.
+
+### D. Admin password reset — BUILT (2026-08-26)
+
+Every row on `/admin/users` has **Send password reset**: admin-gated endpoint,
+`auth.admin.generateLink({type:'recovery'})` under the service role (immune to
+the captcha on the public recover endpoint), link delivered via Resend from our
+own template. The admin never sees a password or token. Verified on DEV
+end-to-end including the 403 for non-admins. This is also the admin account's
+own recovery path — **still confirm `support@customcanvas.shop` receives mail.**
 
 ## Nice to have before they start
 
