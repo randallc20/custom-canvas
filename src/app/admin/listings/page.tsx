@@ -62,16 +62,16 @@ function ListingsContent() {
 
   const handleRemove = async (id: string) => {
     if (!(await confirm({ title: 'Hide listing?', message: 'This listing will be hidden from buyers.', confirmLabel: 'Hide', destructive: true }))) return;
-    // .select('id').maybeSingle(): a zero-row update (RLS refusal) must fail
-    // visibly — the listing would look hidden while staying live for buyers.
-    const { data: updated, error } = await supabase
-      .from('listings')
-      .update({ status: 'hidden' })
-      .eq('id', id)
-      .select('id')
-      .maybeSingle();
+    // Server-side: listings has no admin UPDATE policy, so the old client
+    // update matched zero rows and toasted success over a listing that
+    // stayed live for buyers.
+    const res = await fetch(`/api/admin/listings/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'hide' }),
+    });
 
-    if (error || !updated) {
+    if (!res.ok) {
       toast('Failed to hide listing.', 'error');
       return;
     }

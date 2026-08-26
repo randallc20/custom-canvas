@@ -505,6 +505,36 @@ test.describe.serial('marketplace safety journey', () => {
     await expect(loverPage.getByRole('link', { name: 'Log In' })).toHaveCount(0);
   });
 
+  test('13.5 — admin hides the throwaway listing; it really leaves the public site', async ({ browser }) => {
+    // Runs AFTER the conversation journey (the lover needed the listing page)
+    // and BEFORE 14.6/14.7 (the artist can still delete a hidden listing).
+    // The hide used to be a client-side UPDATE with no admin RLS policy —
+    // zero rows, success toast, listing still live (P1 moved it server-side).
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await login(page, admin.email!, admin.password!);
+    await page.goto('/admin/listings');
+    const search = page.getByPlaceholder('Search by title or artist...');
+    await search.fill(listingTitle);
+    const row = page.locator('tbody tr', { hasText: listingTitle }).first();
+    await expect(row).toBeVisible({ timeout: 20_000 });
+
+    await row.getByRole('button', { name: 'Remove' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Hide listing?')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Hide' }).click();
+    await expect(page.getByText('Listing removed.')).toBeVisible({ timeout: 15_000 });
+    await expect(row.getByText('hidden', { exact: true })).toBeVisible();
+
+    // The proof that the write actually landed: the public page is gone.
+    const anonCtx = await browser.newContext();
+    const anon = await anonCtx.newPage();
+    await anon.goto(`/listing/${listingId}`);
+    await expect(anon.getByRole('heading', { name: listingTitle })).toHaveCount(0, { timeout: 20_000 });
+    await anonCtx.close();
+    await ctx.close();
+  });
+
   test('14.6/14.7 — deleting a listing asks first (Cancel on the left, and it aborts), then it is really gone', async () => {
     await artistPage.goto('/studio/work');
     const row = artistPage.locator('div.rounded-xl', { hasText: listingTitle }).first();
