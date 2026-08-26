@@ -53,6 +53,6 @@ export function useToggleFollow() {
       queryClient.invalidateQueries({ queryKey: ['follower-count', artistId] });
     },
     // Call sites fire-and-forget with .mutate() — surface failures here.
-    onError: toastError(toast),
+    onError: toastError(toast, 'useToggleFollow'),
   });
 }

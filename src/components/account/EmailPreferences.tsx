@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { withSessionRetry } from '@/lib/sessionRetry';
+import { captureException } from '@/lib/sentry';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
@@ -71,6 +72,7 @@ export function EmailPreferences() {
       supabase.from('profiles').update({ email_preferences: prefs }).eq('id', user.id).select('id').maybeSingle();
     const { data, error } = await withSessionRetry(run, (r) => !r.error && !r.data);
     const failed = !!error || !data;
+    if (failed) captureException(error ?? new Error('email-preferences save matched zero rows'), { where: 'EmailPreferences.save' });
     toast(failed ? 'Could not save preferences — please try again' : 'Email preferences saved', failed ? 'error' : 'success');
     setSaving(false);
   };

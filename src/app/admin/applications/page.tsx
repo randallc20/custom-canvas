@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import Link from 'next/link';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
@@ -98,8 +99,12 @@ function Content() {
       load();
     } else {
       const { error } = await res.json().catch(() => ({ error: 'Action failed' }));
+      // 409 = another admin already decided it — expected concurrency, not an
+      // error worth a Sentry event.
+      if (res.status !== 409) {
+        captureException(new Error(`${error ?? 'Action failed'} (HTTP ${res.status})`), { where: 'admin.applications.decide' });
+      }
       toast(error ?? 'Action failed', 'error');
-      // 409 = another admin already decided it — refresh the queue.
       if (res.status === 409) load();
     }
     setActing(null);

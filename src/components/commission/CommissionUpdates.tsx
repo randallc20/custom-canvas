@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import Image from 'next/image';
 import { useCommissionUpdates } from '@/hooks/useCommissionUpdates';
 import { ImageUpload } from '@/components/upload/ImageUpload';
@@ -41,6 +42,7 @@ export function CommissionUpdates({ commissionId, isArtist, canPost }: Commissio
       toast('Update posted — the buyer has been notified.', 'success');
       refetch();
     } catch (e) {
+      captureException(e, { where: 'CommissionUpdates.post' });
       toast(e instanceof Error ? e.message : 'Failed to post update', 'error');
     } finally {
       setSubmitting(false);

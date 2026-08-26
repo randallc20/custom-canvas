@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -61,7 +62,8 @@ export function SeriesSection() {
       }
       invalidate(artistId, 'series');
       closeModal();
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'SeriesSection.save' });
       toast('Failed to save series', 'error');
     } finally {
       setSaving(false);
@@ -74,7 +76,8 @@ export function SeriesSection() {
       await deleteSeries(confirmDelete.id);
       toast('Series deleted — its listings stay in All Work', 'success');
       invalidate(artistId, 'series');
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'SeriesSection.delete' });
       toast('Failed to delete series', 'error');
     } finally {
       setConfirmDelete(null);
@@ -85,7 +88,8 @@ export function SeriesSection() {
     try {
       const moved = await swapDisplayOrder(series, i, dir, (id, order) => updateSeries(id, { display_order: order }));
       if (moved) invalidate(artistId, 'series');
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'SeriesSection.reorder' });
       toast('Could not reorder the series', 'error');
     }
   };

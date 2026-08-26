@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { useConfirmPickup, useArtistOrders, useUpdateOrderStatus } from '@/hooks/useOrders';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -44,7 +45,7 @@ export function SalesSection() {
     confirmPickup.mutate(order.id, {
       onSuccess: (body) =>
         toast(body.bothConfirmed ? 'Handoff confirmed by both of you.' : 'Confirmed — the buyer still needs to confirm their side.', 'success'),
-      onError: (e) => toast(e.message, 'error'),
+      onError: (e) => { captureException(e, { where: 'SalesSection.confirmHandoff' }); toast(e.message, 'error'); },
     });
   };
 
@@ -62,7 +63,8 @@ export function SalesSection() {
       setShipModal(null);
       setTrackingNumber('');
       setCarrier('');
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'SalesSection.updateOrder' });
       toast('Failed to update order', 'error');
     }
   };
@@ -82,6 +84,7 @@ export function SalesSection() {
       toast('Refund approved — Custom Canvas will settle the payment.', 'success');
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     } catch (e) {
+      captureException(e, { where: 'SalesSection.approveRefund' });
       toast(e instanceof Error ? e.message : 'Could not approve the refund', 'error');
     } finally {
       setApprovingRefund(null);
@@ -92,7 +95,8 @@ export function SalesSection() {
     try {
       await updateStatus.mutateAsync({ id: orderId, status: 'delivered' });
       toast('Order marked as delivered', 'success');
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'SalesSection.updateOrder' });
       toast('Failed to update order', 'error');
     }
   };

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -57,7 +58,8 @@ export function CommissionForm({ artistId, artistName }: CommissionFormProps) {
       const created = await res.json();
       toast('Commission request sent!', 'success');
       router.push(created?.conversation_id ? `/messages/${created.conversation_id}` : '/messages?tab=commissions');
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'CommissionForm.submit' });
       toast('Something went wrong. Please try again.', 'error');
       setSubmitting(false);
     }

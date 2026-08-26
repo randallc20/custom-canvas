@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -83,7 +84,8 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
         queryClient.invalidateQueries({ queryKey: ['commission'] });
         queryClient.invalidateQueries({ queryKey: ['conversations'] });
         router.refresh();
-      } catch {
+      } catch (err) {
+        captureException(err, { where: 'MessageBubble.quoteAction' });
         toast('Action failed. Try again.', 'error');
       } finally {
         setActing(false);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
 import { Button } from '@/components/ui/Button';
@@ -50,7 +51,10 @@ function Content() {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
     });
     if (res.ok) { toast(action === 'approve' ? 'Artist verified' : 'Request rejected', 'success'); setReqs((p) => p.filter((r) => r.id !== id)); }
-    else toast('Action failed', 'error');
+    else {
+      captureException(new Error(`verification ${action} failed (HTTP ${res.status})`), { where: 'admin.verifications.act' });
+      toast('Action failed', 'error');
+    }
     setActing(null);
   };
 

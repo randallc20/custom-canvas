@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/sentry';
 import type {
   ArtistEducation,
   ArtistPersonalPhoto,
@@ -48,7 +49,12 @@ export async function saveEducation(
   // save itself (a broken version of this RPC silently killed every education
   // save until 00043).
   const { error: linkError } = await supabase.rpc('link_education_partners', { p_artist_id: artistId });
-  if (linkError) console.error('link_education_partners failed:', linkError.message);
+  if (linkError) {
+    // Deliberately non-fatal (see above) — but a broken linker once went
+    // unnoticed for 35 migrations, so it must at least reach Sentry.
+    captureException(linkError, { where: 'artistContent.saveEducation.linker' });
+    console.error('link_education_partners failed:', linkError.message);
+  }
 }
 
 // --- Personal photos ---

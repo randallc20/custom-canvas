@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -62,6 +63,7 @@ export function GalleryProfileEdit() {
     const { data: updated, error } = await supabase
       .from('gallery_profiles').update(data).eq('id', galleryId).select('id').maybeSingle();
     if (error || !updated) {
+      captureException(error ?? new Error('gallery profile save matched zero rows'), { where: 'GalleryProfileEdit.save' });
       toast('Failed to save changes.', 'error');
     } else {
       toast('Profile updated!', 'success');

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
@@ -42,7 +43,7 @@ export function AwayModeToggle() {
       commissions_open_before_away: fresh?.commissions_open ?? artist.commissions_open,
       commissions_open: false,
     }).eq('id', artist.id).select('id').maybeSingle();
-    if (error || !updated) toast('Could not enable away mode', 'error');
+    if (error || !updated) { captureException(error ?? new Error('away-mode enable matched zero rows'), { where: 'AwayModeToggle.enable' }); toast('Could not enable away mode', 'error'); }
     else { setArtist({ ...artist, away_mode: true }); toast('Away mode on — your shop is paused.', 'success'); }
     setSaving(false);
   };
@@ -57,7 +58,7 @@ export function AwayModeToggle() {
       commissions_open: data?.commissions_open_before_away ?? true,
       commissions_open_before_away: null,
     }).eq('id', artist.id).select('id').maybeSingle();
-    if (error || !updated) toast('Could not turn off away mode', 'error');
+    if (error || !updated) { captureException(error ?? new Error('away-mode disable matched zero rows'), { where: 'AwayModeToggle.disable' }); toast('Could not turn off away mode', 'error'); }
     else { setArtist({ ...artist, away_mode: false }); toast('Welcome back — your shop is live again.', 'success'); }
     setSaving(false);
   };

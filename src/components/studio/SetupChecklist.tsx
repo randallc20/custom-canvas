@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
@@ -122,6 +123,10 @@ export function SetupChecklist({
       queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
     } else {
       const { error } = await res.json().catch(() => ({ error: null }));
+      // 409 = already submitted (double click / second tab) — not an error event.
+      if (res.status !== 409) {
+        captureException(new Error(`${error ?? 'submit failed'} (HTTP ${res.status})`), { where: 'SetupChecklist.submit' });
+      }
       toast(error ?? 'Could not submit — please try again', 'error');
       if (res.status === 409) queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
     }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
+import { captureException } from '@/lib/sentry';
 import { CommissionStatus } from '@/components/commission/CommissionStatus';
 import { QuoteCard } from '@/components/commission/QuoteCard';
 import { Badge } from '@/components/ui/Badge';
@@ -81,6 +82,7 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       toast('Commission updated.', 'success');
     } catch (err) {
+      captureException(err, { where: `CommissionPanel.performAction:${action}` });
       toast(err instanceof Error ? err.message : 'Action failed. Please try again.', 'error');
     }
     setActionLoading(false);

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { uploadWithProgress } from '@/components/upload/uploadWithProgress';
 import { useToast } from '@/components/ui/Toast';
+import { captureException } from '@/lib/sentry';
 
 export interface OutgoingAttachment {
   attachment_type: 'image' | 'file';
@@ -61,9 +62,10 @@ export function MessageInput({ onSend, onSendAttachment, disabled }: MessageInpu
       await uploadWithProgress(uploadUrl, file, file.type);
       // Store the object path; rendered via a signed URL (private bucket).
       onSendAttachment({ attachment_type: kind, url: path, fileName: file.name });
-    } catch {
+    } catch (err) {
       // A silent catch here hid a storage cap AND a broken message type for
-      // months — say something.
+      // months — say something, and tell us too.
+      captureException(err, { where: 'MessageInput.handleFile' });
       toast('Couldn’t attach that file — it may be too large (10MB max). Try again.', 'error');
     } finally {
       setUploading(false);

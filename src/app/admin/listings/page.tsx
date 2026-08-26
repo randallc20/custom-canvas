@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import Link from 'next/link';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
@@ -72,6 +73,7 @@ function ListingsContent() {
     });
 
     if (!res.ok) {
+      captureException(new Error(`listing hide failed (HTTP ${res.status})`), { where: 'admin.listings.hide' });
       toast('Failed to hide listing.', 'error');
       return;
     }

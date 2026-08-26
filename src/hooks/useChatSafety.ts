@@ -33,7 +33,7 @@ export function useToggleBlock() {
       qc.invalidateQueries({ queryKey: ['conversations'] });
     },
     // Call sites fire-and-forget with .mutate() — surface failures here.
-    onError: toastError(toast),
+    onError: toastError(toast, 'useToggleBlock'),
   });
 }
 
@@ -44,6 +44,6 @@ export function useToggleMute() {
     mutationFn: ({ profileId, conversationId, isMuted }: { profileId: string; conversationId: string; isMuted: boolean }) =>
       isMuted ? unmuteConversation(profileId, conversationId) : muteConversation(profileId, conversationId),
     onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['muted-conversations', v.profileId] }),
-    onError: toastError(toast),
+    onError: toastError(toast, 'useToggleMute'),
   });
 }

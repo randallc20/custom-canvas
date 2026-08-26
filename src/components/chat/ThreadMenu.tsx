@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { captureException } from '@/lib/sentry';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useBlockedIds, useMutedConversationIds, useToggleBlock, useToggleMute } from '@/hooks/useChatSafety';
@@ -73,7 +74,8 @@ export function ThreadMenu({ conversationId, otherUserId, otherName }: ThreadMen
       await reportUser({ reporterId: user.id, profileId: otherUserId, conversationId, reason: reportReason, description: reportDesc || undefined });
       toast('Report submitted. Our team will review it.', 'success');
       setReportOpen(false); setReportDesc('');
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'ThreadMenu.reportUser' });
       toast('Could not submit report', 'error');
     } finally {
       setReporting(false);

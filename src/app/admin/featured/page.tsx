@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import Image from 'next/image';
 import Link from 'next/link';
 import { AuthGuard } from '@/components/layout/AuthGuard';
@@ -59,7 +60,8 @@ function FeaturedContent() {
       const found = await searchFeaturableListings(search.trim(), rows.map((r) => r.listing_id));
       setResults(found);
       if (!found.length) toast('No available listings match that title.', 'info');
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'admin.featured.search' });
       toast('Search failed.', 'error');
     } finally {
       setSearching(false);
@@ -77,7 +79,7 @@ function FeaturedContent() {
           setResults((prev) => prev.filter((r) => r.id !== listingId));
           toast('Added to the Featured shelf.', 'success');
         },
-        onError: () => toast('Could not feature that listing.', 'error'),
+        onError: (err) => { captureException(err, { where: 'admin.featured.add' }); toast('Could not feature that listing.', 'error'); },
       }
     );
   };
@@ -92,7 +94,7 @@ function FeaturedContent() {
     if (!ok) return;
     removeMutation.mutate(listingId, {
       onSuccess: () => toast('Removed from the shelf.', 'success'),
-      onError: () => toast('Could not remove that listing.', 'error'),
+      onError: (err) => { captureException(err, { where: 'admin.featured.remove' }); toast('Could not remove that listing.', 'error'); },
     });
   };
 
@@ -116,7 +118,8 @@ function FeaturedContent() {
           orderMutation.mutateAsync({ listingId: b.listing_id, displayOrder: a.display_order }),
         ]);
       }
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'admin.featured.reorder' });
       toast('Could not reorder the shelf.', 'error');
     }
   };

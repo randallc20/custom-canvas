@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
 import { Button } from '@/components/ui/Button';
@@ -73,6 +74,7 @@ function Content() {
       setEditingId(null);
       load();
     } else {
+      captureException(new Error(`service save failed (HTTP ${res.status})`), { where: 'admin.services.save' });
       toast('Save failed — check the fields (valid email/URL?)', 'error');
     }
     setSaving(false);

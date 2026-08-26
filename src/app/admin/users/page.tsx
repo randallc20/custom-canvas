@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
 import { Badge } from '@/components/ui/Badge';
@@ -50,9 +51,11 @@ function UsersContent() {
         toast(`Reset email sent to ${u.email}`, 'success');
       } else {
         const { error } = await res.json().catch(() => ({ error: null }));
+        captureException(new Error(`${error ?? 'reset email failed'} (HTTP ${res.status})`), { where: 'admin.users.resetPassword' });
         toast(error ?? 'Could not send the reset email', 'error');
       }
-    } catch {
+    } catch (e) {
+      captureException(e, { where: 'admin.users.resetPassword' });
       toast('Could not send the reset email — check your connection and try again.', 'error');
     } finally {
       setResetting(null);

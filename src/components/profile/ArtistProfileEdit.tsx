@@ -136,7 +136,7 @@ export function ArtistProfileEdit() {
     // visibly, not preview an avatar that never saved.
     const { data: updated, error } = await supabase
       .from('profiles').update({ avatar_url: url }).eq('id', user.id).select('id').maybeSingle();
-    if (error || !updated) toast('Failed to save profile photo', 'error');
+    if (error || !updated) { captureException(error ?? new Error('avatar save matched zero rows'), { where: 'ArtistProfileEdit.avatar' }); toast('Failed to save profile photo', 'error'); }
     else {
       setAvatarUrl(url);
       toast('Profile photo updated', 'success');
@@ -148,7 +148,7 @@ export function ArtistProfileEdit() {
   const handleBannerUploaded = async (url: string) => {
     const { data: updated, error } = await supabase
       .from('artist_profiles').update({ banner_image_url: url }).eq('id', artist.id).select('id').maybeSingle();
-    if (error || !updated) toast('Failed to save banner', 'error');
+    if (error || !updated) { captureException(error ?? new Error('banner save matched zero rows'), { where: 'ArtistProfileEdit.banner' }); toast('Failed to save banner', 'error'); }
     else {
       setArtist((a) => (a ? { ...a, banner_image_url: url } : a));
       toast('Banner updated', 'success');

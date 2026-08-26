@@ -44,6 +44,6 @@ export function useToggleSave() {
       queryClient.invalidateQueries({ queryKey: ['saved', profileId, listingId] });
     },
     // Call sites fire-and-forget with .mutate() — surface failures here.
-    onError: toastError(toast),
+    onError: toastError(toast, 'useToggleSave'),
   });
 }

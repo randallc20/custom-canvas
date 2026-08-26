@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
@@ -38,7 +39,7 @@ export function HoustonVerifiedCard() {
     const { error } = await supabase.from('verification_requests').insert({
       artist_id: artist.id, connection_type: connectionType, details: details.trim(), links: links.trim() || null,
     });
-    if (error) toast('Could not submit request', 'error');
+    if (error) { captureException(error, { where: 'HoustonVerifiedCard.submit' }); toast('Could not submit request', 'error'); }
     else { setPending(true); setOpen(false); toast('Request submitted — we\'ll review it soon.', 'success'); }
     setSaving(false);
   };

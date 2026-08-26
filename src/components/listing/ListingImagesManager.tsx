@@ -1,6 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
+import { captureException } from '@/lib/sentry';
 import { ImageUpload } from '@/components/upload/ImageUpload';
 import { ImageThumbGrid } from '@/components/upload/ImageThumbGrid';
 import { addListingImages, updateListingImage, deleteListingImage } from '@/services/listings';
@@ -43,7 +44,8 @@ export function ListingImagesManager({ listingId, images }: ListingImagesManager
   const handleUpload = async (urls: string[]) => {
     try {
       await addListingImages(listingId, urls.slice(0, MAX_LISTING_IMAGES - sorted.length), sorted.length);
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'ListingImagesManager.upload' });
       toast('Could not save the uploaded images', 'error');
       return;
     }
@@ -56,7 +58,8 @@ export function ListingImagesManager({ listingId, images }: ListingImagesManager
         updateListingImage(id, { display_order: order, is_primary: order === 0 })
       );
       if (moved) invalidate();
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'ListingImagesManager.reorder' });
       toast('Could not reorder the images', 'error');
     }
   };
@@ -66,7 +69,8 @@ export function ListingImagesManager({ listingId, images }: ListingImagesManager
     try {
       await deleteListingImage(sorted[i].id);
       await renumber(sorted.filter((_, j) => j !== i));
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'ListingImagesManager.remove' });
       toast('Could not remove the image', 'error');
       return;
     }

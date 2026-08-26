@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
@@ -36,6 +37,7 @@ export default function AccountPage() {
     const { data: updated, error } = await supabase
       .from('profiles').update({ full_name: fullName }).eq('id', user.id).select('id').maybeSingle();
     if (error || !updated) {
+      captureException(error ?? new Error('account name save matched zero rows'), { where: 'account.saveName' });
       toast('Failed to save changes.', 'error');
     } else {
       toast('Profile updated!', 'success');
@@ -59,7 +61,8 @@ export default function AccountPage() {
       setShowPasswordForm(false);
       setNewPassword('');
       setConfirmPassword('');
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'account.updatePassword' });
       toast('Failed to update password.', 'error');
     }
     setChangingPassword(false);
@@ -79,6 +82,7 @@ export default function AccountPage() {
       await signOut().catch(() => {});
       router.push('/');
     } catch (err) {
+      captureException(err, { where: 'account.delete' });
       toast(err instanceof Error && err.message !== 'Failed' ? err.message : 'Failed to delete account.', 'error');
       setDeleting(false);
     }

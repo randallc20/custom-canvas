@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { captureException } from '@/lib/sentry';
 import { useRouter } from 'next/navigation';
 import { Listing } from '@/types/listing';
 import { Button } from '@/components/ui/Button';
@@ -44,7 +45,7 @@ export function PurchasePanel({ listing, artistProfileId, fulfillmentPref, awayM
       {
         onSuccess: (conversation) => router.push(`/messages/${conversation.id}?prefill=${encodeURIComponent(prefill)}`),
         // Without this a failed create left the button doing nothing at all.
-        onError: () => toast('Could not open the conversation — please try again.', 'error'),
+        onError: (err) => { captureException(err, { where: 'PurchasePanel.messageArtist' }); toast('Could not open the conversation — please try again.', 'error'); },
       }
     );
   };

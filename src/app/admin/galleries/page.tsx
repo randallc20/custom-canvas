@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import { Badge } from '@/components/ui/Badge';
@@ -55,6 +56,7 @@ function GalleriesContent() {
       toast('Partner verified!', 'success');
       setGalleries((prev) => prev.filter((g) => g.id !== galleryId));
     } else {
+      captureException(new Error(`partner verify failed (HTTP ${res.status})`), { where: 'admin.galleries.verify' });
       toast('Failed to verify partner.', 'error');
     }
     setActionLoading(null);
@@ -71,6 +73,7 @@ function GalleriesContent() {
       toast('Partner rejected.', 'success');
       setGalleries((prev) => prev.filter((g) => g.id !== galleryId));
     } else {
+      captureException(new Error(`partner reject failed (HTTP ${res.status})`), { where: 'admin.galleries.reject' });
       toast('Failed to reject partner.', 'error');
     }
     setActionLoading(null);

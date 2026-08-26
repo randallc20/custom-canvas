@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
@@ -50,7 +51,8 @@ export function PartnerPicksManager({ galleryId }: { galleryId: string }) {
       const found = await searchPickableListings(search.trim(), rows.map((r) => r.listing_id));
       setResults(found);
       if (!found.length) toast('No available listings match that title.', 'info');
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'PartnerPicksManager.search' });
       toast('Search failed.', 'error');
     } finally {
       setSearching(false);
@@ -66,7 +68,7 @@ export function PartnerPicksManager({ galleryId }: { galleryId: string }) {
           setResults((prev) => prev.filter((r) => r.id !== listingId));
           toast('Added to your picks.', 'success');
         },
-        onError: () => toast('Could not add that pick.', 'error'),
+        onError: (err) => { captureException(err, { where: 'PartnerPicksManager.add' }); toast('Could not add that pick.', 'error'); },
       }
     );
   };
@@ -83,7 +85,7 @@ export function PartnerPicksManager({ galleryId }: { galleryId: string }) {
       { galleryId, listingId },
       {
         onSuccess: () => toast('Pick removed.', 'success'),
-        onError: () => toast('Could not remove that pick.', 'error'),
+        onError: (err) => { captureException(err, { where: 'PartnerPicksManager.remove' }); toast('Could not remove that pick.', 'error'); },
       }
     );
   };
@@ -106,7 +108,8 @@ export function PartnerPicksManager({ galleryId }: { galleryId: string }) {
           updateMutation.mutateAsync({ galleryId, listingId: b.listing_id, updates: { display_order: a.display_order } }),
         ]);
       }
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'PartnerPicksManager.reorder' });
       toast('Could not reorder picks.', 'error');
     }
   };
@@ -125,7 +128,7 @@ export function PartnerPicksManager({ galleryId }: { galleryId: string }) {
           });
           toast('Note saved.', 'success');
         },
-        onError: () => toast('Could not save the note.', 'error'),
+        onError: (err) => { captureException(err, { where: 'PartnerPicksManager.blurb' }); toast('Could not save the note.', 'error'); },
       }
     );
   };

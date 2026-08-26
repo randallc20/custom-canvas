@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { captureException } from '@/lib/sentry';
 import { ImageUpload } from '@/components/upload/ImageUpload';
 import { usePersonalPhotos, useInvalidateArtistContent } from '@/hooks/useArtistContent';
 import { addPersonalPhotos, updatePersonalPhoto, deletePersonalPhoto } from '@/services/artistContent';
@@ -24,7 +25,8 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
   const handleUpload = async (urls: string[]) => {
     try {
       await addPersonalPhotos(artistId, urls.slice(0, MAX_PHOTOS - photos.length), photos.length);
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'PersonalPhotoUploader.upload' });
       toast('Could not save the uploaded photos', 'error');
       return;
     }
@@ -35,7 +37,8 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
   const handleCaption = async (id: string, caption: string) => {
     try {
       await updatePersonalPhoto(id, { caption: caption || null });
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'PersonalPhotoUploader.caption' });
       toast('Could not save caption', 'error');
     }
   };
@@ -44,7 +47,8 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
     if (!(await confirm({ title: 'Delete photo?', message: 'This photo will be permanently removed.', confirmLabel: 'Delete', destructive: true }))) return;
     try {
       await deletePersonalPhoto(id);
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'PersonalPhotoUploader.delete' });
       toast('Could not delete the photo', 'error');
       return;
     }
@@ -56,7 +60,8 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
     try {
       const moved = await swapDisplayOrder(photos, i, dir, (id, order) => updatePersonalPhoto(id, { display_order: order }));
       if (moved) invalidate(artistId, 'personal-photos');
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'PersonalPhotoUploader.reorder' });
       toast('Could not reorder the photos', 'error');
     }
   };

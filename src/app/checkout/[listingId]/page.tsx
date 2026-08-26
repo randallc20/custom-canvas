@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { useParams } from 'next/navigation';
 import { useListing } from '@/hooks/useListings';
 import { useAuth } from '@/context/AuthContext';
@@ -80,6 +81,7 @@ function CheckoutContent() {
         throw new Error('No checkout URL returned');
       }
     } catch (err) {
+      captureException(err, { where: 'checkout.createSession' });
       toast(err instanceof Error ? err.message : 'Something went wrong', 'error');
       setSubmitting(false);
     }

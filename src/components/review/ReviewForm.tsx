@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 
@@ -34,7 +35,8 @@ export function ReviewForm({ orderId, onSubmit, reviewerId, onSuccess }: ReviewF
       });
       toast('Review submitted! Thank you for your feedback.', 'success');
       onSuccess?.();
-    } catch {
+    } catch (err) {
+      captureException(err, { where: 'ReviewForm.submit' });
       toast('Failed to submit review.', 'error');
       setSubmitting(false);
     }

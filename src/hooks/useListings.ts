@@ -22,7 +22,7 @@ export function useCreateListing() {
       queryClient.invalidateQueries({ queryKey: ['listings'] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
     },
-    onError: toastError(toast),
+    onError: toastError(toast, 'useCreateListing'),
   });
 }
 
@@ -40,7 +40,7 @@ export function useUpdateListing() {
       // "succeeds" but the row keeps its old badge until a hard reload.
       queryClient.invalidateQueries({ queryKey: ['artist-listings'] });
     },
-    onError: toastError(toast),
+    onError: toastError(toast, 'useUpdateListing'),
   });
 }
 
@@ -56,6 +56,6 @@ export function useDeleteListing() {
       // Same staleness as useUpdateListing: the Work list must drop the row.
       queryClient.invalidateQueries({ queryKey: ['artist-listings'] });
     },
-    onError: toastError(toast),
+    onError: toastError(toast, 'useDeleteListing'),
   });
 }

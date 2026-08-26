@@ -26,7 +26,7 @@ export function useMarkNotificationRead() {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
     // Call sites fire-and-forget with .mutate() — surface failures here.
-    onError: toastError(toast),
+    onError: toastError(toast, 'useMarkNotificationRead'),
   });
 }
 
@@ -39,6 +39,6 @@ export function useMarkAllRead(userId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
-    onError: toastError(toast),
+    onError: toastError(toast, 'useMarkAllRead'),
   });
 }

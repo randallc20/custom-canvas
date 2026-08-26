@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -97,6 +98,7 @@ export function GalleryDashboard() {
       .from('gallery_artists')
       .insert({ gallery_id: gallery.id, artist_id: artistId });
     if (error) {
+      captureException(error, { where: 'GalleryDashboard.addArtist' });
       toast('Failed to add artist.', 'error');
       return;
     }
@@ -120,6 +122,7 @@ export function GalleryDashboard() {
       .eq('artist_id', artistId)
       .select('artist_id');
     if (error || !data?.length) {
+      captureException(error ?? new Error('roster removal matched zero rows'), { where: 'GalleryDashboard.removeArtist' });
       toast('Failed to remove artist.', 'error');
       return;
     }

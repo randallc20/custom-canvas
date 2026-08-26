@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
 import { Badge } from '@/components/ui/Badge';
@@ -84,6 +85,7 @@ function OrdersContent() {
       toast('Refund settled.', 'success');
       setOrders((prev) => prev.map((x) => (x.id === o.id ? { ...x, status: 'refunded' as OrderStatus } : x)));
     } catch (e) {
+      captureException(e, { where: 'admin.orders.refund' });
       toast(e instanceof Error ? e.message : 'Refund failed', 'error');
     } finally {
       setSettling(null);

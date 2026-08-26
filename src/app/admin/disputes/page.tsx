@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { AuthGuard } from '@/components/layout/AuthGuard';
@@ -79,6 +80,7 @@ function DisputesContent() {
       .maybeSingle();
 
     if (error || !updated) {
+      captureException(error ?? new Error('report resolve matched zero rows'), { where: 'admin.disputes.resolve' });
       toast('Failed to resolve report.', 'error');
       return;
     }

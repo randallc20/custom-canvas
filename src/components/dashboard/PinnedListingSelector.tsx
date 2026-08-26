@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
@@ -39,7 +40,7 @@ export function PinnedListingSelector({ artistId, artistSlug, initialPinnedIds }
       { slug: artistSlug, listingIds: selected },
       {
         onSuccess: () => toast('Pinned work updated', 'success'),
-        onError: (err) => toast(err instanceof Error ? err.message : 'Failed to save', 'error'),
+        onError: (err) => { captureException(err, { where: 'PinnedListingSelector.save' }); toast(err instanceof Error ? err.message : 'Failed to save', 'error'); },
       }
     );
   };

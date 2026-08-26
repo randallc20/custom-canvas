@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { captureException } from '@/lib/sentry';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useBuyerOrders, useConfirmPickup } from '@/hooks/useOrders';
@@ -51,7 +52,7 @@ export default function OrdersPage() {
     confirmPickup.mutate(order.id, {
       onSuccess: (body) =>
         toast(body.bothConfirmed ? 'Handoff confirmed — enjoy your piece!' : 'Confirmed — waiting for the artist to confirm too.', 'success'),
-      onError: (e) => toast(e.message, 'error'),
+      onError: (e) => { captureException(e, { where: 'orders.confirmPickup' }); toast(e.message, 'error'); },
     });
   };
 
@@ -67,7 +68,7 @@ export default function OrdersPage() {
       { userId: user.id, otherUserId: artist.profile_id, contextType: 'listing', contextId: order.listing_id ?? undefined },
       {
         onSuccess: (conversation) => router.push(`/messages/${conversation.id}?prefill=${encodeURIComponent(prefill)}`),
-        onError: () => { toast('Could not open the conversation.', 'error'); setCancelling(null); },
+        onError: (e) => { captureException(e, { where: 'orders.messageArtist' }); toast('Could not open the conversation.', 'error'); setCancelling(null); },
       }
     );
   };
