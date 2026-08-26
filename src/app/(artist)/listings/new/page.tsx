@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { numberOrNull } from '@/utils/formNumber';
+import { inToCm, cmToIn, type DimensionUnit } from '@/utils/dimensions';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useSeries } from '@/hooks/useArtistContent';
 import { TagPicker } from '@/components/listing/TagPicker';
@@ -27,6 +28,7 @@ export default function NewListingPage() {
   const [artistId, setArtistId] = useState('');
   const [isPickupOnly, setIsPickupOnly] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [unit, setUnit] = useState<DimensionUnit>('in');
 
   const moveImage = (i: number, dir: -1 | 1) => {
     setImageUrls((prev) => {
@@ -49,10 +51,25 @@ export default function NewListingPage() {
 
   const { data: seriesOptions = [] } = useSeries(artistId);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
+  const { register, handleSubmit, watch, setValue, getValues, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
     resolver: zodResolver(listingSchema),
     defaultValues: { status: 'available', tags: [], price_visible: true, ai_involvement: 'none' },
   });
+
+  // The dimension inputs hold whatever unit is selected (inches by default —
+  // this is a US marketplace); switching the toggle converts what's typed,
+  // and submit converts to the cm the columns store.
+  const switchUnit = (to: DimensionUnit) => {
+    if (to === unit) return;
+    const convert = to === 'cm' ? inToCm : cmToIn;
+    (['width_cm', 'height_cm', 'depth_cm'] as const).forEach((f) => {
+      const v = getValues(f);
+      if (v != null) setValue(f, convert(v));
+    });
+    setUnit(to);
+  };
+  const dimToCm = (v: number | null | undefined) =>
+    v == null ? null : unit === 'in' ? inToCm(v) : v;
 
   const priceVisible = watch('price_visible');
   const selectedTags = watch('tags');
@@ -64,9 +81,9 @@ export default function NewListingPage() {
       medium: data.medium,
       status: asDraft ? 'draft' : data.status,
       description: data.description || null,
-      width_cm: data.width_cm ?? null,
-      height_cm: data.height_cm ?? null,
-      depth_cm: data.depth_cm ?? null,
+      width_cm: dimToCm(data.width_cm),
+      height_cm: dimToCm(data.height_cm),
+      depth_cm: dimToCm(data.depth_cm),
       year_created: data.year_created ?? null,
       price_cents: toCents(data.price_dollars),
       shipping_rate_cents: isPickupOnly ? 0 : toCents(data.shipping_dollars),
@@ -100,10 +117,28 @@ export default function NewListingPage() {
           <textarea {...register('description')} rows={4} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
         </div>
         <Input label="Medium" {...register('medium')} error={errors.medium?.message} />
-        <div className="grid grid-cols-3 gap-4">
-          <Input label="Width (cm)" type="number" step="0.1" {...register('width_cm', { setValueAs: numberOrNull })} />
-          <Input label="Height (cm)" type="number" step="0.1" {...register('height_cm', { setValueAs: numberOrNull })} />
-          <Input label="Depth (cm)" type="number" step="0.1" {...register('depth_cm', { setValueAs: numberOrNull })} />
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-sm font-medium text-ink">Dimensions</span>
+            <div className="flex overflow-hidden rounded-lg border border-line text-xs">
+              {(['in', 'cm'] as const).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => switchUnit(u)}
+                  aria-pressed={unit === u}
+                  className={`px-3 py-1 font-medium transition-colors ${unit === u ? 'bg-terra text-white' : 'bg-surface text-muted hover:bg-sand/50'}`}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <Input label={`Width (${unit})`} type="number" step="0.1" {...register('width_cm', { setValueAs: numberOrNull })} />
+            <Input label={`Height (${unit})`} type="number" step="0.1" {...register('height_cm', { setValueAs: numberOrNull })} />
+            <Input label={`Depth (${unit})`} type="number" step="0.1" {...register('depth_cm', { setValueAs: numberOrNull })} />
+          </div>
         </div>
         <Input label="Year Created" type="number" {...register('year_created', { setValueAs: numberOrNull })} />
         {seriesOptions.length > 0 && (

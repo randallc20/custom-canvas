@@ -20,7 +20,7 @@ interface AdminListing {
   status: string;
   medium: string | null;
   created_at: string;
-  artist: { display_name: string; slug: string } | null;
+  artist: { display_name: string; slug: string; is_live: boolean } | null;
 }
 
 export default function AdminListingsPage() {
@@ -50,7 +50,7 @@ function ListingsContent() {
   useEffect(() => {
     supabase
       .from('listings')
-      .select('id, title, price_cents, status, medium, created_at, artist:artist_profiles(display_name, slug)')
+      .select('id, title, price_cents, status, medium, created_at, artist:artist_profiles(display_name, slug, is_live)')
       .order('created_at', { ascending: false })
       .limit(200)
       .then(({ data }) => {
@@ -108,6 +108,7 @@ function ListingsContent() {
               <th className="px-4 py-3 font-medium text-ink">Price</th>
               <th className="px-4 py-3 font-medium text-ink">Medium</th>
               <th className="px-4 py-3 font-medium text-ink">Status</th>
+              <th className="px-4 py-3 font-medium text-ink">Visibility</th>
               <th className="px-4 py-3 font-medium text-ink">Actions</th>
             </tr>
           </thead>
@@ -132,6 +133,17 @@ function ListingsContent() {
                   <Badge variant={STATUS_VARIANT[l.status] ?? 'default'}>{l.status}</Badge>
                 </td>
                 <td className="px-4 py-3">
+                  {/* "available" alone reads as live — but a listing is only
+                      public once its artist is approved. Say which it is. */}
+                  {l.status === 'hidden' || l.status === 'draft' ? (
+                    <Badge variant="default">not public</Badge>
+                  ) : l.artist && !l.artist.is_live ? (
+                    <Badge variant="warning">hidden — artist not live</Badge>
+                  ) : (
+                    <Badge variant="success">public</Badge>
+                  )}
+                </td>
+                <td className="px-4 py-3">
                   {l.status !== 'hidden' && (
                     <Button size="sm" variant="outline" onClick={() => handleRemove(l.id)}>
                       Remove
@@ -142,7 +154,7 @@ function ListingsContent() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted">No listings found.</td>
+                <td colSpan={7} className="px-4 py-8 text-center text-muted">No listings found.</td>
               </tr>
             )}
           </tbody>

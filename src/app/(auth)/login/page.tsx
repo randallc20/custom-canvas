@@ -16,7 +16,15 @@ export default function LoginPage() {
   const { signIn, user } = useAuth();
   const [captcha, setCaptcha] = useState('');
   const [captchaReset, setCaptchaReset] = useState(0);
+  const [justConfirmed, setJustConfirmed] = useState(false);
   const router = useRouter();
+
+  // The /auth/callback route lands here with ?confirmed=1 when it verified the
+  // email but couldn't mint a session (e.g. the link was opened in a different
+  // browser than the one that signed up).
+  useEffect(() => {
+    setJustConfirmed(new URLSearchParams(window.location.search).get('confirmed') === '1');
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -62,6 +70,11 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <h1 className="mb-6 text-center text-2xl font-bold text-ink">Welcome Back</h1>
+        {justConfirmed && (
+          <p className="mb-4 rounded-lg border border-line bg-sand/50 p-3 text-sm text-ink">
+            Your email is confirmed — sign in to continue.
+          </p>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Email" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <Input label="Password" id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />

@@ -99,19 +99,34 @@ export default function ArtistOnboardingPage() {
     }
 
     const slug = slugify(data.display_name) + '-' + Date.now().toString(36);
-    const { error: insertError } = await supabase.from('artist_profiles').insert({
-      profile_id: user.id,
-      slug,
-      ...data,
-      // Click-wrap record: the artist's own act of acceptance, stamped at
-      // creation and frozen thereafter (00037 guard). The submit-for-review
-      // API re-verifies this server-side.
-      agreement_accepted_at: new Date().toISOString(),
-      agreement_version: ARTIST_AGREEMENT_VERSION,
-    });
+    const insertProfile = () =>
+      supabase.from('artist_profiles').insert({
+        profile_id: user.id,
+        slug,
+        ...data,
+        // Click-wrap record: the artist's own act of acceptance, stamped at
+        // creation and frozen thereafter (00037 guard). The submit-for-review
+        // API re-verifies this server-side.
+        agreement_accepted_at: new Date().toISOString(),
+        agreement_version: ARTIST_AGREEMENT_VERSION,
+      });
+
+    let { error: insertError } = await insertProfile();
+
+    // An RLS refusal moments after signup is almost always the fresh session
+    // cookie not being attached yet, not a real permissions problem — re-sync
+    // the session and retry once before surfacing anything.
+    if (insertError?.code === '42501') {
+      await supabase.auth.refreshSession();
+      ({ error: insertError } = await insertProfile());
+    }
 
     if (insertError) {
-      setError(insertError.message);
+      setError(
+        insertError.code === '42501'
+          ? 'We couldn’t verify your session — refresh this page and try again.'
+          : insertError.message
+      );
       return;
     }
 

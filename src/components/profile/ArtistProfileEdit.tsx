@@ -5,6 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { artistProfileSchema, ArtistProfileFormData } from '@/schemas/artistSchema';
 import { useAuth } from '@/context/AuthContext';
 import { useUpdateArtistProfile } from '@/hooks/useArtist';
+import { ProfileSaveAuthError } from '@/services/artists';
+import { captureException } from '@/lib/sentry';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
@@ -32,6 +34,8 @@ export function ArtistProfileEdit() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasListings, setHasListings] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [educationDrafts, setEducationDrafts] = useState<EducationDraft[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -68,9 +72,18 @@ export function ArtistProfileEdit() {
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      supabase.from('artist_profiles').select(ARTIST_PUBLIC_COLS).eq('profile_id', user.id).single<import('@/types/artist').ArtistProfile>(),
-      supabase.from('profiles').select('avatar_url').eq('id', user.id).single(),
-    ]).then(async ([{ data: artistData }, { data: profileData }]) => {
+      supabase.from('artist_profiles').select(ARTIST_PUBLIC_COLS).eq('profile_id', user.id).maybeSingle<import('@/types/artist').ArtistProfile>(),
+      supabase.from('profiles').select('avatar_url').eq('id', user.id).maybeSingle(),
+    ]).then(async ([{ data: artistData, error: artistError }, { data: profileData }]) => {
+      // A transient error here used to render "Artist profile not found"
+      // over a profile that exists — distinguish it and offer a retry.
+      if (artistError) {
+        captureException(artistError, { where: 'ArtistProfileEdit.load' });
+        setLoadError(true);
+        setLoading(false);
+        return;
+      }
+      setLoadError(false);
       setArtist(artistData);
       setAvatarUrl(profileData?.avatar_url ?? null);
       if (artistData) {
@@ -82,7 +95,7 @@ export function ArtistProfileEdit() {
       }
       setLoading(false);
     });
-  }, [user]);
+  }, [user, loadAttempt]);
 
   useEffect(() => {
     if (educationData) setEducationDrafts(educationData);
@@ -101,6 +114,20 @@ export function ArtistProfileEdit() {
   });
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
+  if (loadError) {
+    return (
+      <div className="py-16 text-center">
+        <p className="text-muted">Couldn&apos;t load your profile — this is usually momentary.</p>
+        <Button
+          type="button"
+          className="mt-4"
+          onClick={() => { setLoading(true); setLoadAttempt((n) => n + 1); }}
+        >
+          Try again
+        </Button>
+      </div>
+    );
+  }
   if (!artist) return <p className="py-16 text-center text-muted">Artist profile not found.</p>;
 
   const handleAvatarUploaded = async (url: string) => {
@@ -127,14 +154,20 @@ export function ArtistProfileEdit() {
   };
 
   const onSubmit = async (data: ArtistProfileFormData) => {
-    try {
-      const entries = educationDrafts.filter((e) => e.institution.trim());
-      const educationChanged =
-        JSON.stringify(entries.map((e) => [e.institution, e.degree, e.field_of_study, e.start_year, e.end_year, e.is_current])) !==
-        JSON.stringify((educationData ?? []).map((e) => [e.institution, e.degree, e.field_of_study, e.start_year, e.end_year, e.is_current]));
-      if (educationChanged) {
+    const entries = educationDrafts.filter((e) => e.institution.trim());
+    const educationChanged =
+      JSON.stringify(entries.map((e) => [e.institution, e.degree, e.field_of_study, e.start_year, e.end_year, e.is_current])) !==
+      JSON.stringify((educationData ?? []).map((e) => [e.institution, e.degree, e.field_of_study, e.start_year, e.end_year, e.is_current]));
+    if (educationChanged) {
+      try {
         await saveEducationMutation.mutateAsync({ artistId: artist.id, entries });
+      } catch (err) {
+        captureException(err, { where: 'ArtistProfileEdit.saveEducation' });
+        toast('Couldn’t save your Education & Training entries — the rest of the profile was not touched. Try again.', 'error');
+        return;
       }
+    }
+    try {
       const { commission_min_dollars, ...rest } = data;
       await updateProfile.mutateAsync({
         id: artist.id,
@@ -147,8 +180,14 @@ export function ArtistProfileEdit() {
       // Canonical score is computed server-side from actual data.
       await supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
       toast('Profile updated successfully!', 'success');
-    } catch {
-      toast('Failed to update profile. Please try again.', 'error');
+    } catch (err) {
+      captureException(err, { where: 'ArtistProfileEdit.onSubmit' });
+      if (err instanceof ProfileSaveAuthError) {
+        toast('Couldn’t verify it’s you — refresh this page and save again.', 'error');
+      } else {
+        const detail = err instanceof Error && err.message ? ` (${err.message})` : '';
+        toast(`Failed to update profile${detail}. Please try again.`, 'error');
+      }
     }
   };
 
@@ -186,6 +225,7 @@ export function ArtistProfileEdit() {
             neighborhood: 'Neighborhood', fulfillment_pref: 'Fulfillment Preference',
             commission_desc: 'Commission Description', commission_min_dollars: 'Minimum Price',
             commission_turnaround: 'Turnaround Time', accent_color: 'Accent Color',
+            status: 'Status', story: 'Your Story', primary_mediums: 'Mediums',
           };
           const first = Object.keys(errs)[0];
           toast(
@@ -215,7 +255,8 @@ export function ArtistProfileEdit() {
           <Input label="Graduation Year" type="number" {...register('graduation_year', { setValueAs: numberOrNull })} />
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Status</label>
-            <select {...register('status')} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm">
+            {/* '' must become null or the zod enum rejects an untouched "Select status". */}
+            <select {...register('status', { setValueAs: (v) => (v === '' ? null : v) })} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm">
               <option value="">Select status</option>
               <option value="student">Student</option>
               <option value="recent_grad">Recent Graduate</option>

@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { TagPicker } from '@/components/listing/TagPicker';
 import { numberOrNull } from '@/utils/formNumber';
+import { inToCm, cmToIn, type DimensionUnit } from '@/utils/dimensions';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useSeries } from '@/hooks/useArtistContent';
 import { ListingImagesManager } from '@/components/listing/ListingImagesManager';
@@ -27,6 +28,7 @@ export default function EditListingPage() {
   const updateListing = useUpdateListing();
   const [isPickupOnly, setIsPickupOnly] = useState(false);
   const [artistId, setArtistId] = useState('');
+  const [unit, setUnit] = useState<DimensionUnit>('in');
   const { data: seriesOptions = [] } = useSeries(artistId);
 
   useEffect(() => {
@@ -38,15 +40,19 @@ export default function EditListingPage() {
       });
   }, [user]);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
+  const { register, handleSubmit, watch, setValue, getValues, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
     resolver: zodResolver(listingSchema),
+    // Dimensions are stored in cm but the form is inches-first (`unit` starts
+    // at 'in') — prefill converted values. `values` only re-syncs when its
+    // content changes, and `listing` is stable after load, so this doesn't
+    // fight the unit toggle's setValue conversions.
     values: listing ? {
       title: listing.title,
       description: listing.description ?? '',
       medium: listing.medium,
-      width_cm: listing.width_cm,
-      height_cm: listing.height_cm,
-      depth_cm: listing.depth_cm,
+      width_cm: listing.width_cm != null ? cmToIn(listing.width_cm) : null,
+      height_cm: listing.height_cm != null ? cmToIn(listing.height_cm) : null,
+      depth_cm: listing.depth_cm != null ? cmToIn(listing.depth_cm) : null,
       year_created: listing.year_created,
       price_dollars: listing.price_cents / 100,
       shipping_dollars: (listing.shipping_rate_cents ?? 0) / 100,
@@ -68,6 +74,18 @@ export default function EditListingPage() {
 
   if (isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
+  const switchUnit = (to: DimensionUnit) => {
+    if (to === unit) return;
+    const convert = to === 'cm' ? inToCm : cmToIn;
+    (['width_cm', 'height_cm', 'depth_cm'] as const).forEach((f) => {
+      const v = getValues(f);
+      if (v != null) setValue(f, convert(v));
+    });
+    setUnit(to);
+  };
+  const dimToCm = (v: number | null | undefined) =>
+    v == null ? null : unit === 'in' ? inToCm(v) : v;
+
   const onSubmit = async (data: ListingFormData) => {
     await updateListing.mutateAsync({
       id,
@@ -75,9 +93,9 @@ export default function EditListingPage() {
         title: data.title,
         description: data.description || null,
         medium: data.medium,
-        width_cm: data.width_cm ?? null,
-        height_cm: data.height_cm ?? null,
-        depth_cm: data.depth_cm ?? null,
+        width_cm: dimToCm(data.width_cm),
+        height_cm: dimToCm(data.height_cm),
+        depth_cm: dimToCm(data.depth_cm),
         year_created: data.year_created ?? null,
         price_cents: toCents(data.price_dollars),
         shipping_rate_cents: isPickupOnly ? 0 : toCents(data.shipping_dollars),
@@ -104,10 +122,28 @@ export default function EditListingPage() {
           <textarea {...register('description')} rows={4} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
         </div>
         <Input label="Medium" {...register('medium')} error={errors.medium?.message} />
-        <div className="grid grid-cols-3 gap-4">
-          <Input label="Width (cm)" type="number" step="0.1" {...register('width_cm', { setValueAs: numberOrNull })} />
-          <Input label="Height (cm)" type="number" step="0.1" {...register('height_cm', { setValueAs: numberOrNull })} />
-          <Input label="Depth (cm)" type="number" step="0.1" {...register('depth_cm', { setValueAs: numberOrNull })} />
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-sm font-medium text-ink">Dimensions</span>
+            <div className="flex overflow-hidden rounded-lg border border-line text-xs">
+              {(['in', 'cm'] as const).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => switchUnit(u)}
+                  aria-pressed={unit === u}
+                  className={`px-3 py-1 font-medium transition-colors ${unit === u ? 'bg-terra text-white' : 'bg-surface text-muted hover:bg-sand/50'}`}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <Input label={`Width (${unit})`} type="number" step="0.1" {...register('width_cm', { setValueAs: numberOrNull })} />
+            <Input label={`Height (${unit})`} type="number" step="0.1" {...register('height_cm', { setValueAs: numberOrNull })} />
+            <Input label={`Depth (${unit})`} type="number" step="0.1" {...register('depth_cm', { setValueAs: numberOrNull })} />
+          </div>
         </div>
 
         {seriesOptions.length > 0 && (

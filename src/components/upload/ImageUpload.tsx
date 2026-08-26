@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { uploadWithProgress } from './uploadWithProgress';
+import { downscaleImage } from './downscaleImage';
 
 interface UploadingFile {
   name: string;
@@ -37,20 +38,30 @@ export function ImageUpload({
       setError(null);
 
       const files = Array.from(fileList).slice(0, maxFiles);
-      const oversize = files.find((f) => f.size > maxSizeMB * 1024 * 1024);
-      if (oversize) {
-        setError(`${oversize.name} is over ${maxSizeMB}MB.`);
-        return;
-      }
+      const maxBytes = maxSizeMB * 1024 * 1024;
 
       setUploading(files.map((f) => ({ name: f.name, progress: 0 })));
       try {
+        // A photo over the cap is downscaled in the browser rather than
+        // rejected — camera photos are routinely 6–12MB and artists shouldn't
+        // have to convert files to list their work.
+        const prepared = await Promise.all(
+          files.map(async (file) => {
+            if (file.size <= maxBytes) return { blob: file as Blob, contentType: file.type, name: file.name };
+            const result = await downscaleImage(file, maxBytes);
+            if (!result) {
+              throw new Error(`${file.name} couldn't be resized to fit under ${maxSizeMB}MB — try exporting it as a JPG.`);
+            }
+            return { ...result, name: file.name };
+          })
+        );
+
         const urls = await Promise.all(
-          files.map(async (file, i) => {
+          prepared.map(async (item, i) => {
             const res = await fetch(endpoint, { method: 'POST' });
             if (!res.ok) throw new Error('Could not get upload URL');
             const { uploadUrl, publicUrl } = await res.json();
-            await uploadWithProgress(uploadUrl, file, file.type, (pct) =>
+            await uploadWithProgress(uploadUrl, item.blob, item.contentType, (pct) =>
               setUploading((prev) => prev.map((u, j) => (j === i ? { ...u, progress: pct } : u)))
             );
             return publicUrl as string;
@@ -85,7 +96,7 @@ export function ImageUpload({
         </svg>
         <p className="text-sm text-muted">{label}</p>
         <p className="mt-1 text-xs text-muted/70">
-          {maxFiles > 1 ? `Up to ${maxFiles} files, ` : ''}max {maxSizeMB}MB each
+          {maxFiles > 1 ? `Up to ${maxFiles} files. ` : ''}Big photos are resized automatically.
         </p>
         <input
           ref={inputRef}

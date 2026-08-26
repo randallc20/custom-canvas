@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { ListingsSection } from '@/components/studio/ListingsSection';
+import { NotLiveNotice } from '@/components/studio/NotLiveNotice';
 import { SeriesSection } from '@/components/studio/SeriesSection';
 
 const TABS = [
@@ -28,6 +29,7 @@ function WorkContent() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
+      <NotLiveNotice />
       <div className="mb-6 flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-ink">Work</h1>
         {tab === 'listings' && <Link href="/listings/new"><Button>New Listing</Button></Link>}
