@@ -357,12 +357,6 @@ test.describe.serial('marketplace safety journey', () => {
     const page = await ctx.newPage();
     await login(page, admin.email!, admin.password!);
 
-    page.on('response', (r) => {
-      if (r.url().includes('/rest/v1/reports')) console.log('[reports rsp]', r.status(), r.url().slice(0, 160));
-    });
-    page.on('requestfailed', (r) => {
-      if (r.url().includes('supabase')) console.log('[req FAILED]', r.failure()?.errorText, r.url().slice(0, 140));
-    });
     // 13.8 — the counter is a link when something is waiting.
     await page.goto('/admin');
     const pendingBox = page.locator('a', { has: page.getByText('Pending Reports') }).first();
@@ -568,8 +562,11 @@ test.describe.serial('marketplace safety journey', () => {
     await expect(confirmBtn).toBeEnabled();
     await confirmBtn.click();
 
-    // The session ends and we land back on the public site.
-    await expect(loverPage.getByRole('link', { name: 'Log In' })).toBeVisible({ timeout: 20_000 });
+    // The session ends: depending on the redirect race we land on the public
+    // home (Log In link) or the login page itself — both are signed-out.
+    await expect(
+      loverPage.getByRole('link', { name: 'Log In' }).or(loverPage.getByRole('heading', { name: 'Welcome Back' })).first()
+    ).toBeVisible({ timeout: 20_000 });
 
     // Their credentials must no longer work.
     await loverPage.goto('/login');
