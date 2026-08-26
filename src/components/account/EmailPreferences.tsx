@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { withSessionRetry } from '@/lib/sessionRetry';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
@@ -59,8 +60,14 @@ export function EmailPreferences() {
   const save = async () => {
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase.from('profiles').update({ email_preferences: prefs }).eq('id', user.id);
-    toast(error ? 'Could not save preferences' : 'Email preferences saved', error ? 'error' : 'success');
+    // .maybeSingle() + one session-refresh retry: a fresh-session RLS race
+    // used to update zero rows and still toast success (same class as the
+    // artist profile save bug).
+    const run = () =>
+      supabase.from('profiles').update({ email_preferences: prefs }).eq('id', user.id).select('id').maybeSingle();
+    const { data, error } = await withSessionRetry(run, (r) => !r.error && !r.data);
+    const failed = !!error || !data;
+    toast(failed ? 'Could not save preferences — please try again' : 'Email preferences saved', failed ? 'error' : 'success');
     setSaving(false);
   };
 
