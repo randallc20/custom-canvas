@@ -470,11 +470,11 @@ test.describe.serial('marketplace safety journey', () => {
     const box = artistPage.getByPlaceholder('Type a message...');
     await box.fill(reply);
     await box.press('Enter');
-    await expect(artistPage.getByText(reply)).toBeVisible({ timeout: 15_000 });
+    await expect(artistPage.getByText(reply).first()).toBeVisible({ timeout: 15_000 });
 
     // And the lover receives it.
     await loverPage.reload();
-    await expect(loverPage.getByText(reply)).toBeVisible({ timeout: 20_000 });
+    await expect(loverPage.getByText(reply).first()).toBeVisible({ timeout: 20_000 });
   });
 
   test('14.9 — the same conversation in two tabs: no duplicates, no crash', async () => {
@@ -487,11 +487,12 @@ test.describe.serial('marketplace safety journey', () => {
     const box = loverPage.getByPlaceholder('Type a message...');
     await box.fill(twoTabs);
     await box.press('Enter');
-    await expect(loverPage.getByText(twoTabs)).toHaveCount(1, { timeout: 15_000 });
+    // Count message BUBBLES (the inbox rail also previews the text).
+    await expect(loverPage.locator('p.whitespace-pre-wrap', { hasText: twoTabs })).toHaveCount(1, { timeout: 15_000 });
 
     // The second tab sees exactly one copy too.
     await tab2.reload();
-    await expect(tab2.getByText(twoTabs)).toHaveCount(1, { timeout: 20_000 });
+    await expect(tab2.locator('p.whitespace-pre-wrap', { hasText: twoTabs })).toHaveCount(1, { timeout: 20_000 });
     await tab2.close();
   });
 

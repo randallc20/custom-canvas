@@ -66,11 +66,17 @@ export default function AccountPage() {
     if (deleteConfirm !== 'DELETE') return;
     setDeleting(true);
     try {
-      await supabase.from('profiles').delete().eq('id', user!.id);
-      await signOut();
+      // Server-side: the client-side profiles.delete() was an RLS no-op that
+      // never touched the auth user — the account survived deletion.
+      const res = await fetch('/api/account/delete', { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(typeof body.error === 'string' ? body.error : 'Failed');
+      }
+      await signOut().catch(() => {});
       router.push('/');
-    } catch {
-      toast('Failed to delete account.', 'error');
+    } catch (err) {
+      toast(err instanceof Error && err.message !== 'Failed' ? err.message : 'Failed to delete account.', 'error');
       setDeleting(false);
     }
   };
