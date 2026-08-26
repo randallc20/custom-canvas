@@ -1205,11 +1205,16 @@ asks the artist, the artist agrees, and Custom Canvas moves the money.*
   back to $0.00.
 - **As the administrator:** total revenue reflects the refund.
 
-### 10.7 — The piece comes back
+### 10.7 — The piece comes back (by hand)
 
 - **Do:** In a signed-out window, open `Morning in Montrose`.
-- **Expect:** It is **for sale again** — it was never shipped for real, so it
-  goes back on the market.
+- **Expect:** It is **still off the market**. Because the order was marked
+  shipped, Custom Canvas assumes the piece is physically with the buyer and
+  waits for the artist to get it back — refunds only relist automatically when
+  the order was never shipped.
+- **Do:** As the artist, open the listing's **Edit** page, change its status
+  back to **Available**, and save.
+- **Expect:** In the signed-out window, the piece is now **for sale again**.
 
 ### 10.8 — The money actually comes back
 

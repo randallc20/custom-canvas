@@ -43,6 +43,9 @@ export function useUpdateListing() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['listing', id] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
+      // The Studio Work list renders from this key — without it, Publish/edit
+      // "succeeds" but the row keeps its old badge until a hard reload.
+      queryClient.invalidateQueries({ queryKey: ['artist-listings'] });
     },
     onError: toastError(toast),
   });
@@ -57,6 +60,8 @@ export function useDeleteListing() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listings'] });
       queryClient.invalidateQueries({ queryKey: ['feed'] });
+      // Same staleness as useUpdateListing: the Work list must drop the row.
+      queryClient.invalidateQueries({ queryKey: ['artist-listings'] });
     },
     onError: toastError(toast),
   });

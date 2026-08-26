@@ -41,9 +41,12 @@ export async function saveEducation(
     }))
   );
   if (error) throw error;
-  // Auto-link entries whose institution matches a verified partner.
+  // Auto-link entries whose institution matches a verified partner. This is a
+  // best-effort enrichment — a linker failure must not fail the education
+  // save itself (a broken version of this RPC silently killed every education
+  // save until 00043).
   const { error: linkError } = await supabase.rpc('link_education_partners', { p_artist_id: artistId });
-  if (linkError) throw linkError;
+  if (linkError) console.error('link_education_partners failed:', linkError.message);
 }
 
 // --- Personal photos ---
