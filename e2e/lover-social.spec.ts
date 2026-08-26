@@ -201,8 +201,10 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
     }
     // Pin the card by href BEFORE saving: the filter above selects on "has a
     // Save button", so a successful save makes the card stop matching itself.
+    // Scope to the Discover grid — the hero art strip links to the same
+    // listings with image-only anchors (no h3, no heart).
     const savedHref = await card.getAttribute('href');
-    const pinned = page.locator(`a[href="${savedHref}"]`).first();
+    const pinned = page.locator(`#feed a[href="${savedHref}"]`).first();
     const savedTitle = (await pinned.locator('h3').first().innerText()).trim();
     await pinned.locator('button[aria-label="Save"]').first().click();
     // Responds instantly: the heart flips to Unsave.
@@ -238,7 +240,7 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
     test.setTimeout(60_000);
     const page = artistPage;
     await page.goto('/notifications');
-    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toBeVisible({ timeout: 15_000 });
 
     const followerNotif = page.getByText(/follower/i).first();
     const appeared = await followerNotif
@@ -346,6 +348,9 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
     const page = loverPage;
     await page.goto(`/messages/${conversationId}`);
     await chatTextarea(page).waitFor({ state: 'visible', timeout: 20_000 });
+    // Let the thread finish rendering (8.7's photo is in it) before counting,
+    // or the baseline is 0 and the old image later reads as a phantom.
+    await expect(page.locator('img[alt="Shared image"]').first()).toBeVisible({ timeout: 20_000 });
     const imagesBefore = await page.locator('img[alt="Shared image"]').count();
 
     await page.locator('input[accept="image/jpeg,image/png,image/webp"]').setInputFiles(bigImage!);
@@ -482,7 +487,7 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
     test.setTimeout(60_000);
     const page = loverPage;
     await page.goto('/notifications');
-    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toBeVisible({ timeout: 15_000 });
     // Either real rows or the honest empty state — never a blank error.
     await expect(
       page.getByText(/No notifications/).or(page.locator('div.divide-y')).first()

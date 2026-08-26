@@ -65,6 +65,21 @@ async function openCommissionPanel(page: Page): Promise<Locator> {
   return sheet;
 }
 
+
+/** The app caps commission WRITES at 5/min per IP (creation-spam guard, and
+ *  correct for humans). The suite's writes come faster than any person's —
+ *  keep a rolling window and pause so we never trip it. */
+const commissionWrites: number[] = [];
+async function paceCommissionWrites(page: Page) {
+  for (;;) {
+    const now = Date.now();
+    while (commissionWrites.length && now - commissionWrites[0] > 62_000) commissionWrites.shift();
+    if (commissionWrites.length < 4) break;
+    await page.waitForTimeout(62_000 - (now - commissionWrites[0]) + 500);
+  }
+  commissionWrites.push(Date.now());
+}
+
 /** Request a commission through the real journey: artist page → panel button →
  *  /commission-request form → lands in the new conversation. Returns the ids
  *  the API answered with (for stale-action probes and direct navigation). */
@@ -80,6 +95,7 @@ async function requestCommission(
   await page.getByLabel('Description').fill(brief);
   await page.getByLabel('Min Budget ($)').fill('200');
   await page.getByLabel('Max Budget ($)').fill('400');
+  await paceCommissionWrites(page);
   const [res] = await Promise.all([
     page.waitForResponse(
       (r) => r.url().endsWith('/api/commissions') && r.request().method() === 'POST',
@@ -104,8 +120,10 @@ async function sendQuote(page: Page, conversationId: string, price: string, time
   await panel.getByLabel('Estimated Completion').fill(timeline);
   await panel.getByLabel('Your Price ($)').fill(price);
   // Two "Send Quote" buttons once the form is open; the form's is last in DOM.
+  await paceCommissionWrites(page);
   await panel.getByRole('button', { name: 'Send Quote' }).last().click();
-  await expect(page.getByText('Commission updated.')).toBeVisible({ timeout: 15_000 });
+  // Durable state, not the auto-dismissing toast: the panel shows the quote.
+  await expect(panel.getByText('Artist Quote')).toBeVisible({ timeout: 15_000 });
 }
 
 test.describe.serial('part 11 — commissions', () => {
@@ -237,13 +255,14 @@ test.describe.serial('part 11 — commissions', () => {
 
     // A negative price is refused politely (type=number blocks 'abc' outright).
     await panel.getByLabel('Your Price ($)').fill('-50');
-    await panel.getByRole('button', { name: 'Send Quote' }).last().click();
+    await paceCommissionWrites(page);
+  await panel.getByRole('button', { name: 'Send Quote' }).last().click();
     await expect(page.getByText('Please provide a valid price and timeline.')).toBeVisible({ timeout: 10_000 });
 
     // The real quote: $300, four weeks.
     await panel.getByLabel('Your Price ($)').fill('300');
-    await panel.getByRole('button', { name: 'Send Quote' }).last().click();
-    await expect(page.getByText('Commission updated.')).toBeVisible({ timeout: 15_000 });
+    await paceCommissionWrites(page);
+  await panel.getByRole('button', { name: 'Send Quote' }).last().click();
 
     // The quote lives in the conversation itself, not just the panel…
     await expect(page.getByText('Commission quote').first()).toBeVisible({ timeout: 15_000 });
@@ -259,8 +278,8 @@ test.describe.serial('part 11 — commissions', () => {
     const panel = await openCommissionPanel(page);
     await expect(panel.getByText('Quoted', { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(panel.getByText('Artist Quote')).toBeVisible();
+    await paceCommissionWrites(page);
     await panel.getByRole('button', { name: 'Accept Quote' }).click();
-    await expect(page.getByText('Commission updated.')).toBeVisible({ timeout: 15_000 });
     // No reload: the panel flips immediately.
     await expect(panel.getByText('In progress', { exact: true })).toBeVisible({ timeout: 15_000 });
     // And the inbox pill agrees.
@@ -302,8 +321,8 @@ test.describe.serial('part 11 — commissions', () => {
     const page = artistPage;
     await page.goto(`/messages/${commission1.conversationId}`);
     const panel = await openCommissionPanel(page);
+    await paceCommissionWrites(page);
     await panel.getByRole('button', { name: 'Mark as Delivered' }).click();
-    await expect(page.getByText('Commission updated.')).toBeVisible({ timeout: 15_000 });
     await expect(panel.getByText('Delivered', { exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
@@ -313,8 +332,15 @@ test.describe.serial('part 11 — commissions', () => {
     const panel = await openCommissionPanel(page);
     await expect(panel.getByText('Delivered', { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(panel.getByRole('button', { name: 'Report Issue' })).toBeVisible();
-    await panel.getByRole('button', { name: 'Confirm Receipt' }).click();
-    await expect(page.getByText('Commission updated.')).toBeVisible({ timeout: 15_000 });
+    await paceCommissionWrites(page);
+    const [confirmRes] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes('/confirm') && r.request().method() === 'POST',
+        { timeout: 15_000 }
+      ),
+      panel.getByRole('button', { name: 'Confirm Receipt' }).click(),
+    ]);
+    expect(confirmRes.status(), await confirmRes.text()).toBe(200);
     await expect(panel.getByText('Closed — completed')).toBeVisible({ timeout: 15_000 });
     // No stale action buttons survive the close.
     await expect(panel.getByRole('button', { name: 'Decline' })).toHaveCount(0);
@@ -324,20 +350,24 @@ test.describe.serial('part 11 — commissions', () => {
   test('11.9 stale actions are refused with a conflict, not a silent change', async () => {
     // The commission is confirmed. Every out-of-order action must 409 with a
     // clear message (the exact copy each route ships).
+    await paceCommissionWrites(artistPage);
     const quoteAgain = await artistPage.request.post(`/api/commissions/${commission1.id}/accept`, {
       data: { quoted_price_cents: 30_000, estimated_completion: '4 weeks' },
     });
     expect(quoteAgain.status()).toBe(409);
     expect((await quoteAgain.json()).error).toBe('Only new requests can be quoted.');
 
+    await paceCommissionWrites(artistPage);
     const deliverAgain = await artistPage.request.post(`/api/commissions/${commission1.id}/complete`);
     expect(deliverAgain.status()).toBe(409);
     expect((await deliverAgain.json()).error).toBe('Only in-progress commissions can be delivered.');
 
+    await paceCommissionWrites(artistPage);
     const confirmAgain = await loverPage.request.post(`/api/commissions/${commission1.id}/confirm`);
     expect(confirmAgain.status()).toBe(409);
     expect((await confirmAgain.json()).error).toBe('This commission is not awaiting your confirmation.');
 
+    await paceCommissionWrites(artistPage);
     const declineLate = await loverPage.request.post(`/api/commissions/${commission1.id}/decline`);
     expect(declineLate.status()).toBe(409);
     expect((await declineLate.json()).error).toBe('This commission can no longer be cancelled.');
@@ -355,8 +385,8 @@ test.describe.serial('part 11 — commissions', () => {
     await artistPage.goto(`/messages/${commission2.conversationId}`);
     const artistPanel = await openCommissionPanel(artistPage);
     await expect(artistPanel.getByText(title2)).toBeVisible({ timeout: 15_000 });
+    await paceCommissionWrites(artistPage);
     await artistPanel.getByRole('button', { name: 'Decline' }).click();
-    await expect(artistPage.getByText('Commission updated.')).toBeVisible({ timeout: 15_000 });
     await expect(artistPanel.getByText('Closed', { exact: true })).toBeVisible({ timeout: 15_000 });
 
     // The buyer sees the same closed state.
@@ -370,8 +400,8 @@ test.describe.serial('part 11 — commissions', () => {
     commission3 = await requestCommission(loverPage, artistSlug, title3);
     const panel = await openCommissionPanel(loverPage);
     await expect(panel.getByText('New request', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await paceCommissionWrites(loverPage);
     await panel.getByRole('button', { name: 'Cancel Request' }).click();
-    await expect(loverPage.getByText('Commission updated.')).toBeVisible({ timeout: 15_000 });
     await expect(panel.getByText('Closed', { exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
@@ -382,13 +412,15 @@ test.describe.serial('part 11 — commissions', () => {
 
     await loverPage.goto(`/messages/${commission4.conversationId}`);
     let loverPanel = await openCommissionPanel(loverPage);
+    await paceCommissionWrites(loverPage);
     await loverPanel.getByRole('button', { name: 'Accept Quote' }).click();
-    await expect(loverPage.getByText('Commission updated.')).toBeVisible({ timeout: 15_000 });
+    await expect(loverPanel.getByText('In progress', { exact: true })).toBeVisible({ timeout: 15_000 });
 
     await artistPage.goto(`/messages/${commission4.conversationId}`);
     const artistPanel = await openCommissionPanel(artistPage);
+    await paceCommissionWrites(artistPage);
     await artistPanel.getByRole('button', { name: 'Mark as Delivered' }).click();
-    await expect(artistPage.getByText('Commission updated.')).toBeVisible({ timeout: 15_000 });
+    await expect(artistPanel.getByText('Delivered', { exact: true })).toBeVisible({ timeout: 15_000 });
 
     await loverPage.goto(`/messages/${commission4.conversationId}`);
     loverPanel = await openCommissionPanel(loverPage);
@@ -396,8 +428,8 @@ test.describe.serial('part 11 — commissions', () => {
     await loverPanel.getByLabel('What went wrong?').fill(
       `The piece arrived with a torn corner — filed by the e2e walk (${RUN}).`
     );
+    await paceCommissionWrites(loverPage);
     await loverPanel.getByRole('button', { name: 'Submit' }).click();
-    await expect(loverPage.getByText('Commission updated.')).toBeVisible({ timeout: 15_000 });
     await expect(loverPanel.getByText('Disputed', { exact: true })).toBeVisible({ timeout: 15_000 });
   });
 

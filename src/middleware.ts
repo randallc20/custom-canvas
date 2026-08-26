@@ -19,7 +19,7 @@ const LIMITS: Record<string, number> = {
 const DEFAULT_LIMIT = 60;
 const WINDOW_MS = 60_000;
 
-function limitFor(pathname: string): number {
+function limitFor(pathname: string, method: string): number {
   // Longest prefix wins, so a specific entry ('/api/payments/stripe-connect')
   // beats its parent ('/api/payments') regardless of where it sits in the map.
   // Matching on insertion order instead would make the tighter limit silently
@@ -30,7 +30,13 @@ function limitFor(pathname: string): number {
       best = prefix;
     }
   }
-  return best === null ? DEFAULT_LIMIT : LIMITS[best];
+  const base = best === null ? DEFAULT_LIMIT : LIMITS[best];
+  // The tight buckets exist to stop creation spam (POSTs that mint rows or
+  // Stripe accounts). Reads against the same prefix — the commission panel
+  // GETs on every thread open — must not drain them: two people on one IP
+  // walking a commission back-and-forth hit 5/min from panel loads alone.
+  if (method === 'GET' && base < DEFAULT_LIMIT) return DEFAULT_LIMIT;
+  return base;
 }
 
 // --- Global limiter (Upstash Redis) -----------------------------------------
@@ -97,8 +103,11 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/webhooks') || pathname.startsWith('/api/cron')) return NextResponse.next();
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  const limit = limitFor(pathname);
-  const key = `${ip}:${pathname.split('/').slice(0, 3).join('/')}`;
+  const limit = limitFor(pathname, request.method);
+  // The limit value is part of the key: the read and write buckets for one
+  // prefix use different Ratelimit configs, and sharing a key across them
+  // would blend their counters.
+  const key = `${ip}:${pathname.split('/').slice(0, 3).join('/')}:${limit}`;
 
   const rl = globalLimiter(limit);
   if (rl) {
