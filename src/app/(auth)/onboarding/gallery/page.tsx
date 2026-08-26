@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { supabase } from '@/lib/supabase';
+import { withSessionRetry, isRlsDenial } from '@/lib/sessionRetry';
 import { slugify } from '@/utils/slugify';
 import { PARTNER_TYPE_LABELS, type PartnerType } from '@/types/gallery';
 
@@ -24,7 +25,25 @@ export default function GalleryOnboardingPage() {
     defaultValues: { partner_type: 'gallery' },
   });
 
-  if (loading) {
+  // Right after an autoconfirm signup, `user` is briefly null while
+  // AuthContext fetches the profile (loading already went false on the
+  // anonymous initial mount) — bouncing on !user alone would skip onboarding
+  // entirely. Ask the auth client directly: only a genuinely session-less
+  // visitor goes to login.
+  const [noSession, setNoSession] = useState(false);
+  useEffect(() => {
+    if (user) return;
+    let mounted = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted && !session) setNoSession(true);
+    });
+    return () => { mounted = false; };
+  }, [user]);
+  useEffect(() => {
+    if (noSession) router.push('/login');
+  }, [noSession, router]);
+
+  if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Spinner size="lg" />
@@ -32,22 +51,26 @@ export default function GalleryOnboardingPage() {
     );
   }
 
-  if (!user) {
-    router.push('/login');
-    return null;
-  }
-
   const onSubmit = async (data: GalleryProfileFormData) => {
     setError('');
     const slug = slugify(data.gallery_name) + '-' + Date.now().toString(36);
-    const { error: insertError } = await supabase.from('gallery_profiles').insert({
-      profile_id: user.id,
-      slug,
-      ...data,
-    });
+    const insertProfile = () =>
+      supabase.from('gallery_profiles').insert({
+        profile_id: user.id,
+        slug,
+        ...data,
+      });
+
+    // Same fresh-session race as artist onboarding: an RLS refusal moments
+    // after signup means the session cookie hasn't attached yet.
+    const { error: insertError } = await withSessionRetry(insertProfile, (r) => isRlsDenial(r.error));
 
     if (insertError) {
-      setError(insertError.message);
+      setError(
+        isRlsDenial(insertError)
+          ? 'We couldn’t verify your session — refresh this page and try again.'
+          : insertError.message
+      );
       return;
     }
 

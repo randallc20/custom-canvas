@@ -84,6 +84,14 @@ export default function RegisterPage() {
             We sent a confirmation link to <span className="font-medium">{email}</span>.
             Click the link to activate your account — it signs you in and takes you straight to setup.
           </p>
+          {/* Registering an email that already has an account looks identical
+              from here (anti-enumeration: no session, no error) but no email
+              is coming — give that person their actual way in. */}
+          <p className="mt-3 text-sm text-muted">
+            Already have an account with this email? No new email is sent —{' '}
+            <Link href="/login" className="text-terra hover:underline">sign in</Link> or{' '}
+            <Link href="/forgot-password" className="text-terra hover:underline">reset your password</Link> instead.
+          </p>
           <div className="mt-4 space-y-3 text-left">
             <p className="text-center text-sm text-muted">
               Nothing after a couple of minutes? Check spam, then resend it.

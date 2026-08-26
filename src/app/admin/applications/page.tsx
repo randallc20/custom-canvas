@@ -28,7 +28,7 @@ interface UnsubmittedArtist {
   city: string | null;
   created_at: string;
   application_status: 'draft' | 'rejected';
-  listings: { id: string }[];
+  listings: { count: number }[];
 }
 
 export default function AdminApplicationsPage() {
@@ -69,10 +69,13 @@ function Content() {
     // and reasonably concludes the approval flow is broken.
     supabase
       .from('artist_profiles')
-      .select('id, display_name, slug, city, created_at, application_status, listings(id)')
+      .select('id, display_name, slug, city, created_at, application_status, listings(count)')
       .in('application_status', ['draft', 'rejected'])
       .order('created_at', { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        // Same rule as the pending queue: never render a reassuring empty
+        // section over a failed query.
+        if (error) setLoadError(error.message);
         setUnsubmitted((data ?? []) as unknown as UnsubmittedArtist[]);
       });
   };
@@ -232,7 +235,7 @@ function Content() {
                       </Link>
                     </td>
                     <td className="px-4 py-2 text-muted">{a.city ?? '—'}</td>
-                    <td className="px-4 py-2 text-muted">{a.listings?.length ?? 0}</td>
+                    <td className="px-4 py-2 text-muted">{a.listings?.[0]?.count ?? 0}</td>
                     <td className="px-4 py-2 text-muted">
                       {a.application_status === 'rejected' ? 'changes requested' : 'building their shop'}
                     </td>

@@ -11,6 +11,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { formatPrice } from '@/utils/formatPrice';
+import { isListingPubliclyVisible } from '@/utils/listingVisibility';
 import { supabase } from '@/lib/supabase';
 
 interface AdminListing {
@@ -135,12 +136,12 @@ function ListingsContent() {
                 <td className="px-4 py-3">
                   {/* "available" alone reads as live — but a listing is only
                       public once its artist is approved. Say which it is. */}
-                  {l.status === 'hidden' || l.status === 'draft' ? (
-                    <Badge variant="default">not public</Badge>
-                  ) : l.artist && !l.artist.is_live ? (
-                    <Badge variant="warning">hidden — artist not live</Badge>
-                  ) : (
+                  {isListingPubliclyVisible(l.status, l.artist?.is_live) ? (
                     <Badge variant="success">public</Badge>
+                  ) : l.status === 'hidden' || l.status === 'draft' ? (
+                    <Badge variant="default">not public</Badge>
+                  ) : (
+                    <Badge variant="warning">hidden — artist not live</Badge>
                   )}
                 </td>
                 <td className="px-4 py-3">

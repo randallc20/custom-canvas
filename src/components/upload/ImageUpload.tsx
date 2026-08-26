@@ -42,31 +42,39 @@ export function ImageUpload({
 
       setUploading(files.map((f) => ({ name: f.name, progress: 0 })));
       try {
+        const uploadOne = async (blob: Blob, contentType: string, i: number) => {
+          const res = await fetch(endpoint, { method: 'POST' });
+          if (!res.ok) throw new Error('Could not get upload URL');
+          const { uploadUrl, publicUrl } = await res.json();
+          await uploadWithProgress(uploadUrl, blob, contentType, (pct) =>
+            setUploading((prev) => prev.map((u, j) => (j === i ? { ...u, progress: pct } : u)))
+          );
+          return publicUrl as string;
+        };
+
         // A photo over the cap is downscaled in the browser rather than
         // rejected — camera photos are routinely 6–12MB and artists shouldn't
-        // have to convert files to list their work.
-        const prepared = await Promise.all(
-          files.map(async (file) => {
-            if (file.size <= maxBytes) return { blob: file as Blob, contentType: file.type, name: file.name };
-            const result = await downscaleImage(file, maxBytes);
-            if (!result) {
-              throw new Error(`${file.name} couldn't be resized to fit under ${maxSizeMB}MB — try exporting it as a JPG.`);
-            }
-            return { ...result, name: file.name };
-          })
-        );
+        // have to convert files to list their work. Downscales run one at a
+        // time (each holds a full-res pixel buffer; eight at once is
+        // tab-kill territory on phones) while uploads overlap freely.
+        const uploads: Promise<string>[] = [];
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (file.size <= maxBytes) {
+            uploads.push(uploadOne(file, file.type, i));
+            continue;
+          }
+          const result = await downscaleImage(file, maxBytes);
+          if (!result) {
+            // In-flight uploads keep running; absorb their rejections so
+            // bailing out here can't surface as an unhandled rejection.
+            uploads.forEach((p) => p.catch(() => {}));
+            throw new Error(`${file.name} couldn't be resized to fit under ${maxSizeMB}MB — try exporting it as a JPG.`);
+          }
+          uploads.push(uploadOne(result.blob, result.contentType, i));
+        }
 
-        const urls = await Promise.all(
-          prepared.map(async (item, i) => {
-            const res = await fetch(endpoint, { method: 'POST' });
-            if (!res.ok) throw new Error('Could not get upload URL');
-            const { uploadUrl, publicUrl } = await res.json();
-            await uploadWithProgress(uploadUrl, item.blob, item.contentType, (pct) =>
-              setUploading((prev) => prev.map((u, j) => (j === i ? { ...u, progress: pct } : u)))
-            );
-            return publicUrl as string;
-          })
-        );
+        const urls = await Promise.all(uploads);
         await onUpload(urls);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed');

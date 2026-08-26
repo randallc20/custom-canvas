@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { withSessionRetry } from '@/lib/sessionRetry';
 import { ArtistProfile, ArtistWithProfile } from '@/types/artist';
 import { ARTIST_PROFILE_EMBED, ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 
@@ -35,16 +36,10 @@ export async function updateArtistProfile(
       .select(ARTIST_PUBLIC_COLS) // bare .select() = RETURNING * → 42501 on revoked columns
       .maybeSingle();
 
-  let { data, error } = await run();
-
-  // Zero rows updated, no error: RLS didn't match auth.uid(), which right
-  // after signup usually means the request went out before the fresh session
-  // cookie attached. Re-sync the session and retry once — .single() used to
+  // Zero rows updated with no error: RLS didn't match auth.uid() — on an
+  // UPDATE that's how the fresh-session race manifests. .single() used to
   // turn this into an opaque PGRST116 "Failed to update profile" toast.
-  if (!error && !data) {
-    await supabase.auth.refreshSession();
-    ({ data, error } = await run());
-  }
+  const { data, error } = await withSessionRetry(run, (r) => !r.error && !r.data);
 
   if (error) throw error;
   if (!data) throw new ProfileSaveAuthError();

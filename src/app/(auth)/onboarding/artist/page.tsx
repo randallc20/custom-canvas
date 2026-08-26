@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -12,6 +12,7 @@ import { AGREEMENT_SUMMARY, ARTIST_AGREEMENT_VERSION } from '@/lib/agreement';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { supabase } from '@/lib/supabase';
+import { withSessionRetry, isRlsDenial } from '@/lib/sessionRetry';
 import { slugify } from '@/utils/slugify';
 
 // One structure drives the progress bar, per-step validation on Next, and the
@@ -43,17 +44,30 @@ export default function ArtistOnboardingPage() {
     },
   });
 
-  if (loading) {
+  // Right after an autoconfirm signup, `user` is briefly null while
+  // AuthContext fetches the profile (loading already went false on the
+  // anonymous initial mount) — bouncing on !user alone would skip onboarding
+  // entirely. Ask the auth client directly: only a genuinely session-less
+  // visitor goes to login.
+  const [noSession, setNoSession] = useState(false);
+  useEffect(() => {
+    if (user) return;
+    let mounted = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted && !session) setNoSession(true);
+    });
+    return () => { mounted = false; };
+  }, [user]);
+  useEffect(() => {
+    if (noSession) router.push('/login');
+  }, [noSession, router]);
+
+  if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Spinner size="lg" />
       </div>
     );
-  }
-
-  if (!user) {
-    router.push('/login');
-    return null;
   }
 
   const handleNext = async () => {
@@ -111,19 +125,13 @@ export default function ArtistOnboardingPage() {
         agreement_version: ARTIST_AGREEMENT_VERSION,
       });
 
-    let { error: insertError } = await insertProfile();
-
     // An RLS refusal moments after signup is almost always the fresh session
-    // cookie not being attached yet, not a real permissions problem — re-sync
-    // the session and retry once before surfacing anything.
-    if (insertError?.code === '42501') {
-      await supabase.auth.refreshSession();
-      ({ error: insertError } = await insertProfile());
-    }
+    // cookie not being attached yet, not a real permissions problem.
+    const { error: insertError } = await withSessionRetry(insertProfile, (r) => isRlsDenial(r.error));
 
     if (insertError) {
       setError(
-        insertError.code === '42501'
+        isRlsDenial(insertError)
           ? 'We couldn’t verify your session — refresh this page and try again.'
           : insertError.message
       );
