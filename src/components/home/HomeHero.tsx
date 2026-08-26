@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useLocation } from '@/context/LocationContext';
 import { LocationPicker } from '@/components/layout/LocationPicker';
+import { useFeaturedShelf } from '@/hooks/useFeatured';
 
 /** Location-aware hero: names the buyer's community once they've chosen
  *  one; until then it invites them to. */
@@ -49,23 +51,59 @@ export function HomeHero() {
             Join as an Artist
           </Link>
         </div>
-        <div className="mt-10 flex justify-center gap-8 text-sm text-muted">
-          <div>
-            <p className="font-display text-2xl font-bold text-ink">Artist-first</p>
+        <HeroArtStrip />
+        <div className="mt-10 flex justify-center gap-4 text-xs text-muted sm:gap-8 sm:text-sm">
+          <div className="min-w-0">
+            <p className="whitespace-nowrap font-display text-lg font-bold text-ink sm:text-2xl">Artist-first</p>
             <p>Fair pay, stated up front</p>
           </div>
           <div className="border-l border-line" />
-          <div>
-            <p className="font-display text-2xl font-bold text-ink">{city ?? 'Local'}</p>
+          <div className="min-w-0">
+            <p className="whitespace-nowrap font-display text-lg font-bold text-ink sm:text-2xl">{city ?? 'Local'}</p>
             <p>Community first</p>
           </div>
           <div className="border-l border-line" />
-          <div>
-            <p className="font-display text-2xl font-bold text-ink">Custom</p>
+          <div className="min-w-0">
+            <p className="whitespace-nowrap font-display text-lg font-bold text-ink sm:text-2xl">Custom</p>
             <p>Commissions welcome</p>
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+/** A shelf of real, admin-featured pieces inside the hero — small framed
+ *  canvases, hung a degree or two off level. Renders nothing until the
+ *  Featured shelf has work, so a brand-new city (or the empty launch state)
+ *  keeps the plain hero. */
+function HeroArtStrip() {
+  const { data } = useFeaturedShelf();
+  const pieces = (data ?? []).filter((l) => l.images?.length).slice(0, 5);
+  if (pieces.length < 3) return null;
+
+  const tilts = ['-rotate-2', 'rotate-1', '-rotate-1', 'rotate-2', '-rotate-1'];
+  return (
+    <div className="mt-10 flex items-end justify-center gap-3 sm:gap-5">
+      {pieces.map((piece, i) => {
+        const img = piece.images.find((im) => im.is_primary) ?? piece.images[0];
+        return (
+          <Link
+            key={piece.id}
+            href={`/listing/${piece.id}`}
+            className={`${tilts[i % tilts.length]} ${i > 2 ? 'hidden sm:block' : ''} block shrink-0 rounded-sm border-4 border-white bg-white shadow-card transition-transform duration-200 hover:rotate-0 hover:scale-105 hover:shadow-cardHover`}
+            aria-label={piece.title}
+          >
+            <Image
+              src={img.image_url}
+              alt={piece.title}
+              width={112}
+              height={112}
+              className="h-20 w-20 rounded-[1px] object-cover sm:h-28 sm:w-28"
+            />
+          </Link>
+        );
+      })}
+    </div>
   );
 }

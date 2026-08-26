@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { GalleryProfile } from '@/types/gallery';
 import { PartnerBadge } from './PartnerBadge';
+import { BannerFallback } from './BannerFallback';
 
 interface GalleryHeroProps {
   gallery: GalleryProfile;
@@ -10,8 +11,10 @@ export function GalleryHero({ gallery }: GalleryHeroProps) {
   return (
     <div>
       <div className="relative h-48 w-full bg-sand md:h-64">
-        {gallery.banner_image_url && (
+        {gallery.banner_image_url ? (
           <Image src={gallery.banner_image_url} alt={`${gallery.gallery_name} banner`} fill className="object-cover" sizes="100vw" priority />
+        ) : (
+          <BannerFallback name={gallery.gallery_name} />
         )}
       </div>
       <div className="mx-auto max-w-7xl px-4">

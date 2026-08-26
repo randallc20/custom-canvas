@@ -138,9 +138,13 @@ function ArtView({ filters, city, onBrowseEverywhere }: { filters: FeedFilters; 
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
+      {/* CSS-columns masonry: each piece keeps its own aspect ratio instead of
+          being cropped to a uniform 4:5 — the art shows as the artist shot it. */}
+      <div className="columns-2 gap-4 lg:columns-3 xl:columns-4">
         {listings.map((listing, i) => (
-          <FeedCard key={listing.id} listing={listing} revealDelayMs={(i % 8) * 50} />
+          <div key={listing.id} className="mb-4 break-inside-avoid">
+            <FeedCard listing={listing} natural revealDelayMs={(i % 8) * 50} />
+          </div>
         ))}
       </div>
       <div ref={sentinelRef} className="py-4">

@@ -11,9 +11,12 @@ import { useScrollReveal } from '@/hooks/useScrollReveal';
 interface FeedCardProps {
   listing: ListingWithImages;
   revealDelayMs?: number;
+  /** Render the artwork at its own aspect ratio (masonry feed) instead of the
+   *  uniform 4:5 crop the horizontal shelves need for even rows. */
+  natural?: boolean;
 }
 
-export function FeedCard({ listing, revealDelayMs = 0 }: FeedCardProps) {
+export function FeedCard({ listing, revealDelayMs = 0, natural = false }: FeedCardProps) {
   const { user } = useAuth();
   const { data: isSaved } = useIsSaved(user?.id ?? '', listing.id);
   const toggleSave = useToggleSave();
@@ -39,15 +42,28 @@ export function FeedCard({ listing, revealDelayMs = 0 }: FeedCardProps) {
         style={{ '--reveal-delay': `${revealDelayMs}ms` } as React.CSSProperties}
       >
         {primaryImage ? (
-          <div className="relative aspect-[4/5] w-full">
-            <Image
-              src={primaryImage.image_url}
-              alt={listing.title}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover"
-            />
-          </div>
+          natural ? (
+            <div className="overflow-hidden">
+              <Image
+                src={primaryImage.image_url}
+                alt={listing.title}
+                width={600}
+                height={750}
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="h-auto w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              />
+            </div>
+          ) : (
+            <div className="relative aspect-[4/5] w-full overflow-hidden">
+              <Image
+                src={primaryImage.image_url}
+                alt={listing.title}
+                fill
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              />
+            </div>
+          )
         ) : (
           <div className="flex aspect-[4/5] items-center justify-center bg-sand">
             <span className="text-sm text-muted">No image</span>

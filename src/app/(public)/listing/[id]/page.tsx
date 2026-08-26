@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { ListingDetail } from '@/components/listing/ListingDetail';
 import { PurchasePanel } from '@/components/listing/PurchasePanel';
@@ -71,9 +72,24 @@ export default async function ListingPage({ params }: Props) {
       <TrackView artistId={listing.artist_id} eventType="listing_view" listingId={listing.id} />
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <ListingDetail listing={processedListing} artist={artist} />
+          <ListingDetail listing={processedListing} />
         </div>
         <div>
+          {/* The piece's identity sits with the buy decision: on desktop this
+              rail is the first thing beside the image; on mobile it follows
+              the image directly. */}
+          <div className="mb-4">
+            <h1 className="font-display text-3xl font-bold leading-tight text-ink">{processedListing.title}</h1>
+            {artist && (
+              <Link href={`/artist/${artist.slug}`} className="mt-1 inline-block text-sm font-medium text-terra hover:underline">
+                {artist.display_name}
+              </Link>
+            )}
+            <p className="mt-1 text-sm text-muted">
+              {processedListing.medium}
+              {processedListing.year_created ? ` · ${processedListing.year_created}` : ''}
+            </p>
+          </div>
           <PurchasePanel listing={processedListing} artistProfileId={artist?.profile_id} fulfillmentPref={artist?.fulfillment_pref} awayMode={artist?.away_mode} awayUntil={artist?.away_until} />
           <div className="mt-4">
             <ShareButton title={processedListing.title} text={`Check out "${processedListing.title}" on Custom Canvas`} path={`/listing/${processedListing.id}`} className="w-full justify-center" />

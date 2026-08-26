@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { PartnerBadge } from '@/components/gallery/PartnerBadge';
+import { BannerFallback } from '@/components/gallery/BannerFallback';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { PARTNER_TYPE_LABELS, type PartnerType } from '@/types/gallery';
@@ -62,7 +63,7 @@ export default async function PartnersPage({ searchParams }: Props) {
               className="card-hover group overflow-hidden rounded-xl border border-line bg-surface shadow-card"
             >
               <div className="relative h-32 bg-sand">
-                {partner.banner_image_url && (
+                {partner.banner_image_url ? (
                   <Image
                     src={partner.banner_image_url}
                     alt={`${partner.gallery_name} banner`}
@@ -70,6 +71,8 @@ export default async function PartnersPage({ searchParams }: Props) {
                     className="object-cover"
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   />
+                ) : (
+                  <BannerFallback name={partner.gallery_name} />
                 )}
               </div>
               <div className="p-4">
