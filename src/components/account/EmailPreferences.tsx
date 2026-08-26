@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { withSessionRetry } from '@/lib/sessionRetry';
 import { useAuth } from '@/context/AuthContext';
@@ -47,12 +47,16 @@ export function EmailPreferences() {
   const [prefs, setPrefs] = useState<Prefs>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // A slow prefs fetch must never clobber a toggle the user already flipped —
+  // it used to land late, silently revert the flip, and Save then wrote the
+  // reverted state behind a success toast.
+  const touched = useRef(false);
 
   useEffect(() => {
     if (!user) return;
     supabase.from('profiles').select('email_preferences').eq('id', user.id).single()
       .then(({ data }) => {
-        if (data?.email_preferences) setPrefs({ ...DEFAULTS, ...data.email_preferences });
+        if (!touched.current && data?.email_preferences) setPrefs({ ...DEFAULTS, ...data.email_preferences });
         setLoading(false);
       });
   }, [user]);
@@ -82,7 +86,7 @@ export function EmailPreferences() {
             <input
               type="checkbox"
               checked={prefs[key]}
-              onChange={(e) => setPrefs((p) => ({ ...p, [key]: e.target.checked }))}
+              onChange={(e) => { touched.current = true; setPrefs((p) => ({ ...p, [key]: e.target.checked })); }}
               className="mt-0.5 h-4 w-4 rounded border-line text-terra focus:ring-terra/30"
             />
             <span className="text-sm">
