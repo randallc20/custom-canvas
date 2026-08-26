@@ -64,7 +64,9 @@ function DisputesContent() {
 
   const handleResolve = async () => {
     if (!resolveModal || !user) return;
-    const { error } = await supabase
+    // .maybeSingle() so a zero-row update (RLS refusal) is a visible failure
+    // — a missing UPDATE policy made this a silent no-op with a success toast.
+    const { data: updated, error } = await supabase
       .from('reports')
       .update({
         status: resolveAction,
@@ -72,9 +74,11 @@ function DisputesContent() {
         resolved_by: user.id,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', resolveModal.id);
+      .eq('id', resolveModal.id)
+      .select('id')
+      .maybeSingle();
 
-    if (error) {
+    if (error || !updated) {
       toast('Failed to resolve report.', 'error');
       return;
     }
