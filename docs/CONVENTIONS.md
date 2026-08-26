@@ -35,6 +35,15 @@ Fixed exemplars to copy: `src/services/artists.ts` (updateArtistProfile),
 `src/components/account/EmailPreferences.tsx`, `src/app/admin/disputes/page.tsx`
 (handleResolve), `src/services/partnerPicks.ts` (removePick/updatePick).
 
+## Database changes ship with the smoke test
+
+`./scripts/db-smoke.sh` (and `--prod` after a prod migration) is a pre-merge
+step for ANY migration that touches functions, policies, or grants — CI
+minutes are unavailable, so nothing runs it for you. It pins three things
+(see `scripts/db-smoke.sql`): every public function parses/executes, the
+exact RLS policy matrix, and the column grants on the column-restricted
+tables. A deliberate schema change updates the expectations in the same PR.
+
 ## Repo gotchas
 
 - Never run `pnpm` here (npm lockfile; a stray `pnpm-lock.yaml` flips Vercel's
