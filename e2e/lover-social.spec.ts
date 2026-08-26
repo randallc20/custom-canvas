@@ -517,11 +517,20 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
 
     // 8.18: the on-record framing question, from the listing context (this
     // thread matters for Part 9's seller-protection rules).
-    await page.goto(`/listing/${listingId}`);
-    const msgBtn = page.getByRole('button', { name: 'Message Artist' });
-    await msgBtn.waitFor({ state: 'visible', timeout: 20_000 });
-    await msgBtn.click();
-    await page.waitForURL(/\/messages\/[^/?]+/, { timeout: 20_000 });
+    // Retry the whole navigation: this late in a heavy suite, throttled auth
+    // can degrade the session mid-click and AuthGuard bounces to / or /login
+    // (both observed) — recover the way a person does, by going back to the
+    // listing and clicking again.
+    await expect(async () => {
+      if (/\/login/.test(page.url())) {
+        await login(page, loverEmail, loverNewPassword); // bounced fully out — sign back in
+      }
+      await page.goto(`/listing/${listingId}`);
+      const msgBtn = page.getByRole('button', { name: 'Message Artist' });
+      await msgBtn.waitFor({ state: 'visible', timeout: 15_000 });
+      await msgBtn.click();
+      await page.waitForURL(/\/messages\/[^/?]+/, { timeout: 15_000 });
+    }).toPass({ timeout: 90_000 });
 
     const question = `Is this piece framed, or would I need to frame it myself? (${RUN})`;
     const textarea = chatTextarea(page);

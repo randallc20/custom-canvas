@@ -12,6 +12,7 @@ import { isPickupOnly } from '@/utils/fulfillment';
 import { paymentsEnabled } from '@/utils/features';
 import { useAuth } from '@/context/AuthContext';
 import { useFindOrCreateConversation } from '@/hooks/useConversations';
+import { useToast } from '@/components/ui/Toast';
 
 interface PurchasePanelProps {
   listing: Listing;
@@ -23,6 +24,7 @@ interface PurchasePanelProps {
 
 export function PurchasePanel({ listing, artistProfileId, fulfillmentPref, awayMode, awayUntil }: PurchasePanelProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const router = useRouter();
   const findOrCreate = useFindOrCreateConversation();
 
@@ -39,7 +41,11 @@ export function PurchasePanel({ listing, artistProfileId, fulfillmentPref, awayM
     const prefill = `Hi, I'm interested in "${listing.title}"${priceText}. Is this still available?`;
     findOrCreate.mutate(
       { userId: user.id, otherUserId: artistProfileId, contextType: 'listing', contextId: listing.id },
-      { onSuccess: (conversation) => router.push(`/messages/${conversation.id}?prefill=${encodeURIComponent(prefill)}`) }
+      {
+        onSuccess: (conversation) => router.push(`/messages/${conversation.id}?prefill=${encodeURIComponent(prefill)}`),
+        // Without this a failed create left the button doing nothing at all.
+        onError: () => toast('Could not open the conversation — please try again.', 'error'),
+      }
     );
   };
 
