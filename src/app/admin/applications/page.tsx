@@ -93,6 +93,9 @@ function Content() {
       setApps((p) => p.filter((a) => a.id !== id));
       setRejecting(null);
       setReason('');
+      // A rejected artist belongs in "Not submitted yet" immediately —
+      // refresh both lists rather than leaving that section stale.
+      load();
     } else {
       const { error } = await res.json().catch(() => ({ error: 'Action failed' }));
       toast(error ?? 'Action failed', 'error');
