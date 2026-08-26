@@ -51,7 +51,9 @@ test.describe('critical paths — artist', () => {
     await login(page, artist!.email, artist!.password);
     await page.goto('/listings/new');
     await expect(page).not.toHaveURL(/\/login/);
-    await expect(page.getByText('Title')).toBeVisible();
+    // getByText substring-matches: bare 'Title' also hits "entitled" in the
+    // AI-policy paragraph — target the labeled input.
+    await expect(page.getByLabel('Title')).toBeVisible();
     await expect(page.getByRole('button', { name: /save as draft/i })).toBeVisible();
   });
 });
