@@ -62,6 +62,31 @@ export async function sendArtistRejectedEmail(to: string, name: string, reason: 
   });
 }
 
+/** Admin-triggered recovery: the reset link comes from auth.admin.generateLink
+ *  (service role — unaffected by the captcha gate on the public /recover
+ *  endpoint) and we deliver it ourselves so the admin can rescue any account,
+ *  including another admin's, without ever seeing or choosing a password. */
+export async function sendAdminPasswordResetEmail(
+  to: string,
+  name: string | null,
+  actionLink: string
+): Promise<void> {
+  await getResend().emails.send({
+    from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
+    to,
+    subject: 'Reset your Custom Canvas password',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+        <h2 style="color:#111">Password reset${name ? ` for ${escapeHtml(name)}` : ''}</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">A Custom Canvas administrator started a password reset for your account. Click the button below to choose a new password. The link expires after one hour.</p>
+        <a href="${actionLink}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Choose a new password</a>
+        <p style="color:#666;font-size:14px;line-height:1.5;margin-top:16px">Didn't expect this? You can ignore it — your current password keeps working until a new one is set.</p>
+      </div>
+    `,
+  });
+}
+
 export async function sendNewMessageEmail(
   to: string,
   senderName: string,

@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import type { Profile } from '@/types/user';
 
 export default function AdminUsersPage() {
@@ -29,6 +32,27 @@ function UsersContent() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [resetting, setResetting] = useState<string | null>(null);
+  const { toast } = useToast();
+  const confirm = useConfirm();
+
+  const handleReset = async (u: Profile) => {
+    const ok = await confirm({
+      title: 'Send a password reset?',
+      message: `${u.email} gets an email with a link to choose a new password. Their current password keeps working until they use it.`,
+      confirmLabel: 'Send reset email',
+    });
+    if (!ok) return;
+    setResetting(u.id);
+    const res = await fetch(`/api/admin/users/${u.id}/reset-password`, { method: 'POST' });
+    if (res.ok) {
+      toast(`Reset email sent to ${u.email}`, 'success');
+    } else {
+      const { error } = await res.json().catch(() => ({ error: null }));
+      toast(error ?? 'Could not send the reset email', 'error');
+    }
+    setResetting(null);
+  };
 
   useEffect(() => {
     // Emails aren't client-readable (00031) — go through the admin API.
@@ -70,6 +94,7 @@ function UsersContent() {
               <th className="px-4 py-3 font-medium text-ink">Email</th>
               <th className="px-4 py-3 font-medium text-ink">Role</th>
               <th className="px-4 py-3 font-medium text-ink">Joined</th>
+              <th className="px-4 py-3 font-medium text-ink"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -85,11 +110,21 @@ function UsersContent() {
                 <td className="px-4 py-3 text-muted">
                   {new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </td>
+                <td className="px-4 py-3 text-right">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={resetting === u.id}
+                    onClick={() => handleReset(u)}
+                  >
+                    Send password reset
+                  </Button>
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-muted">
+                <td colSpan={5} className="px-4 py-8 text-center text-muted">
                   No users found.
                 </td>
               </tr>

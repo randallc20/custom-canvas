@@ -15,40 +15,67 @@ final smoke test remain.*
   4 crons). Staging (`custom-canvas` project → custom-canvas-chi.vercel.app)
   stays on DEV Supabase + Stripe test as the permanent test bed.
 - Resend domain verified for customcanvas.shop.
+- **Admin account exists (2026-08-25):** `support@customcanvas.shop` —
+  `profiles.role = 'admin'`, email confirmed, password set. It is the only
+  account on prod; the whole admin panel is unreachable without it.
 - Security migrations live on BOTH databases: profiles/artist_profiles
   column privacy, listing-visibility RLS + child-table follow-through,
   approval gate, artist-agreement columns, and the 2026-08-25 review
   remediation — order-forgery/status-guard/blocking/review-attribution
   (00030–00038).
 
-## 1. Stripe (live mode) — after LLC + bank ✅ (bank exists as of 2026-08-18)
-- [ ] Activate the Stripe account (LLC details + bank for payouts).
-- [ ] Enable **Stripe Connect** (Express) in live mode.
-- [ ] Enable **Stripe Tax**: set origin address, add the **Texas** registration
-      (and any other states once nexus is established). The platform is the
-      merchant of record — tax stays with the platform via `transfer_data.amount`;
-      refunds return the buyer's tax on price+shipping (00035 flow).
-- [ ] Copy live `pk_live_…` / `sk_live_…` into Vercel prod env
-      (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`).
-- [ ] Register the live webhook → `https://customcanvas.shop/api/webhooks/stripe`
-      events: `checkout.session.completed`, `account.updated`,
-      `charge.refunded`, `payment_intent.payment_failed`,
-      **`charge.dispute.created`**, **`charge.dispute.closed`**. Copy `whsec_…` →
-      `STRIPE_WEBHOOK_SECRET` in Vercel prod. (The two dispute events are what
-      notify the artist to send shipping evidence and claw the payout back on a
-      lost chargeback — without them the Artist Agreement §4 promise has no
-      implementation and the platform silently eats every lost dispute.)
-- [ ] Stripe Dashboard → Branding: upload `brand/stripe-branding/` assets.
-- [ ] Flip `NEXT_PUBLIC_PAYMENTS_ENABLED=true` in Vercel prod + redeploy.
+## 1. Stripe (live mode) ✅ DONE — verified 2026-08-25 ~19:00 CDT
 
-## 2. Auth email (before real signups)
-- [ ] Supabase prod → Auth → SMTP: point at Resend with the verified domain
-      (the default auth mailer caps at ~2/hour — signups break without this).
-- [ ] Re-enable email confirmation on signup.
+Live account `acct_1ThZvPGmzNKy5sGb` (Custom Canvas LLC, multi-member LLC).
+**Activated:** `details_submitted`, `charges_enabled`, `payouts_enabled` all
+true; `card_payments` and `transfers` both active; nothing currently due.
 
-## 3. Hardening activations (runbook has details)
-- [ ] Upstash Redis (US East/iad1) → `UPSTASH_REDIS_REST_URL`/`_TOKEN` in
-      Vercel prod (activates global rate limiting).
+*(Historical note: development ran against a Stripe **Sandbox**,
+`acct_1ThZvdGrRmxJghNo` — a separate account whose settings never reach live.
+Everything below was configured on the live account directly.)*
+
+- [x] Live account activated — EIN 42-3705552, Certificate of Filing 806686806.
+- [x] Statement descriptor `CUSTOM CANVAS` (matches the promise on checkout).
+- [x] Branding — icon + logo uploaded, primary `#E8704A`.
+- [x] Stripe Tax **active** — head office 3120 Southwest Freeway, Ste 101
+      #991985, Houston TX 77098; **US-TX registration active**; defaults
+      `tax_behavior: exclusive` (changed from `inferred_by_currency` to match
+      the configuration the money path was actually tested against),
+      `tax_code: txcd_99999999`.
+- [x] **Accounts v1 probe PASSED in live.** `accounts.create({type:'express',
+      capabilities:{transfers}, payouts:{daily, delay_days:14}})` succeeded;
+      throwaway account created and deleted. Artist onboarding works.
+- [x] **Two webhook endpoints**, both → `https://customcanvas.shop/api/webhooks/stripe`:
+      an ACCOUNT endpoint with the 7 charge/dispute/checkout events, and a
+      **CONNECT** endpoint with `account.updated`. Both enabled. Endpoint
+      reachability + signature rejection verified live (400 on a bogus
+      signature, not 404/500).
+- [x] Live keys + both `whsec_` secrets in Vercel prod.
+- [x] `NEXT_PUBLIC_PAYMENTS_ENABLED=true` **and redeployed**
+      (`dpl_GB2nzwYi4a4Ad499A36aQGNXbnTD`, sha `f25587d5`, READY).
+      Verified: `POST /api/payments/checkout` returns 401 Unauthorized, no
+      longer 403 "Purchasing is not open yet".
+
+### Open, non-blocking
+- [ ] **MCC is `5712`** (furniture / home furnishings). An art marketplace is
+      `5971` (art dealers and galleries). Deliberately NOT changed on launch
+      night — editing the industry on a freshly activated account can trigger
+      re-review. Fix it after the test round.
+- [ ] **Rotate `sk_live_`** — it was pasted into a chat transcript to do this
+      configuration. Roll it in Stripe and update Vercel.
+- [ ] First payout cycle (14-day delay on connected accounts): confirm money
+      reaches the test artist's real bank.
+
+## 2. Auth email ✅ DONE (verified 2026-08-25)
+- [x] Supabase prod SMTP points at Resend (`smtp.resend.com`,
+      sender `noreply@customcanvas.shop`, name "Custom Canvas").
+- [x] Email confirmation is required on signup (`mailer_autoconfirm = false`),
+      Turnstile captcha enabled on auth endpoints.
+
+## 3. Hardening activations
+- [x] Upstash Redis — `UPSTASH_REDIS_REST_URL` / `_TOKEN` are set in Vercel
+      prod (global rate limiting active since `31e7a0c`).
+- [x] Sentry DSN + CRON_SECRET set.
 - [ ] Vercel Analytics + Speed Insights toggles; BetterStack uptime monitor;
       Sentry alert rules.
 - [ ] GitHub repo secrets `E2E_BUYER_*` / `E2E_ARTIST_*` (+ optional

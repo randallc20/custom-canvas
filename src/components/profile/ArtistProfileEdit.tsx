@@ -174,7 +174,20 @@ export function ArtistProfileEdit() {
         />
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      <form
+        onSubmit={handleSubmit(onSubmit, (errs) => {
+          // This page is long enough that an invalid field can be far offscreen;
+          // silently doing nothing reads as a broken Save button.
+          const first = Object.keys(errs)[0];
+          toast(
+            first
+              ? `Check the "${first.replace(/_/g, ' ')}" field — it needs fixing before this can save.`
+              : 'Something on this page needs fixing before it can save.',
+            'error'
+          );
+        })}
+        className="space-y-8"
+      >
         <fieldset className="space-y-4">
           <legend className="text-lg font-semibold text-ink">Basics</legend>
           <Input label="Display Name" {...register('display_name')} error={errors.display_name?.message} />
@@ -245,7 +258,10 @@ export function ArtistProfileEdit() {
           <Input label="Neighborhood" {...register('neighborhood')} />
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">Fulfillment Preference</label>
-            <select {...register('fulfillment_pref')} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm">
+            <select
+              {...register('fulfillment_pref', { setValueAs: (v) => (v === '' ? null : v) })}
+              className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm"
+            >
               <option value="">Select preference</option>
               <option value="ships_national">Ships Nationally</option>
               <option value="ships_local">Ships Locally</option>
