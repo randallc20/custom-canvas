@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CaptchaField, captchaEnabled } from '@/components/auth/CaptchaField';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, postSignupPath } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -23,10 +23,11 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const { signUp } = useAuth();
+  const { signUp, resendConfirmation } = useAuth();
   const router = useRouter();
   const [captcha, setCaptcha] = useState('');
   const [captchaReset, setCaptchaReset] = useState(0);
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,8 +42,16 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      await signUp(email, password, role, fullName, captcha);
-      setConfirmationSent(true);
+      const { needsEmailConfirmation } = await signUp(email, password, role, fullName, captcha);
+      if (needsEmailConfirmation) {
+        setConfirmationSent(true);
+        setCaptcha('');
+        setCaptchaReset((n) => n + 1);
+      } else {
+        // The project signed them straight in — no confirmation gate, so a
+        // "check your email" screen would be a lie. Go to setup.
+        router.push(postSignupPath(role));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create account');
       setCaptcha('');
@@ -52,28 +61,59 @@ export default function RegisterPage() {
     }
   };
 
-  if (confirmationSent) {
-    const onboardingPath = role === 'artist' ? '/onboarding/artist' : role === 'gallery' ? '/onboarding/gallery' : null;
+  const handleResend = async () => {
+    if (captchaEnabled && !captcha) return;
+    setResendState('sending');
+    try {
+      await resendConfirmation(email, role, captcha);
+      setResendState('sent');
+    } catch {
+      setResendState('failed');
+    } finally {
+      setCaptcha('');
+      setCaptchaReset((n) => n + 1);
+    }
+  };
 
+  if (confirmationSent) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="w-full max-w-sm text-center">
           <h1 className="mb-4 text-2xl font-bold text-ink">Check Your Email</h1>
           <p className="text-muted">
             We sent a confirmation link to <span className="font-medium">{email}</span>.
-            Click the link to activate your account.
+            Click the link to activate your account — it signs you in and takes you straight to setup.
           </p>
-          {onboardingPath && (
-            <p className="mt-3 text-sm text-muted">
-              Already confirmed?{' '}
-              <button
-                onClick={() => router.push(onboardingPath)}
-                className="text-terra hover:underline"
-              >
-                Continue to setup
-              </button>
+          {/* Registering an email that already has an account looks identical
+              from here (anti-enumeration: no session, no error) but no email
+              is coming — give that person their actual way in. */}
+          <p className="mt-3 text-sm text-muted">
+            Already have an account with this email? No new email is sent —{' '}
+            <Link href="/login" className="text-terra hover:underline">sign in</Link> or{' '}
+            <Link href="/forgot-password" className="text-terra hover:underline">reset your password</Link> instead.
+          </p>
+          <div className="mt-4 space-y-3 text-left">
+            <p className="text-center text-sm text-muted">
+              Nothing after a couple of minutes? Check spam, then resend it.
             </p>
-          )}
+            <CaptchaField onVerify={setCaptcha} resetSignal={captchaReset} />
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              loading={resendState === 'sending'}
+              disabled={captchaEnabled && !captcha}
+              onClick={handleResend}
+            >
+              Resend confirmation email
+            </Button>
+            {resendState === 'sent' && (
+              <p className="text-center text-sm text-green-700">Sent — give it a minute to arrive.</p>
+            )}
+            {resendState === 'failed' && (
+              <p className="text-center text-sm text-red-600">Couldn&apos;t resend — wait a moment and try again.</p>
+            )}
+          </div>
           <Link href="/login" className="mt-4 inline-block text-sm text-terra hover:underline">
             Go to sign in
           </Link>

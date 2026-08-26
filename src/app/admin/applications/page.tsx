@@ -21,6 +21,16 @@ interface Application {
   listings: { id: string; images: { image_url: string }[] }[];
 }
 
+interface UnsubmittedArtist {
+  id: string;
+  display_name: string | null;
+  slug: string;
+  city: string | null;
+  created_at: string;
+  application_status: 'draft' | 'rejected';
+  listings: { count: number }[];
+}
+
 export default function AdminApplicationsPage() {
   return (
     <PageShell>
@@ -34,6 +44,7 @@ export default function AdminApplicationsPage() {
 function Content() {
   const { toast } = useToast();
   const [apps, setApps] = useState<Application[]>([]);
+  const [unsubmitted, setUnsubmitted] = useState<UnsubmittedArtist[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<string | null>(null);
@@ -52,6 +63,20 @@ function Content() {
         if (error) setLoadError(error.message);
         setApps((data ?? []) as unknown as Application[]);
         setLoading(false);
+      });
+    // Artists who exist but have NOT submitted. Without this list, an admin
+    // sees an empty queue while a draft artist's listings sit invisible —
+    // and reasonably concludes the approval flow is broken.
+    supabase
+      .from('artist_profiles')
+      .select('id, display_name, slug, city, created_at, application_status, listings(count)')
+      .in('application_status', ['draft', 'rejected'])
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        // Same rule as the pending queue: never render a reassuring empty
+        // section over a failed query.
+        if (error) setLoadError(error.message);
+        setUnsubmitted((data ?? []) as unknown as UnsubmittedArtist[]);
       });
   };
   useEffect(load, []);
@@ -179,6 +204,47 @@ function Content() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {unsubmitted.length > 0 && (
+        <div className="mt-10">
+          <h2 className="mb-1 text-lg font-semibold text-ink">Not submitted yet ({unsubmitted.length})</h2>
+          <p className="mb-4 text-sm text-muted">
+            These artists are still building their shop. Nothing of theirs is public, and there&apos;s
+            nothing to approve until they press <span className="font-medium">Submit for review</span> in
+            their Studio (it needs a profile photo, a 100-character story, and at least one listing).
+          </p>
+          <div className="overflow-hidden rounded-lg border border-line">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-line bg-sand/50">
+                <tr>
+                  <th className="px-4 py-2 font-medium text-ink">Artist</th>
+                  <th className="px-4 py-2 font-medium text-ink">City</th>
+                  <th className="px-4 py-2 font-medium text-ink">Listings</th>
+                  <th className="px-4 py-2 font-medium text-ink">Status</th>
+                  <th className="px-4 py-2 font-medium text-ink">Joined</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {unsubmitted.map((a) => (
+                  <tr key={a.id}>
+                    <td className="px-4 py-2">
+                      <Link href={`/artist/${a.slug}?preview=1`} target="_blank" className="font-medium text-ink hover:text-terra">
+                        {a.display_name ?? 'Unnamed artist'}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2 text-muted">{a.city ?? '—'}</td>
+                    <td className="px-4 py-2 text-muted">{a.listings?.[0]?.count ?? 0}</td>
+                    <td className="px-4 py-2 text-muted">
+                      {a.application_status === 'rejected' ? 'changes requested' : 'building their shop'}
+                    </td>
+                    <td className="px-4 py-2 text-muted">{new Date(a.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

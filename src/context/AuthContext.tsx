@@ -8,10 +8,23 @@ interface AuthContextValue {
   user: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string, captchaToken?: string) => Promise<void>;
-  signUp: (email: string, password: string, role: string, fullName: string, captchaToken?: string) => Promise<void>;
+  signUp: (email: string, password: string, role: string, fullName: string, captchaToken?: string) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string, captchaToken?: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
+  resendConfirmation: (email: string, role: string, captchaToken?: string) => Promise<void>;
+}
+
+/** Where a fresh account lands after its email is confirmed (or immediately,
+ *  when the project has autoconfirm on). */
+export function postSignupPath(role: string): string {
+  if (role === 'artist') return '/onboarding/artist';
+  if (role === 'gallery') return '/onboarding/gallery';
+  return '/';
+}
+
+function confirmationRedirect(role: string): string {
+  return `${window.location.origin}/auth/callback?next=${encodeURIComponent(postSignupPath(role))}`;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -75,11 +88,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, role: string, fullName: string, captchaToken?: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { role, full_name: fullName },
+        // Without this, the confirmation link's destination is whatever the
+        // Supabase dashboard's Site URL happens to be — send it somewhere we
+        // control that can finish the sign-in.
+        emailRedirectTo: confirmationRedirect(role),
+        ...(captchaToken ? { captchaToken } : {}),
+      },
+    });
+    if (error) throw error;
+    // No session back = the project requires email confirmation. (An existing
+    // email also lands here: Supabase returns a stub user with no session
+    // to avoid account enumeration.)
+    return { needsEmailConfirmation: !data.session };
+  };
+
+  const resendConfirmation = async (email: string, role: string, captchaToken?: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: confirmationRedirect(role),
         ...(captchaToken ? { captchaToken } : {}),
       },
     });
@@ -105,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, resetPassword, updatePassword }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, resetPassword, updatePassword, resendConfirmation }}>
       {children}
     </AuthContext.Provider>
   );

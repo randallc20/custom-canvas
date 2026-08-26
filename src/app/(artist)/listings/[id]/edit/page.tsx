@@ -10,10 +10,12 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { TagPicker } from '@/components/listing/TagPicker';
 import { numberOrNull } from '@/utils/formNumber';
+import { cmToIn } from '@/utils/dimensions';
+import { DimensionsFieldset, useDimensionUnit } from '@/components/listing/DimensionsFieldset';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useSeries } from '@/hooks/useArtistContent';
 import { ListingImagesManager } from '@/components/listing/ListingImagesManager';
@@ -38,15 +40,28 @@ export default function EditListingPage() {
       });
   }, [user]);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
+  const { register, handleSubmit, watch, setValue, getValues, reset, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
     resolver: zodResolver(listingSchema),
-    values: listing ? {
+  });
+  const { unit, switchUnit, toCm } = useDimensionUnit(getValues, setValue);
+
+  // Populate ONCE when the listing loads, deliberately not via the reactive
+  // `values` prop: a background refetch (window focus, second tab) would
+  // deep-diff and reset the whole form — wiping in-progress edits, and worse,
+  // repainting inch-converted dimensions while the unit toggle says cm, so
+  // the next save would shrink stored dimensions by 2.54×.
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (!listing || initialized.current) return;
+    initialized.current = true;
+    reset({
       title: listing.title,
       description: listing.description ?? '',
       medium: listing.medium,
-      width_cm: listing.width_cm,
-      height_cm: listing.height_cm,
-      depth_cm: listing.depth_cm,
+      // Stored cm, shown inches-first (the hook's unit starts at 'in').
+      width_cm: listing.width_cm != null ? cmToIn(listing.width_cm) : null,
+      height_cm: listing.height_cm != null ? cmToIn(listing.height_cm) : null,
+      depth_cm: listing.depth_cm != null ? cmToIn(listing.depth_cm) : null,
       year_created: listing.year_created,
       price_dollars: listing.price_cents / 100,
       shipping_dollars: (listing.shipping_rate_cents ?? 0) / 100,
@@ -58,8 +73,8 @@ export default function EditListingPage() {
       tags: listing.tags?.map((t) => t.name) ?? [],
       ai_involvement: listing.ai_involvement ?? 'none',
       ai_disclosure: listing.ai_disclosure ?? '',
-    } : undefined,
-  });
+    });
+  }, [listing, reset]);
 
   const priceVisible = watch('price_visible');
   const selectedTags = watch('tags') ?? [];
@@ -75,9 +90,9 @@ export default function EditListingPage() {
         title: data.title,
         description: data.description || null,
         medium: data.medium,
-        width_cm: data.width_cm ?? null,
-        height_cm: data.height_cm ?? null,
-        depth_cm: data.depth_cm ?? null,
+        width_cm: toCm(data.width_cm, listing?.width_cm),
+        height_cm: toCm(data.height_cm, listing?.height_cm),
+        depth_cm: toCm(data.depth_cm, listing?.depth_cm),
         year_created: data.year_created ?? null,
         price_cents: toCents(data.price_dollars),
         shipping_rate_cents: isPickupOnly ? 0 : toCents(data.shipping_dollars),
@@ -104,11 +119,7 @@ export default function EditListingPage() {
           <textarea {...register('description')} rows={4} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
         </div>
         <Input label="Medium" {...register('medium')} error={errors.medium?.message} />
-        <div className="grid grid-cols-3 gap-4">
-          <Input label="Width (cm)" type="number" step="0.1" {...register('width_cm', { setValueAs: numberOrNull })} />
-          <Input label="Height (cm)" type="number" step="0.1" {...register('height_cm', { setValueAs: numberOrNull })} />
-          <Input label="Depth (cm)" type="number" step="0.1" {...register('depth_cm', { setValueAs: numberOrNull })} />
-        </div>
+        <DimensionsFieldset unit={unit} onSwitch={switchUnit} register={register} />
 
         {seriesOptions.length > 0 && (
           <div>

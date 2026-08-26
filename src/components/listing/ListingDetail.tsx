@@ -1,4 +1,5 @@
 import { ListingWithImages } from '@/types/listing';
+import { formatDimensionsFromCm } from '@/utils/dimensions';
 import { ImageCarousel } from './ImageCarousel';
 
 interface ListingDetailProps {
@@ -6,9 +7,7 @@ interface ListingDetailProps {
 }
 
 export function ListingDetail({ listing }: ListingDetailProps) {
-  const dimensions = [listing.width_cm, listing.height_cm, listing.depth_cm]
-    .filter(Boolean)
-    .join(' x ');
+  const dimensions = formatDimensionsFromCm([listing.width_cm, listing.height_cm, listing.depth_cm]);
 
   return (
     <div>
@@ -19,7 +18,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
             decision — this column carries the details and the story. */}
         <div className="space-y-1 text-sm text-muted">
           <p>Medium: {listing.medium}</p>
-          {dimensions && <p>Dimensions: {dimensions} cm</p>}
+          {dimensions && <p>Dimensions: {dimensions}</p>}
           {listing.year_created && <p>Year: {listing.year_created}</p>}
         </div>
         {listing.description && (

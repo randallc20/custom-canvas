@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { numberOrNull } from '@/utils/formNumber';
+import { DimensionsFieldset, useDimensionUnit } from '@/components/listing/DimensionsFieldset';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useSeries } from '@/hooks/useArtistContent';
 import { TagPicker } from '@/components/listing/TagPicker';
@@ -49,10 +50,11 @@ export default function NewListingPage() {
 
   const { data: seriesOptions = [] } = useSeries(artistId);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
+  const { register, handleSubmit, watch, setValue, getValues, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
     resolver: zodResolver(listingSchema),
     defaultValues: { status: 'available', tags: [], price_visible: true, ai_involvement: 'none' },
   });
+  const { unit, switchUnit, toCm } = useDimensionUnit(getValues, setValue);
 
   const priceVisible = watch('price_visible');
   const selectedTags = watch('tags');
@@ -64,9 +66,9 @@ export default function NewListingPage() {
       medium: data.medium,
       status: asDraft ? 'draft' : data.status,
       description: data.description || null,
-      width_cm: data.width_cm ?? null,
-      height_cm: data.height_cm ?? null,
-      depth_cm: data.depth_cm ?? null,
+      width_cm: toCm(data.width_cm),
+      height_cm: toCm(data.height_cm),
+      depth_cm: toCm(data.depth_cm),
       year_created: data.year_created ?? null,
       price_cents: toCents(data.price_dollars),
       shipping_rate_cents: isPickupOnly ? 0 : toCents(data.shipping_dollars),
@@ -100,11 +102,7 @@ export default function NewListingPage() {
           <textarea {...register('description')} rows={4} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
         </div>
         <Input label="Medium" {...register('medium')} error={errors.medium?.message} />
-        <div className="grid grid-cols-3 gap-4">
-          <Input label="Width (cm)" type="number" step="0.1" {...register('width_cm', { setValueAs: numberOrNull })} />
-          <Input label="Height (cm)" type="number" step="0.1" {...register('height_cm', { setValueAs: numberOrNull })} />
-          <Input label="Depth (cm)" type="number" step="0.1" {...register('depth_cm', { setValueAs: numberOrNull })} />
-        </div>
+        <DimensionsFieldset unit={unit} onSwitch={switchUnit} register={register} />
         <Input label="Year Created" type="number" {...register('year_created', { setValueAs: numberOrNull })} />
         {seriesOptions.length > 0 && (
           <div>

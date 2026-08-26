@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { uploadWithProgress } from './uploadWithProgress';
+import { downscaleImage } from './downscaleImage';
 
 interface UploadingFile {
   name: string;
@@ -37,25 +38,43 @@ export function ImageUpload({
       setError(null);
 
       const files = Array.from(fileList).slice(0, maxFiles);
-      const oversize = files.find((f) => f.size > maxSizeMB * 1024 * 1024);
-      if (oversize) {
-        setError(`${oversize.name} is over ${maxSizeMB}MB.`);
-        return;
-      }
+      const maxBytes = maxSizeMB * 1024 * 1024;
 
       setUploading(files.map((f) => ({ name: f.name, progress: 0 })));
       try {
-        const urls = await Promise.all(
-          files.map(async (file, i) => {
-            const res = await fetch(endpoint, { method: 'POST' });
-            if (!res.ok) throw new Error('Could not get upload URL');
-            const { uploadUrl, publicUrl } = await res.json();
-            await uploadWithProgress(uploadUrl, file, file.type, (pct) =>
-              setUploading((prev) => prev.map((u, j) => (j === i ? { ...u, progress: pct } : u)))
-            );
-            return publicUrl as string;
-          })
-        );
+        const uploadOne = async (blob: Blob, contentType: string, i: number) => {
+          const res = await fetch(endpoint, { method: 'POST' });
+          if (!res.ok) throw new Error('Could not get upload URL');
+          const { uploadUrl, publicUrl } = await res.json();
+          await uploadWithProgress(uploadUrl, blob, contentType, (pct) =>
+            setUploading((prev) => prev.map((u, j) => (j === i ? { ...u, progress: pct } : u)))
+          );
+          return publicUrl as string;
+        };
+
+        // A photo over the cap is downscaled in the browser rather than
+        // rejected — camera photos are routinely 6–12MB and artists shouldn't
+        // have to convert files to list their work. Downscales run one at a
+        // time (each holds a full-res pixel buffer; eight at once is
+        // tab-kill territory on phones) while uploads overlap freely.
+        const uploads: Promise<string>[] = [];
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (file.size <= maxBytes) {
+            uploads.push(uploadOne(file, file.type, i));
+            continue;
+          }
+          const result = await downscaleImage(file, maxBytes);
+          if (!result) {
+            // In-flight uploads keep running; absorb their rejections so
+            // bailing out here can't surface as an unhandled rejection.
+            uploads.forEach((p) => p.catch(() => {}));
+            throw new Error(`${file.name} couldn't be resized to fit under ${maxSizeMB}MB — try exporting it as a JPG.`);
+          }
+          uploads.push(uploadOne(result.blob, result.contentType, i));
+        }
+
+        const urls = await Promise.all(uploads);
         await onUpload(urls);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed');
@@ -85,7 +104,7 @@ export function ImageUpload({
         </svg>
         <p className="text-sm text-muted">{label}</p>
         <p className="mt-1 text-xs text-muted/70">
-          {maxFiles > 1 ? `Up to ${maxFiles} files, ` : ''}max {maxSizeMB}MB each
+          {maxFiles > 1 ? `Up to ${maxFiles} files. ` : ''}Big photos are resized automatically.
         </p>
         <input
           ref={inputRef}
