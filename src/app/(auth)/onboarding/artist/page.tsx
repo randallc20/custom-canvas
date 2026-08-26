@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { artistProfileSchema, ArtistProfileFormData } from '@/schemas/artistSchema';
@@ -21,6 +22,7 @@ export default function ArtistOnboardingPage() {
   const [agreed, setAgreed] = useState(false);
   const { user, loading } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { register, handleSubmit, formState: { errors, isSubmitting }, trigger } = useForm<ArtistProfileFormData>({
     resolver: zodResolver(artistProfileSchema),
     defaultValues: {
@@ -58,6 +60,24 @@ export default function ArtistOnboardingPage() {
     setStep(step + 1);
   };
 
+  /** Validation failures on submit attach to fields from earlier steps, whose
+   *  inline errors are not on screen — without this, the button just looks
+   *  broken. Name the step so they know where to go back to. */
+  const onInvalid = (errs: Record<string, unknown>) => {
+    const first = Object.keys(errs)[0];
+    const stepOf: Record<string, string> = {
+      display_name: 'Basics', bio: 'Basics', school: 'Basics',
+      artist_statement: 'About', influences: 'About',
+      city: 'Preferences', neighborhood: 'Preferences',
+      fulfillment_pref: 'Preferences', commissions_open: 'Preferences',
+    };
+    setError(
+      first && stepOf[first]
+        ? `Something on the ${stepOf[first]} step needs fixing — go back and check it.`
+        : 'Something above needs fixing before you can finish.'
+    );
+  };
+
   const onSubmit = async (data: ArtistProfileFormData) => {
     setError('');
     if (!agreed) {
@@ -81,6 +101,10 @@ export default function ArtistOnboardingPage() {
       return;
     }
 
+    // The Studio's shared profile query is React Query-cached; without this the
+    // freshly-created artist can land on a Studio that still believes it has no
+    // profile row.
+    await queryClient.invalidateQueries({ queryKey: ['own-artist-profile', user.id] });
     router.push('/studio');
   };
 
@@ -98,7 +122,7 @@ export default function ArtistOnboardingPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4">
           {step === 0 && (
             <>
               <Input label="Display Name" id="display_name" {...register('display_name')} error={errors.display_name?.message} />
@@ -124,7 +148,10 @@ export default function ArtistOnboardingPage() {
             <>
               <Input label="City" id="city" {...register('city')} error={errors.city?.message} />
               <Input label="Neighborhood" id="neighborhood" {...register('neighborhood')} />
-              <select {...register('fulfillment_pref')} className="w-full rounded-lg border border-line px-3 py-2 text-sm">
+              <select
+                {...register('fulfillment_pref', { setValueAs: (v) => (v === '' ? null : v) })}
+                className="w-full rounded-lg border border-line px-3 py-2 text-sm"
+              >
                 <option value="">Select fulfillment preference</option>
                 <option value="ships_national">Ships Nationally</option>
                 <option value="ships_local">Ships Locally</option>

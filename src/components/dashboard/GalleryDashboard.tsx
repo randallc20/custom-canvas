@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
@@ -23,6 +24,7 @@ export function GalleryDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const confirm = useConfirm();
+  const router = useRouter();
   const [gallery, setGallery] = useState<GalleryProfile | null>(null);
   const [artists, setArtists] = useState<(ArtistProfile & { gallery_role?: string })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,12 +40,23 @@ export function GalleryDashboard() {
 
   const loadGalleryData = async () => {
     if (!user) return;
-    const { data: g } = await supabase
+    const { data: g, error: gErr } = await supabase
       .from('gallery_profiles')
       .select('*')
       .eq('profile_id', user.id)
-      .single();
+      .maybeSingle();
 
+    // Registering as a Partner creates the profiles row; gallery_profiles is
+    // only written when they finish the setup form, whose sole entry point was
+    // the post-signup screen's "Continue to setup" link. Anyone who confirmed
+    // their email in a new tab arrived here instead and saw a "Pending Review"
+    // badge for an organisation that had never been created. Send them to the
+    // form. On a query error, fall through rather than redirect — a transient
+    // blip must not push an established partner back into onboarding.
+    if (!g && !gErr) {
+      router.replace('/onboarding/gallery');
+      return;
+    }
     if (!g) { setLoading(false); return; }
     setGallery(g);
 
