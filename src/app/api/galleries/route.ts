@@ -20,7 +20,12 @@ export async function GET(request: NextRequest) {
   const client = isAdmin ? createAdminSupabaseClient() : supabase;
   const profileCols = isAdmin ? `${PUBLIC_PROFILE_COLS}, email` : PUBLIC_PROFILE_COLS;
 
-  let query = client.from('gallery_profiles').select(`*, profile:profiles(${profileCols})`);
+  // gallery_profiles has TWO FKs to profiles (profile_id + verified_by), so an
+  // unhinted profiles(...) embed is ambiguous (PGRST201) and 500s — the same
+  // trap ARTIST_PROFILE_EMBED documents for artist_profiles.
+  let query = client
+    .from('gallery_profiles')
+    .select(`*, profile:profiles!gallery_profiles_profile_id_fkey(${profileCols})`);
 
   if (pending) query = query.eq('is_verified', false);
   if (request.nextUrl.searchParams.get('verified') === 'true') query = query.eq('is_verified', true);
