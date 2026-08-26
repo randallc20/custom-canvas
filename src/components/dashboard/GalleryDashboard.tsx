@@ -76,14 +76,18 @@ export function GalleryDashboard() {
   const handleSearch = async () => {
     if (!searchQuery.trim() || !gallery) return;
     setSearching(true);
+    // artist_profiles is column-restricted (00033): a bare select('*') is a
+    // 42501 permission error, which left this search permanently empty.
     const { data } = await supabase
       .from('artist_profiles')
-      .select('*')
+      .select(ARTIST_PUBLIC_COLS)
       .ilike('display_name', `%${searchQuery}%`)
       .limit(10);
 
+    // Dynamic select string defeats supabase-js inference — pin the type.
+    const rows = (data ?? []) as unknown as ArtistProfile[];
     const existingIds = new Set(artists.map((a) => a.id));
-    setSearchResults((data ?? []).filter((a) => !existingIds.has(a.id)));
+    setSearchResults(rows.filter((a) => !existingIds.has(a.id)));
     setSearching(false);
   };
 
