@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useBuyerOrders } from '@/hooks/useOrders';
@@ -37,11 +38,28 @@ export default function OrdersPage() {
   const { toast } = useToast();
   const router = useRouter();
   const findOrCreate = useFindOrCreateConversation();
+  const queryClient = useQueryClient();
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   if (isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
   const handleReviewSubmit = async (data: { order_id: string; reviewer_id: string; rating: number; comment?: string }) => {
     await createReview.mutateAsync(data);
+  };
+
+  // Local pickup: seller protection only attaches when BOTH parties confirm
+  // the handoff, and both confirmations flip the order to delivered.
+  const confirmHandoff = async (order: Order) => {
+    setConfirming(order.id);
+    const res = await fetch(`/api/orders/${order.id}/confirm-pickup`, { method: 'POST' });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) {
+      toast(body.bothConfirmed ? 'Handoff confirmed — enjoy your piece!' : 'Confirmed — waiting for the artist to confirm too.', 'success');
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    } else {
+      toast(body.error ?? 'Could not confirm the handoff.', 'error');
+    }
+    setConfirming(null);
   };
 
   // Refunds are between buyer and artist: the request starts as a chat
@@ -112,6 +130,17 @@ export default function OrdersPage() {
                 )}
                 {alreadyReviewed && (
                   <p className="mt-3 text-xs text-sage">Review submitted — thank you!</p>
+                )}
+                {order.is_pickup && ['paid', 'delivered'].includes(order.status) && !order.refund_approved_at && (
+                  <div className="mt-3">
+                    {!order.pickup_confirmed_by_buyer_at ? (
+                      <Button size="sm" variant="outline" loading={confirming === order.id} onClick={() => confirmHandoff(order)}>
+                        Confirm pickup handoff
+                      </Button>
+                    ) : !order.pickup_confirmed_by_artist_at ? (
+                      <p className="text-xs text-muted">You confirmed the handoff — waiting for the artist to confirm too.</p>
+                    ) : null}
+                  </div>
                 )}
                 {['paid', 'shipped', 'delivered'].includes(order.status) && (
                   <div className="mt-3">

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Order } from '@/types/order';
 import {
   evaluateProtection,
+  pickupHandoffConfirmed,
   MIN_EVIDENCE_PHOTOS,
   DEFAULT_FULFILLMENT_WINDOW_DAYS,
 } from '@/utils/evaluateProtection';
@@ -33,7 +34,7 @@ export function ProtectionBadge({ order }: { order: Order }) {
 
   const result = evaluateProtection({
     isPickup: !!order.is_pickup,
-    pickupHandoffConfirmed: !!order.pickup_confirmed_by_buyer_at && !!order.pickup_confirmed_by_artist_at,
+    pickupHandoffConfirmed: pickupHandoffConfirmed(order),
     createdAt: order.created_at,
     shippedAt: order.shipped_at,
     deliveredAt: order.delivered_at ?? null,

@@ -40,18 +40,18 @@ fulfillment-preference select failed whole-schema validation with the error
 offscreen on an earlier wizard step; `setValueAs` + `onInvalid` on both forms.
 Steps 4.2 / 12.1 of the plan now expect the automatic hand-off.
 
-### B. Local pickup can never be confirmed
+### B. ✅ FIXED (2026-08-26) — pickup handoff buttons + route hardening
 
-`POST /api/orders/[id]/confirm-pickup` (shipped in `f25587d`) has **no caller
-anywhere in the app** — no button for the buyer, none for the artist. So:
-
-- every pickup order evaluates as `ineligible` for seller protection, which is
-  the exact failure that commit set out to fix;
-- pickup orders never auto-mark delivered, so the buyer can never leave a review
-  on one.
-
-Listed in the tester's "don't report these" section as a known gap. It only
-needs a button on each side of the order.
+Both sides now have **Confirm pickup handoff** (buyer: Orders; artist:
+Sales & Money — which no longer offers "Mark as Shipped" on pickup orders).
+The route was also rewritten after review: the confirmation stamp is a single
+atomic conditional UPDATE, so concurrent taps serialize instead of leaving the
+order stuck at paid, the already-confirmed path self-heals a both-confirmed-
+but-undelivered order, and a failed delivered-promotion returns an honest
+error. Verified live on DEV: simultaneous buyer+artist confirmations landed
+9ms apart and the order still came out Delivered + Protected, with the buyer
+offered Leave a Review. Dispute-before-both-confirm deliberately stays locked
+(protection evidence must exist when the dispute arrives).
 
 ### C. ~~Unsubscribe preferences screen~~ — NOT A GAP (my error)
 

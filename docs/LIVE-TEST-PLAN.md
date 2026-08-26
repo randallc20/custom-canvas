@@ -1776,9 +1776,11 @@ These are already understood. Reporting them costs us both time.
    before it reaches a bank. That's deliberate — it means a refund can't
    overdraw someone's account.
 2. **Card refunds take 5–10 working days** to show on a statement. Not instant.
-3. **Local pickup can't be confirmed by either side.** If you set an artist to
-   pickup-only, there is no button for the buyer or the artist to confirm the
-   handoff. It's a known gap.
+3. **Local pickup handoffs are confirmed by both sides.** On a pickup order,
+   the buyer (in Orders) and the artist (in Sales & Money) each get a
+   **Confirm pickup handoff** button; when both have pressed it the order
+   becomes Delivered. One side alone showing "waiting on the other" is not a
+   bug.
 4. **The service fee is never refunded**, on any refund, for anyone. Working as
    intended.
 5. **Sales tax on refunds** is returned on the price and shipping, but not on the

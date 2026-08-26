@@ -50,6 +50,17 @@ export interface ProtectionInput {
 
 export type ProtectionStatus = 'protected' | 'ineligible';
 
+/** Single source of the handoff-confirmed rule. Both evaluateProtection call
+ *  sites (the dispute-time webhook and the Studio badge) derive the flag here,
+ *  so a future refinement — a confirmation window, an admin override — cannot
+ *  leave the badge and the money decision disagreeing. */
+export function pickupHandoffConfirmed(order: {
+  pickup_confirmed_by_buyer_at: string | null;
+  pickup_confirmed_by_artist_at: string | null;
+}): boolean {
+  return !!order.pickup_confirmed_by_buyer_at && !!order.pickup_confirmed_by_artist_at;
+}
+
 export interface ProtectionResult {
   status: ProtectionStatus;
   /** Human-readable, artist-facing. Empty when protected. Drives both the
@@ -88,7 +99,7 @@ export function evaluateProtection(input: ProtectionInput): ProtectionResult {
   // no carrier, no tracking, and no delivery scan to produce.
   if (input.isPickup) {
     if (!input.pickupHandoffConfirmed) {
-      failures.push('Pickup handoff was not confirmed by both parties in Messages.');
+      failures.push('Pickup handoff was not confirmed by both parties on the order.');
     }
     return { status: failures.length ? 'ineligible' : 'protected', failures };
   }

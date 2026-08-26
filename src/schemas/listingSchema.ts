@@ -1,5 +1,24 @@
 import { z } from 'zod';
 
+// Authenticity Policy, encoded where validation lives: declaring an
+// AI-ASSISTED work requires a real disclosure. Mirrors the DB CHECK
+// `listings_ai_disclosure_required` (00042) so the artist gets the inline
+// field error instead of a raw constraint violation. Applied to BOTH the form
+// schema and the server write schema via superRefine below.
+const AI_DISCLOSURE_MIN = 20;
+function aiDisclosureRule(
+  data: { ai_involvement?: 'none' | 'assisted'; ai_disclosure?: string | null },
+  ctx: z.RefinementCtx
+) {
+  if (data.ai_involvement === 'assisted' && (data.ai_disclosure ?? '').trim().length < AI_DISCLOSURE_MIN) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['ai_disclosure'],
+      message: `Please describe your contribution in at least ${AI_DISCLOSURE_MIN} characters.`,
+    });
+  }
+}
+
 // Forms work in dollars; submit handlers convert to integer cents via
 // Math.round before anything touches the database.
 export const listingSchema = z.object({
@@ -23,7 +42,7 @@ export const listingSchema = z.object({
   series_id: z.string().optional().or(z.literal('')),
   status: z.enum(['available', 'sold', 'commission_only', 'hidden', 'draft']),
   tags: z.array(z.string()).max(10),
-});
+}).superRefine(aiDisclosureRule);
 
 export type ListingFormData = z.infer<typeof listingSchema>;
 
@@ -50,6 +69,6 @@ export const listingWriteSchema = z.object({
   show_sold_price: z.boolean().optional(),
   series_id: z.string().uuid().nullable().optional(),
   status: z.enum(['available', 'sold', 'commission_only', 'hidden', 'draft']),
-});
+}).superRefine(aiDisclosureRule);
 
 export type ListingWriteData = z.infer<typeof listingWriteSchema>;

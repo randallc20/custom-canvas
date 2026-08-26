@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/nextjs';
 import { getStripe, STRIPE_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET } from '@/lib/stripe';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { buildOrderRecord } from '@/utils/orderRecord';
-import { evaluateProtection, ProtectionInput } from '@/utils/evaluateProtection';
+import { pickupHandoffConfirmed, evaluateProtection, ProtectionInput } from '@/utils/evaluateProtection';
 import { sendOrderConfirmationEmail, sendNewSaleEmail } from '@/services/email';
 import { formatPrice } from '@/utils/formatPrice';
 
@@ -70,7 +70,7 @@ async function assessProtection(supabase: AdminClient, orderId: string) {
 
   const input: ProtectionInput = {
     isPickup,
-    pickupHandoffConfirmed: !!o.pickup_confirmed_by_buyer_at && !!o.pickup_confirmed_by_artist_at,
+    pickupHandoffConfirmed: pickupHandoffConfirmed(o as Parameters<typeof pickupHandoffConfirmed>[0]),
     createdAt: o.created_at as string,
     shippedAt: o.shipped_at as string | null,
     deliveredAt: o.delivered_at as string | null,

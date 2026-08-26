@@ -36,6 +36,22 @@ export function SalesSection() {
   const [shipModal, setShipModal] = useState<Order | null>(null);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrier, setCarrier] = useState('');
+  const [confirmingHandoff, setConfirmingHandoff] = useState<string | null>(null);
+
+  // Local pickup: your half of the handoff confirmation. Protection for a
+  // pickup order attaches only when the buyer confirms too.
+  const handleConfirmHandoff = async (order: Order) => {
+    setConfirmingHandoff(order.id);
+    const res = await fetch(`/api/orders/${order.id}/confirm-pickup`, { method: 'POST' });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) {
+      toast(body.bothConfirmed ? 'Handoff confirmed by both of you.' : 'Confirmed — the buyer still needs to confirm their side.', 'success');
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    } else {
+      toast(body.error ?? 'Could not confirm the handoff.', 'error');
+    }
+    setConfirmingHandoff(null);
+  };
 
   if (loadingArtist || isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
@@ -137,7 +153,18 @@ export function SalesSection() {
                 )}
 
                 <div className="mt-3 flex items-center gap-2">
-                  {order.status === 'paid' && (
+                  {/* Pickup orders never ship — their path to delivered is the
+                      two-sided handoff confirmation. */}
+                  {order.is_pickup && ['paid', 'delivered'].includes(order.status) && (
+                    !order.pickup_confirmed_by_artist_at ? (
+                      <Button size="sm" loading={confirmingHandoff === order.id} onClick={() => handleConfirmHandoff(order)}>
+                        Confirm pickup handoff
+                      </Button>
+                    ) : !order.pickup_confirmed_by_buyer_at ? (
+                      <span className="text-xs text-muted">You confirmed the handoff — waiting on the buyer.</span>
+                    ) : null
+                  )}
+                  {!order.is_pickup && order.status === 'paid' && (
                     <Button size="sm" onClick={() => setShipModal(order)}>Mark as Shipped</Button>
                   )}
                   {order.status === 'shipped' && (
