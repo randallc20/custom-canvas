@@ -53,8 +53,14 @@ export async function PATCH(request: NextRequest) {
 
   const { galleryId, action } = await request.json();
 
+  // RLS on gallery_profiles is owner-only (update) with no delete policy at
+  // all — the admin's decision must go through the service role, like the
+  // artist-applications route does. With the user client the verify UPDATE
+  // matched zero rows and the button silently never worked.
+  const admin = createAdminSupabaseClient();
+
   if (action === 'verify') {
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from('gallery_profiles')
       .update({ is_verified: true, verified_at: new Date().toISOString(), verified_by: user.id })
       .eq('id', galleryId)
@@ -63,13 +69,13 @@ export async function PATCH(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     // Link education entries naming this newly verified partner.
-    const { error: linkError } = await supabase.rpc('link_education_partners');
+    const { error: linkError } = await admin.rpc('link_education_partners');
     if (linkError) console.error('education link failed after verify:', linkError.message);
     return NextResponse.json(data);
   }
 
   if (action === 'reject') {
-    const { error } = await supabase.from('gallery_profiles').delete().eq('id', galleryId);
+    const { error } = await admin.from('gallery_profiles').delete().eq('id', galleryId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
