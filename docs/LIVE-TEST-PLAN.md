@@ -1489,7 +1489,9 @@ your `+partner` account.*
 - **Do:** Hide one of Nora's listings.
 - **Expect:** It vanishes from the public browse feed. Check that in a signed-out
   window.
-- **Do:** Put it back.
+- **Do:** Put it back — **as Nora**, not as the admin: Studio → Work → Edit on
+  that listing → set Status back to Available. The admin side deliberately has
+  no un-hide; the Remove button disappears once a listing is hidden.
 
 ### 13.3 — Orders
 
