@@ -144,7 +144,7 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
         </p>
       </div>
 
-      <CommissionStatus commission={commission} />
+      <CommissionStatus commission={commission} viewerIsRequester={isRequester} />
 
       {status === 'cancelled' && commission.closed_reason && (
         <div className="rounded-xl border border-line bg-sand/50 p-3">

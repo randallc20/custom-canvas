@@ -1,33 +1,30 @@
 import { Commission } from '@/types/commission';
 import { Badge } from '@/components/ui/Badge';
+import { commissionDisplayStatus } from '@/utils/commissionDisplay';
 
 const STEPS = ['pending', 'quoted', 'accepted', 'in_progress', 'completed', 'delivered', 'confirmed'];
 
-const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger' | 'info'> = {
-  pending: 'warning',
-  quoted: 'info',
-  accepted: 'info',
-  in_progress: 'info',
-  completed: 'success',
-  delivered: 'success',
-  confirmed: 'success',
-  disputed: 'danger',
-  cancelled: 'danger',
-};
-
 interface CommissionStatusProps {
   commission: Commission;
+  viewerIsRequester?: boolean;
 }
 
-export function CommissionStatus({ commission }: CommissionStatusProps) {
+export function CommissionStatus({ commission, viewerIsRequester }: CommissionStatusProps) {
   const currentStep = STEPS.indexOf(commission.status);
+  // Same display mapping as the panel header — this used to show the raw DB
+  // status ('cancelled', red) beside the header's 'Declined by artist'.
+  const display = commissionDisplayStatus(commission.status, {
+    closedBy: commission.closed_by,
+    viewerIsRequester,
+  });
 
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
         <span className="text-sm font-medium text-ink">Status:</span>
-        <Badge variant={statusVariant[commission.status] ?? 'default'}>
-          {commission.status.replace('_', ' ')}
+        <Badge variant={display.variant}>
+          {display.label}
+          {display.sub ? ` — ${display.sub}` : ''}
         </Badge>
       </div>
       <div className="flex items-center gap-1">
