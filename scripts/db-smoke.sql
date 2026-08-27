@@ -50,7 +50,8 @@ INSERT INTO expected_functions VALUES
   ('guard_listing_alert_stamps'), ('guard_messages_update'),
   ('guard_orders_update'), ('guard_profiles_update'), ('handle_new_user'),
   ('listing_tags_touch_listing'), ('listings_search_update'),
-  ('notify_admins_new_application'), ('notify_followers_new_listing'),
+  ('notify_admins_new_application'), ('notify_artist_new_follower'),
+  ('notify_followers_new_listing'),
   ('notify_savers_price_drop'), ('set_order_delivered_at'),
   ('set_review_artist'), ('update_updated_at');
 

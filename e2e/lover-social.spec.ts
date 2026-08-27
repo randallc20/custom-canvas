@@ -12,10 +12,9 @@ import { login } from './helpers/auth';
  *   8.1  fresh lover lands on home, top-right menu has the buyer entries
  *   8.2  save a piece → on /saved → unsave → gone
  *   8.3  follow the artist → /following lists them
- *   8.4  artist's follow notification — SKIPS with an explanation: the app
- *        never creates a 'new_follower' notification (the type exists in the
- *        DB enum and the icon maps, but there is no trigger on `follows` and
- *        no client-side insert). Recorded as an app gap.
+ *   8.4  artist's follow notification (created by the 00047 trigger on
+ *        `follows` — P5 closed the gap where the type existed but nothing
+ *        ever inserted one)
  *   8.5  recently-viewed shelf on home after opening two pieces
  *   8.6  message the artist from a listing: pinned context banner, prefilled
  *        draft, composer visible without scrolling, send
@@ -242,16 +241,14 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
     await page.goto('/notifications');
     await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toBeVisible({ timeout: 15_000 });
 
-    const followerNotif = page.getByText(/follower/i).first();
-    const appeared = await followerNotif
-      .waitFor({ state: 'visible', timeout: 10_000 })
-      .then(() => true)
-      .catch(() => false);
-    // The 'new_follower' type exists in the DB enum and both icon maps, but
-    // nothing ever inserts one: no trigger on `follows` (00017 only covers
-    // new_listing/price_drop) and no client-side createNotification call.
-    test.skip(!appeared, 'APP GAP: no new_follower notification is ever created (no trigger on follows, no client insert)');
-    await expect(followerNotif).toBeVisible();
+    // 00047 creates these via a trigger on follows (P5 closed the old gap
+    // where the type existed but nothing ever inserted one). The list is
+    // fetch-once — reload until the row lands.
+    const followerNotif = page.getByText(/started following you/i).first();
+    await expect(async () => {
+      if (!(await followerNotif.isVisible().catch(() => false))) await page.reload();
+      await expect(followerNotif).toBeVisible({ timeout: 8_000 });
+    }).toPass({ timeout: 45_000 });
   });
 
   test('8.5 — recently-viewed shelf appears after opening two pieces', async () => {

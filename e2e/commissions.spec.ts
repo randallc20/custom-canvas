@@ -244,6 +244,16 @@ test.describe.serial('part 11 — commissions', () => {
     await expect(panel.getByText(brief)).toBeVisible();
     await expect(panel.getByRole('button', { name: 'Send Quote' })).toBeVisible();
     await expect(panel.getByRole('button', { name: 'Decline' })).toBeVisible();
+
+    // P5: the request also produces an in-app notification for the artist
+    // (used to be email-only) linking into the conversation.
+    await page.goto('/notifications');
+    const requestNotif = page.getByText('New commission request').first();
+    await expect(async () => {
+      if (!(await requestNotif.isVisible().catch(() => false))) await page.reload();
+      await expect(requestNotif).toBeVisible({ timeout: 8_000 });
+    }).toPass({ timeout: 45_000 });
+    await expect(page.getByText(`"${title1}"`, { exact: false }).first()).toBeVisible();
   });
 
   test('11.3 artist sends a quote — nonsense price refused first', async () => {

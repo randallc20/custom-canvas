@@ -74,9 +74,11 @@ export async function POST(request: NextRequest) {
 
   await supabase.from('conversations').update({ context_id: commission.id }).eq('id', conversation.id);
 
+  const admin = createAdminSupabaseClient();
+
   // email is service-role-only (00031 column privacy) — the user-context
   // client can no longer read it.
-  const { data: artistProfile } = await createAdminSupabaseClient()
+  const { data: artistProfile } = await admin
     .from('profiles')
     .select('email, full_name')
     .eq('id', artist.profile_id)
@@ -85,6 +87,18 @@ export async function POST(request: NextRequest) {
   if (artistProfile?.email) {
     sendCommissionRequestEmail(artistProfile.email, artistProfile.full_name ?? 'Artist', commission.title).catch(() => {});
   }
+
+  // In-app notification for the artist (service role — notifications has no
+  // client INSERT policy, and the row belongs to the artist, not the caller).
+  // Best-effort: the request itself already succeeded.
+  const { error: notifError } = await admin.from('notifications').insert({
+    user_id: artist.profile_id,
+    type: 'commission_request',
+    title: 'New commission request',
+    body: `"${commission.title}" — budget $${(commission.budget_min_cents / 100).toFixed(0)}–$${(commission.budget_max_cents / 100).toFixed(0)}.`,
+    link: `/messages/${conversation.id}`,
+  });
+  if (notifError) console.error('commission_request notification failed:', notifError.message);
 
   return NextResponse.json(commission, { status: 201 });
 }

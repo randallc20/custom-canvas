@@ -25,6 +25,15 @@ const TYPE_ICONS: Record<NotificationType, string> = {
   review_received: '⭐',
   listing_reported: '🚩',
   payout_sent: '💰',
+  commission_update: '🖌️',
+  new_listing: '🖼️',
+  price_drop: '💸',
+  houston_verified: '🏅',
+  refund_approved: '↩️',
+  artist_application: '📥',
+  artist_approved: '✅',
+  artist_rejected: '📝',
+  order_disputed: '⚠️',
 };
 
 export default function NotificationsPage() {
