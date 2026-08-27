@@ -176,13 +176,11 @@ test.describe.serial('live test plan part 12 — the partner', () => {
     await expect(page.getByText('Verified School')).toBeVisible();
   });
 
-  test('12.6 — edit the public profile (bio + website)', async () => {
+  test('12.6 — edit the public profile (bio + website + banner)', async () => {
     test.setTimeout(120_000);
     const page = partnerPage;
     await page.goto('/profile/edit');
     await expect(page.getByRole('heading', { name: 'Edit Partner Profile' })).toBeVisible({ timeout: 20_000 });
-    // NOTE: the plan asks for a banner image here, but the edit form has no
-    // banner upload — bio + website are what can actually be edited.
     // Deliberately DO NOT touch Organization Name: renaming a verified org
     // resets its verification by design (impostor guard).
     await expect(page.getByLabel('Organization Name')).toHaveValue(orgName);
@@ -191,10 +189,22 @@ test.describe.serial('live test plan part 12 — the partner', () => {
     await page.getByRole('button', { name: /save changes/i }).click();
     await expect(page.getByText('Profile updated!')).toBeVisible({ timeout: 20_000 });
 
-    // The public page shows the new bio — and the badge survived the edit.
+    // P6 added the banner field the plan always asked for — its own
+    // immediate save, separate from the form's Save.
+    const smallImage = process.env.E2E_SMALL_IMAGE;
+    if (smallImage) {
+      await page.locator('input[type=file]').setInputFiles(smallImage);
+      await expect(page.getByText('Banner updated')).toBeVisible({ timeout: 30_000 });
+    }
+
+    // The public page shows the new bio, the website link (P6 renders it
+    // now), and the badge survived the edit.
     await page.goto(`/gallery/${gallerySlug}`);
     await expect(page.getByText(editedBio)).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText('Verified School')).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: editedWebsite.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '') })
+    ).toBeVisible();
   });
 
   test('12.7 — build a roster with two live artists', async () => {
