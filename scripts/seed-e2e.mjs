@@ -60,6 +60,20 @@ for (const u of stale) {
   else log(`deleted stale ${u.email}`);
 }
 
+// 1b. Aborted runs orphan the env artist's throwaway listings (a completed
+//     admin-safety run deletes its own) — sweep them so the public staging
+//     feed doesn't fill with "E2E Safety Canvas" debris.
+// (RT2 rows with orders attached refuse deletion via FK — logged, kept.)
+for (const pattern of ['E2E Safety Canvas %', 'RT2 Morning in Montrose %']) {
+  const { data: gone, error } = await admin
+    .from('listings')
+    .delete()
+    .like('title', pattern)
+    .select('id');
+  if (error) log(`throwaway-listing sweep failed (${pattern}): ${error.message}`);
+  else if (gone?.length) log(`deleted ${gone.length} orphaned '${pattern}' listings`);
+}
+
 // 2. One fresh password for the long-lived seed accounts.
 const SEED_ACCOUNTS = [
   'artist.test@customcanvas.dev',   // LIVE approved artist

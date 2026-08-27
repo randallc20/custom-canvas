@@ -162,8 +162,15 @@ test.describe.serial('part 11 — commissions', () => {
 
     // A previous aborted run may have left away mode on — clear it first,
     // since turning it off is also what restores commissions_open.
+    // The Away card renders only after its own profile fetch; under
+    // back-to-back-run throttling that fetch can strand — reload like a
+    // person would (the standard recovery pattern in this suite).
     await page.goto('/studio');
-    await expect(page.getByRole('heading', { name: 'Away mode' })).toBeVisible({ timeout: 20_000 });
+    const awayHeading = page.getByRole('heading', { name: 'Away mode' });
+    await expect(async () => {
+      if (!(await awayHeading.isVisible().catch(() => false))) await page.reload();
+      await expect(awayHeading).toBeVisible({ timeout: 10_000 });
+    }).toPass({ timeout: 60_000 });
     const awayOff = page.getByRole('button', { name: 'Turn off away mode' });
     if (await awayOff.isVisible().catch(() => false)) {
       await awayOff.click();
