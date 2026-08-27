@@ -149,6 +149,46 @@ capture; a deliberately-broken call in dev shows up in the Sentry stream.
 
 ---
 
+## Execution notes — P1–P4 run 2026-08-26 (where reality diverged)
+
+- **P1 DONE.** The sweep found four MORE live defects beyond the known
+  candidates: (1) admin "Hide listing" had never worked — `listings` has no
+  admin UPDATE policy, so the client update matched zero rows behind a
+  success toast; moved behind `PATCH /api/admin/listings/[id]` + a new
+  admin-safety 13.5 spec. (2) `GalleryDashboard.handleRemoveArtist` wrapped
+  supabase-js in try/catch — it returns errors, doesn't throw, so failures
+  toasted success. (3) `PurchasePanel`'s Message Artist passed only
+  onSuccess — failures did nothing. (4) **`AuthContext.fetchProfile` did
+  `setUser(null)` on ANY error**, so a transient profile-fetch failure
+  (network blip, expired-token race) made AuthGuard bounce a validly
+  signed-in user to /login — and every onAuthStateChange event re-fetched,
+  multiplying the chances. Server sessions were proven fine via curl; the
+  sign-out was purely client-side. Fixed: one refresh-retry, only PGRST116
+  treated as signed-out. Dead client write paths (`createOrder`,
+  `createNotification`, `updateReportStatus`, `updateLastMessage`) were
+  deleted rather than hardened.
+- **P2 DONE.** As specced, plus an RLS-enabled assertion and a
+  private-columns-stay-ungranted check. Prod's pooler is on the **aws-0**
+  cluster (DEV is aws-1). Grant expectations include three granted-but-
+  unlisted artist columns (`agreement_*`, `search_vector`) as documented
+  facts. CI wiring: documented as a pre-merge step in CONVENTIONS.md (no
+  CI minutes), not a vitest shell-out.
+- **P3 DONE.** `seed-e2e.mjs` deletes ALL stale `e2e.*` users each run (not
+  just guard fixtures) — everything `e2e.*@` is disposable. Nightly =
+  launchd fallback active at 03:30 (`scripts/nightly-e2e.sh` + plist);
+  GitHub Actions remains the preferred path once billing is restored.
+- **P4 DONE.** Expanded beyond the named list to EVERY operation-failure
+  toast in `src/` (~35 sites). Deliberately uncaptured: user-input
+  validation and environment noise (clipboard/geolocation). Expected
+  concurrency (409 on submit/decide) excluded from capture. Verified at the
+  network level (Sentry envelope observed leaving the browser) — no Sentry
+  API token available for stream-side assertion.
+- The lover-social 8.17 flake under back-to-back runs was the AuthContext
+  bug above; the spec also gained re-login recovery guards for genuinely
+  revoked sessions.
+
+---
+
 ## P5 — Finish the notification pipeline
 
 **Why.** `new_follower` exists in the DB enum and both icon maps but nothing
