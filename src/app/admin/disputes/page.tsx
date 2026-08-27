@@ -18,6 +18,7 @@ import type { Report, ReportStatus } from '@/types/report';
 interface ReportWithContext extends Report {
   reporter?: { full_name: string | null } | null;
   listing?: { title: string } | null;
+  reported?: { full_name: string | null } | null;
 }
 
 const STATUS_VARIANT: Record<ReportStatus, 'default' | 'success' | 'warning' | 'danger'> = {
@@ -51,7 +52,7 @@ function DisputesContent() {
     supabase
       .from('reports')
       // email is not client-readable (00031) — full_name only.
-      .select('*, reporter:profiles!reports_reporter_id_fkey(full_name), listing:listings!reports_listing_id_fkey(title)')
+      .select('*, reporter:profiles!reports_reporter_id_fkey(full_name), listing:listings!reports_listing_id_fkey(title), reported:profiles!reports_reported_profile_id_fkey(full_name)')
       .order('created_at', { ascending: tab === 'pending' })
       .then(({ data }) => {
         setReports((data ?? []) as unknown as ReportWithContext[]);
@@ -136,13 +137,26 @@ function DisputesContent() {
                     <Badge>{report.reason}</Badge>
                   </div>
                   <p className="mt-2 text-sm text-ink">
-                    Listing:{' '}
-                    {report.listing ? (
-                      <Link href={`/listing/${report.listing_id}`} className="font-medium text-terra hover:underline">
-                        {report.listing.title}
-                      </Link>
+                    {report.listing_id ? (
+                      <>
+                        Listing:{' '}
+                        {report.listing ? (
+                          <Link href={`/listing/${report.listing_id}`} className="font-medium text-terra hover:underline">
+                            {report.listing.title}
+                          </Link>
+                        ) : (
+                          <span className="text-muted">Deleted</span>
+                        )}
+                      </>
                     ) : (
-                      <span className="text-muted">Deleted</span>
+                      // Conversation/user reports have no listing — they used
+                      // to render here as "Listing: Deleted".
+                      <>
+                        Conversation report
+                        {report.reported?.full_name ? (
+                          <span className="text-muted"> — about {report.reported.full_name}</span>
+                        ) : null}
+                      </>
                     )}
                   </p>
                   <p className="text-sm text-muted">

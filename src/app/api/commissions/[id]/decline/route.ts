@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: { id: string } }) {
   const supabase = createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -34,9 +34,19 @@ export async function POST(_request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'This commission can no longer be cancelled.' }, { status: 409 });
   }
 
+  // Optional close reason (the artist's Decline form sends one). Who closed
+  // it is recorded so the UI can label "Declined by artist" vs "Cancelled by
+  // you" instead of a bare "Closed".
+  const body = await request.json().catch(() => ({}));
+  const reason = typeof body?.reason === 'string' ? body.reason.trim().slice(0, 500) : '';
+
   const { data, error } = await createAdminSupabaseClient()
     .from('commissions')
-    .update({ status: 'cancelled' })
+    .update({
+      status: 'cancelled',
+      closed_by: isArtist ? 'artist' : 'requester',
+      closed_reason: reason || null,
+    })
     .eq('id', params.id)
     .eq('status', commission.status)
     .select()

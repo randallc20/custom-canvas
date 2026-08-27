@@ -22,6 +22,8 @@ export interface Commission {
   quoted_price_cents: number | null;
   estimated_completion: string | null;
   artist_notes: string | null;
+  closed_by: 'artist' | 'requester' | null;
+  closed_reason: string | null;
   created_at: string;
   updated_at: string;
 }

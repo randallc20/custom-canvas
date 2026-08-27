@@ -1325,8 +1325,10 @@ a conversation with a structure around it.*
 ### 11.10 — A second commission, declined
 
 - **Do:** As the buyer, request another commission. As the artist, **Decline**
-  it.
-- **Expect:** The buyer is told, and the status shows as declined for both.
+  it — the Decline flow offers an optional note for the requester; write one.
+- **Expect:** Both sides see **"Declined by artist"** (not a bare "Closed"),
+  and the buyer sees the artist's note in the commission panel. A request the
+  buyer cancels themselves reads **"Cancelled by you"** on their side.
 
 ### 11.11 — A commission the buyer cancels
 

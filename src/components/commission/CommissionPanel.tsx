@@ -49,6 +49,8 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
   const [artistNotes, setArtistNotes] = useState('');
 
   const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [showDeclineForm, setShowDeclineForm] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
   const { data: requesterPartner } = usePartnerStatus(commission?.requester_id);
   const [disputeReason, setDisputeReason] = useState('');
 
@@ -117,7 +119,10 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
   const isArtist = artistProfileId === user?.id;
   const isRequester = commission.requester_id === user?.id;
   const status = commission.status;
-  const display = commissionDisplayStatus(status);
+  const display = commissionDisplayStatus(status, {
+    closedBy: commission.closed_by,
+    viewerIsRequester: isRequester,
+  });
 
   return (
     <div className="space-y-5 p-4">
@@ -140,6 +145,15 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
       </div>
 
       <CommissionStatus commission={commission} />
+
+      {status === 'cancelled' && commission.closed_reason && (
+        <div className="rounded-xl border border-line bg-sand/50 p-3">
+          <h3 className="text-sm font-medium text-ink">
+            {commission.closed_by === 'artist' ? "Artist's note" : 'Reason'}
+          </h3>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-muted">{commission.closed_reason}</p>
+        </div>
+      )}
 
       <div>
         <h3 className="text-sm font-medium text-ink">Brief</h3>
@@ -172,7 +186,7 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
                 <Button size="sm" onClick={() => setShowQuoteForm(true)} disabled={actionLoading}>
                   Send Quote
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => performAction('decline')} loading={actionLoading}>
+                <Button size="sm" variant="outline" onClick={() => setShowDeclineForm(true)} disabled={actionLoading}>
                   Decline
                 </Button>
               </>
@@ -258,6 +272,42 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
             <div className="flex gap-2">
               <Button size="sm" onClick={handleQuoteSubmit} loading={actionLoading}>Send Quote</Button>
               <Button size="sm" variant="outline" onClick={() => setShowQuoteForm(false)}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeclineForm && (
+        <div className="rounded-xl border border-line bg-sand/50 p-4">
+          <h4 className="mb-3 text-sm font-medium text-ink">Decline this request</h4>
+          <div className="space-y-3">
+            <div>
+              <label htmlFor="decline_reason" className="mb-1 block text-sm font-medium text-ink">
+                A note for the requester (optional)
+              </label>
+              <textarea
+                id="decline_reason"
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+                rows={3}
+                maxLength={500}
+                className="w-full rounded-lg border border-line px-3 py-2 text-sm
+                  focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
+                placeholder="e.g. My commission list is full until spring — please check back!"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => {
+                  performAction('decline', declineReason.trim() ? { reason: declineReason.trim() } : undefined);
+                  setShowDeclineForm(false);
+                }}
+                loading={actionLoading}
+              >
+                Decline request
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowDeclineForm(false)}>Cancel</Button>
             </div>
           </div>
         </div>

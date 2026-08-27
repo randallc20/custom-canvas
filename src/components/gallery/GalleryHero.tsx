@@ -32,6 +32,16 @@ export function GalleryHero({ gallery }: GalleryHeroProps) {
           {gallery.is_verified && <PartnerBadge partnerType={gallery.partner_type} />}
         </div>
         {gallery.address && <p className="mt-1 text-sm text-muted">{gallery.address}</p>}
+        {gallery.website_url && (
+          <a
+            href={gallery.website_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-sm text-terra hover:underline"
+          >
+            {gallery.website_url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+          </a>
+        )}
         {gallery.bio && <p className="mt-3 text-muted">{gallery.bio}</p>}
       </div>
     </div>

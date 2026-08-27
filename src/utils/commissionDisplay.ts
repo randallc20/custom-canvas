@@ -9,7 +9,12 @@ export interface CommissionDisplay {
 
 // The DB state machine keeps all nine statuses (they gate transitions and
 // protections); users see five. Display-only mapping — no schema change.
-export function commissionDisplayStatus(status: CommissionStatus): CommissionDisplay {
+// For 'cancelled', closed_by (00048) distinguishes an artist decline from a
+// requester cancel; rows closed before 00048 have neither and stay "Closed".
+export function commissionDisplayStatus(
+  status: CommissionStatus,
+  opts?: { closedBy?: 'artist' | 'requester' | null; viewerIsRequester?: boolean }
+): CommissionDisplay {
   switch (status) {
     case 'pending':
       return { label: 'New request', variant: 'warning' };
@@ -24,6 +29,13 @@ export function commissionDisplayStatus(status: CommissionStatus): CommissionDis
     case 'confirmed':
       return { label: 'Closed', variant: 'success', sub: 'completed' };
     case 'cancelled':
+      if (opts?.closedBy === 'artist') return { label: 'Declined by artist', variant: 'default' };
+      if (opts?.closedBy === 'requester') {
+        return {
+          label: opts.viewerIsRequester ? 'Cancelled by you' : 'Cancelled by requester',
+          variant: 'default',
+        };
+      }
       return { label: 'Closed', variant: 'default' };
     case 'disputed':
       return { label: 'Disputed', variant: 'danger' };

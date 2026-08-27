@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { supabase } from '@/lib/supabase';
+import { ImageUpload } from '@/components/upload/ImageUpload';
+import Image from 'next/image';
 import { PARTNER_TYPE_LABELS, type PartnerType } from '@/types/gallery';
 
 export function GalleryProfileEdit() {
@@ -21,6 +23,7 @@ export function GalleryProfileEdit() {
   const [galleryId, setGalleryId] = useState('');
   const [loading, setLoading] = useState(true);
   const [gallery, setGallery] = useState<GalleryProfileFormData | null>(null);
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -36,6 +39,7 @@ export function GalleryProfileEdit() {
         }
         if (data) {
           setGalleryId(data.id);
+          setBannerUrl(data.banner_image_url ?? null);
           setGallery({
             gallery_name: data.gallery_name,
             partner_type: data.partner_type ?? 'gallery',
@@ -56,6 +60,20 @@ export function GalleryProfileEdit() {
   });
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
+
+  // Same immediate-write pattern as the artist banner: the upload is its own
+  // save, asserted against zero rows (docs/CONVENTIONS.md).
+  const handleBannerUploaded = async (url: string) => {
+    const { data: updated, error } = await supabase
+      .from('gallery_profiles').update({ banner_image_url: url }).eq('id', galleryId).select('id').maybeSingle();
+    if (error || !updated) {
+      captureException(error ?? new Error('gallery banner save matched zero rows'), { where: 'GalleryProfileEdit.banner' });
+      toast('Failed to save banner', 'error');
+    } else {
+      setBannerUrl(url);
+      toast('Banner updated', 'success');
+    }
+  };
 
   const onSubmit = async (data: GalleryProfileFormData) => {
     // .select('id').maybeSingle(): a zero-row update (RLS refusal) must fail
@@ -101,6 +119,21 @@ export function GalleryProfileEdit() {
           <Input label="City" id="city" {...register('city')} error={errors.city?.message} />
         </div>
         <Input label="Website" id="website_url" {...register('website_url')} placeholder="https://" error={errors.website_url?.message} />
+        <div>
+          <p className="mb-1 text-sm font-medium text-ink">Banner image</p>
+          {bannerUrl && (
+            <div className="relative mb-2 h-28 w-full overflow-hidden rounded-lg border border-line">
+              <Image src={bannerUrl} alt="Banner" fill className="object-cover" sizes="640px" />
+            </div>
+          )}
+          <ImageUpload
+            endpoint="/api/storage/banner"
+            maxFiles={1}
+            maxSizeMB={5}
+            label={bannerUrl ? 'Replace banner' : 'Add a banner for your public page'}
+            onUpload={(urls) => handleBannerUploaded(urls[0])}
+          />
+        </div>
         <Button type="submit" className="w-full" loading={isSubmitting}>Save Changes</Button>
       </form>
     </div>

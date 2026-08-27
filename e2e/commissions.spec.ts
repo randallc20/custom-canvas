@@ -17,11 +17,11 @@ import { login } from './helpers/auth';
  * The art lover is registered fresh through the real form each run
  * (DEV/staging autoconfirm signs them straight in).
  *
- * Wordings asserted here come from the shipped components, which differ from
- * the plan's draft copy in two places worth knowing: a declined/cancelled
- * commission displays as "Closed" (DB status `cancelled` — decline, cancel
- * and quote-decline share one closed state), and old /commissions links
- * forward to the inbox's Commissions tab rather than rendering a page.
+ * Wordings asserted here come from the shipped components. DB status
+ * `cancelled` is shared by decline/cancel/quote-decline, but since P6 the
+ * panel labels it by closer: "Declined by artist" / "Cancelled by you"
+ * (with the artist's optional note shown to the requester). Old
+ * /commissions links forward to the inbox's Commissions tab.
  */
 
 const artist = {
@@ -388,21 +388,25 @@ test.describe.serial('part 11 — commissions', () => {
     await expect(panel.getByText('Closed — completed')).toBeVisible({ timeout: 15_000 });
   });
 
-  test('11.10 a second request the artist declines', async () => {
+  test('11.10 a second request the artist declines, with a reason the buyer sees', async () => {
     commission2 = await requestCommission(loverPage, artistSlug, title2);
 
-    // Artist declines it (the decline flow has no reason field — one click).
+    // P6: Decline opens a form with an optional note; the state is labelled
+    // "Declined by artist" (not a bare "Closed") on both sides.
     await artistPage.goto(`/messages/${commission2.conversationId}`);
     const artistPanel = await openCommissionPanel(artistPage);
     await expect(artistPanel.getByText(title2)).toBeVisible({ timeout: 15_000 });
     await paceCommissionWrites(artistPage);
-    await artistPanel.getByRole('button', { name: 'Decline' }).click();
-    await expect(artistPanel.getByText('Closed', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await artistPanel.getByRole('button', { name: 'Decline', exact: true }).click();
+    await artistPanel.getByLabel(/note for the requester/i).fill(`Commission list is full — ${RUN}`);
+    await artistPanel.getByRole('button', { name: 'Decline request' }).click();
+    await expect(artistPanel.getByText('Declined by artist')).toBeVisible({ timeout: 15_000 });
 
-    // The buyer sees the same closed state.
+    // The buyer sees the declined state AND the artist's note.
     await loverPage.goto(`/messages/${commission2.conversationId}`);
     const loverPanel = await openCommissionPanel(loverPage);
-    await expect(loverPanel.getByText('Closed', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(loverPanel.getByText('Declined by artist')).toBeVisible({ timeout: 15_000 });
+    await expect(loverPanel.getByText(`Commission list is full — ${RUN}`)).toBeVisible();
     await expect(loverPanel.getByRole('button', { name: 'Accept Quote' })).toHaveCount(0);
   });
 
@@ -412,7 +416,8 @@ test.describe.serial('part 11 — commissions', () => {
     await expect(panel.getByText('New request', { exact: true })).toBeVisible({ timeout: 15_000 });
     await paceCommissionWrites(loverPage);
     await panel.getByRole('button', { name: 'Cancel Request' }).click();
-    await expect(panel.getByText('Closed', { exact: true })).toBeVisible({ timeout: 15_000 });
+    // P6: the requester's own cancel is labelled as theirs.
+    await expect(panel.getByText('Cancelled by you')).toBeVisible({ timeout: 15_000 });
   });
 
   test('11.12 report an issue on a delivered commission', async () => {

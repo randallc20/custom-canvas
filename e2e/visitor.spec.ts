@@ -306,11 +306,10 @@ test.describe('footer and static pages (3.5, 3.6, 3.10)', () => {
     await page.goto('/');
     await dismissCookies(page);
     const footer = page.locator('footer');
-    for (const name of ['About', 'Terms', 'Privacy']) {
+    for (const name of ['About', 'Partners', 'Terms', 'Privacy']) {
       await expect(footer.getByRole('link', { name, exact: true })).toBeVisible(LOAD);
     }
 
-    // Partners is a live public page even though the footer doesn't link it.
     const statics = [
       { path: '/about', heading: 'About Custom Canvas' },
       { path: '/partners', heading: 'Partners' },

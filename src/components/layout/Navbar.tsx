@@ -45,6 +45,7 @@ export function Navbar() {
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
+                  aria-label="Account menu"
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-sand text-sm font-medium text-ink transition-colors duration-150 hover:bg-line"
                 >
                   {user.full_name?.[0]?.toUpperCase() ?? user.email[0].toUpperCase()}
@@ -102,6 +103,7 @@ export function Navbar() {
 
         <button
           className="md:hidden"
+          aria-label="Menu"
           onClick={() => setMenuOpen(!menuOpen)}
         >
           <svg className="h-6 w-6 text-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">

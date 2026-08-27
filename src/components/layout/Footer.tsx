@@ -11,6 +11,7 @@ export function Footer() {
         </p>
         <div className="flex gap-6">
           <Link href="/about" className="text-sm text-muted transition-colors duration-150 hover:text-ink">About</Link>
+          <Link href="/partners" className="text-sm text-muted transition-colors duration-150 hover:text-ink">Partners</Link>
           <Link href="/terms" className="text-sm text-muted transition-colors duration-150 hover:text-ink">Terms</Link>
           <Link href="/privacy" className="text-sm text-muted transition-colors duration-150 hover:text-ink">Privacy</Link>
         </div>

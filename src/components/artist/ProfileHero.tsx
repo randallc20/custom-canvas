@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { formatDateOnly } from '@/utils/formatDateOnly';
 import { ArtistWithProfile } from '@/types/artist';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -69,7 +70,7 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
               {artist.is_houston_verified && <Badge variant="verified">Local Verified</Badge>}
               {artist.away_mode && (
                 <Badge variant="warning">
-                  Away{artist.away_until ? ` — back ${new Date(artist.away_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                  Away{artist.away_until ? ` — back ${formatDateOnly(artist.away_until)}` : ''}
                 </Badge>
               )}
               {typeof followerCount === 'number' && (

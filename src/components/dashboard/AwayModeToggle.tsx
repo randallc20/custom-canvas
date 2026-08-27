@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatDateOnly } from '@/utils/formatDateOnly';
 import { captureException } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
@@ -72,7 +73,7 @@ export function AwayModeToggle() {
       {artist.away_mode ? (
         <div className="space-y-3">
           <div className="rounded-xl border border-line bg-sand/50 p-3 text-sm text-ink">
-            You&apos;re away{artist.away_until ? ` until ${new Date(artist.away_until).toLocaleDateString()}` : ''}.
+            You&apos;re away{artist.away_until ? ` until ${formatDateOnly(artist.away_until, { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}.
           </div>
           <Button variant="outline" onClick={disable} loading={saving}>Turn off away mode</Button>
         </div>

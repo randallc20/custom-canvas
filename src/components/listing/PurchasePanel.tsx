@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { formatDateOnly } from '@/utils/formatDateOnly';
 import { captureException } from '@/lib/sentry';
 import { useRouter } from 'next/navigation';
 import { Listing } from '@/types/listing';
@@ -30,7 +31,7 @@ export function PurchasePanel({ listing, artistProfileId, fulfillmentPref, awayM
   const findOrCreate = useFindOrCreateConversation();
 
   const pickup = isPickupOnly(fulfillmentPref);
-  const awayDate = awayUntil ? new Date(awayUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null;
+  const awayDate = awayUntil ? formatDateOnly(awayUntil) : null;
   const shippingCents = pickup ? 0 : (listing.shipping_rate_cents ?? 0);
   const split = calcSplit(listing.price_cents, shippingCents);
   const hidePrice = listing.price_visible === false;
