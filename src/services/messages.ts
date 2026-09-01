@@ -33,6 +33,16 @@ export async function getMessages(conversationId: string, params: MessageParams 
   return { messages, nextCursor };
 }
 
+/** A 403 from the send endpoint: the write was REFUSED by policy (blocked
+ *  sender / non-participant) — expected behavior, worth a toast but never a
+ *  Sentry event. */
+export class MessageRefusedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MessageRefusedError';
+  }
+}
+
 export async function sendMessage(data: {
   conversation_id: string;
   sender_id: string;
@@ -60,7 +70,9 @@ export async function sendMessage(data: {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(typeof body.error === 'string' ? body.error : 'Failed to send message');
+    const msg = typeof body.error === 'string' ? body.error : 'Failed to send message';
+    if (res.status === 403) throw new MessageRefusedError(msg);
+    throw new Error(msg);
   }
   return res.json();
 }

@@ -24,7 +24,17 @@ export async function POST(request: NextRequest) {
     .insert({ conversation_id, sender_id: user.id, content: content ?? '', message_type })
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    // 42501 = the RLS refusal — in practice the blocked-sender guard (or a
+    // non-participant). Expected behavior, not an incident: return a clean,
+    // deliberately vague 403 (blocking is quiet by design) instead of the raw
+    // policy text, so the client can toast without paging Sentry every time
+    // the nightly suite walks the block test.
+    if (error.code === '42501') {
+      return NextResponse.json({ error: "This message couldn't be sent." }, { status: 403 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
 
   if (attachment) {
     const { error: attErr } = await supabase.from('message_attachments').insert({

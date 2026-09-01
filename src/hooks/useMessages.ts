@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getMessages, sendMessage, markMessagesAsRead, getUnreadCounts } from '@/services/messages';
+import { getMessages, sendMessage, markMessagesAsRead, getUnreadCounts, MessageRefusedError } from '@/services/messages';
 import { useToast } from '@/components/ui/Toast';
 import { captureException } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
@@ -67,7 +67,12 @@ export function useSendMessage() {
     // The composer clears optimistically — without this, a refused send
     // (blocked user, bad payload) just vanishes with zero feedback.
     onError: (err) => {
-      captureException(err, { where: 'useSendMessage' });
+      // A policy refusal (blocked sender) is the app working as designed —
+      // toast it, but don't page Sentry (the nightly's block test would fire
+      // an issue every night).
+      if (!(err instanceof MessageRefusedError)) {
+        captureException(err, { where: 'useSendMessage' });
+      }
       toast('Your message didn’t send — please try again.', 'error');
     },
   });
