@@ -19,10 +19,13 @@ mkdir -p "$LOGDIR"
 LOG="$LOGDIR/$(date +%Y-%m-%d).log"
 
 # launchd starts with a minimal PATH; node/python live in the usual spots.
+# nvm.sh cannot be sourced under `set -u` (it dies silently on unbound
+# variables — five straight NIGHTLY FAILs of `node: command not found`), so
+# resolve the newest nvm node bin directly instead.
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-  # shellcheck disable=SC1091
-  source "$HOME/.nvm/nvm.sh" >/dev/null 2>&1 || true
+if ! command -v node >/dev/null 2>&1; then
+  NODE_BIN=$(ls -d "$HOME"/.nvm/versions/node/*/bin 2>/dev/null | sort -V | tail -1)
+  if [[ -n "${NODE_BIN:-}" ]]; then export PATH="$NODE_BIN:$PATH"; fi
 fi
 
 {
