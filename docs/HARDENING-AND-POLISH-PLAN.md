@@ -187,6 +187,34 @@ capture; a deliberately-broken call in dev shows up in the Sentry stream.
   bug above; the spec also gained re-login recovery guards for genuinely
   revoked sessions.
 
+## Execution notes — P5–P6 run 2026-08-27→09-01
+
+- **P5 DONE.** 00047 trigger on follows (24h per-follower dedupe, links to
+  the follower's public surface when they have one); commission-request
+  notification inserted server-side in POST /api/commissions (service role
+  — notifications has no client INSERT policy); NotificationType union
+  extended from 13 to all 21 DB types and both icon maps completed. 8.4
+  flipped from skip to hard assertion; 11.2 asserts the in-app request.
+- **P6 DONE**, including the optional banner upload (the tester doc always
+  asked for it). Beyond the plan: closed_by ('artist'|'requester') was
+  needed alongside closed_reason to label the states; CommissionStatus was
+  unified onto commissionDisplayStatus (it showed raw 'cancelled' in red
+  beside 'Declined by artist'); the away-date fix also covered
+  PurchasePanel. Inbox pills keep the plain 'Closed' (no closed_by in the
+  list payload — deliberate).
+- Both migrations applied to DEV and prod by hand (no supabase_migrations
+  table in this project — psql is the procedure), db-smoke green on both.
+- **The nightly silently failed its first five nights**: nvm.sh cannot be
+  sourced under `set -u` and the failure was swallowed — every run died in
+  seconds with `node: command not found`. Fixed by resolving the newest
+  ~/.nvm node bin directly. A full launchd-environment run then went
+  10/10 spec files green — which also proved the visitor/commissions
+  failures seen on 08-27 were per-IP rate-limit residue from back-to-back
+  suite runs, not defects (same code, cooled limits, green).
+- Review extras fixed inline: seeder now sweeps orphaned throwaway
+  listings out of the public staging feed; commissions prep got the
+  standard reload-recovery.
+
 ---
 
 ## P5 — Finish the notification pipeline
