@@ -282,17 +282,21 @@ changed, all green.
 
 ## P7 — Launch leftovers (LAUNCH.md)
 
-Only after the tester round finishes:
-1. **Stripe MCC 5712 → 5971** (deliberately deferred — editing industry on
-   a fresh account can trigger re-review).
-2. **Rotate keys that passed through chats**: DEV Supabase keys + DB
-   password, Stripe TEST keys, Resend key (LAUNCH.md §4 list). The
-   `sk_live_` was already rotated 2026-08-26; prod-dashboard-born secrets
-   are fine.
-3. **Monitoring**: BetterStack uptime on customcanvas.shop, Vercel
-   Analytics + Speed Insights toggles, Sentry alert rules (pairs with P4).
-4. **GitHub Actions**: restore minutes/billing; add `E2E_*` secrets
-   (enables P3's preferred nightly).
+Only after the tester round finishes. **Decisions locked 2026-09-01:**
+1. **Stripe: stay in TEST mode until the tester is out**, then flip live +
+   MCC 5712 → 5971 as the literal last step (editing industry on a fresh
+   account can trigger re-review), together with the pre-launch data wipe.
+2. **Key rotation: deferred by Chris** (conversation deletion as
+   mitigation; everything exposed is DEV/test-tier — `sk_live_` was
+   already rotated 2026-08-26).
+3. **Monitoring: no BetterStack** — use Sentry's built-in Uptime monitor
+   (free tier includes one; add customcanvas.shop in the Sentry
+   dashboard), plus Vercel Analytics/Speed Insights toggles and Sentry
+   alert rules.
+4. **GitHub Actions nightly: DROPPED** — the account's shared minutes
+   (Flightsheet CI burns ~30 min/run) would blow the free tier again; the
+   launchd nightly is proven and stays. Chris removes the card and sets
+   the Actions spending limit to $0.
 
 ---
 
