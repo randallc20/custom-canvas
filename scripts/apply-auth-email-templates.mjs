@@ -39,7 +39,7 @@ const layout = (heading, bodyHtml) => `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px 0">${LOGO}
   <h2 style="color:#111">${heading}</h2>
 ${bodyHtml}
-  <p style="color:#999;font-size:12px;line-height:1.5;margin-top:32px">Custom Canvas — original art from your local community. Questions? Reply to this email or write to support@customcanvas.shop.</p>
+  <p style="color:#999;font-size:12px;line-height:1.5;margin-top:32px">Custom Canvas — original art from your local community. Questions? Write to support@customcanvas.shop.</p>
 </div>`;
 
 const p = (text) => `  <p style="color:#666;font-size:16px;line-height:1.5">${text}</p>`;
