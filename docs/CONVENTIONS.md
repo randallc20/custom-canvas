@@ -49,5 +49,10 @@ tables. A deliberate schema change updates the expectations in the same PR.
 - Never run `pnpm` here (npm lockfile; a stray `pnpm-lock.yaml` flips Vercel's
   package manager and skips sharp's build script). Use `./node_modules/.bin/*`.
 - Prod deploys are manual and pinned: `npx -y vercel@59.5.0 deploy --prod
-  --token "$VERCEL_TOKEN" --yes` — prod is NOT git-linked.
+  --yes` — prod is NOT git-linked. 2026-09-02: the `VERCEL_TOKEN` in
+  `.env.local` degraded to a "limited" token (valid for /v2/user, 403 on the
+  project scope — deploys fail with "Could not retrieve Project Settings").
+  The CLI is now logged in on this machine instead (`vercel login` device
+  flow, completed in the local browser session), so deploy WITHOUT `--token`.
+  Mint a fresh dashboard token if deploying from anywhere else.
 - E2E: one spec file at a time, `--workers=1` (Supabase auth rate limits).
