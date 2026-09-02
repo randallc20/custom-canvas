@@ -3,6 +3,18 @@
 Deliberate choices with lasting consequences, recorded so they read as
 choices — not oversights. Newest first.
 
+## 2026-09-02 — Pickup-order tax sourcing stays on the billing address (OPEN counsel question)
+
+Checkout collects a shipping address only for shipped orders, so Stripe Tax
+sources pickup orders from the card's billing address (verified in test mode
+2026-09-02: an Oregon billing address on a pickup basket is taxed $0; a
+Houston address 8.25%). The artwork changes hands in Texas with the platform
+as the Texas-registered merchant of record. Whether Texas treats an in-person
+marketplace handoff as sourced to the handoff location is a question for
+counsel; until answered, sourcing is left as is and pickup volume is small.
+If counsel says origin-sourced: pass the artist's pickup ZIP as the tax
+address for pickup sessions. Raised by `docs/reviews/04-money.md`.
+
 ## 2026-08-24 — The 85/15 split is artist-facing only; click-wrap Artist Agreement
 
 The commission split appears nowhere buyers can see (home stat, About, Terms,

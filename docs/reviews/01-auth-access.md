@@ -11,6 +11,8 @@
 
 **Verdict:** The route layer is in good shape: every mutating route establishes identity with `getUser()`, every admin route checks `profiles.role` before touching the service-role client, and every `[id]` route that writes checks the caller is a party to the row, not merely that the row exists. The real problems are below the routes: a hard-delete cascade that destroys financial records, one auth flow whose link cannot mint a session under the PKCE browser client, and a handful of table grants and policies that let the public anon key do more than the UI ever asks.
 
+**Verification 2026-09-02 (R0):** P1 admin reset link CONFIRMED on DEV: `generateLink({type:'recovery'})` → GoTrue `/verify` answers 303 to `/reset-password#access_token=…&type=recovery` (implicit hash), which the PKCE browser client refuses. P2 `website_url` `javascript:` href: with `target=_blank rel=noopener noreferrer` neither Chromium nor WebKit (Playwright) executes the payload in the opener or the popup (popup is `about:blank` opaque); Firefox not tested. Severity stays P2 (phishing/`data:` link under our domain); fix is the scheme CHECK in R8.
+
 ---
 
 ### P0 — Self-service account deletion cascades away orders, reviews and conversations

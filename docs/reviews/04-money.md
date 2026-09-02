@@ -12,6 +12,8 @@ Nothing in scope was skipped. `src/utils/commissionDisplay.ts` and `src/utils/re
 
 **Verdict:** The happy path and the two previously-hit holes are solid: the checkout locks every amount in session metadata, the webhook is idempotent on the payment intent, the oversell race is closed by the partial unique index plus an idempotent auto-refund, and the admin refund is crash-safe and its arithmetic matches the locked policy to the cent. The weakness is everything that happens *after* a refund or *around* a dispute: two dispute paths leave an order in a wrong or stuck state, the seller-protection bargain rests on a flag the artist sets themselves, and nothing reconciles the database against Stripe if a webhook is dropped.
 
+**Verification 2026-09-02 (R0):** pickup tax mechanism CONFIRMED in Stripe test mode via `tax.calculations.create` with `address_source: 'billing'` and no shipping address: a Portland OR billing address yields $0.00 tax on a $207.00 basket; a Houston TX billing address yields $17.08 (8.25%). So a pickup order paid with an out-of-state card is taxed at $0 today. Whether Texas sources an in-person handoff to the handoff location is recorded as an open counsel question in DECISIONS.md (D2).
+
 ---
 
 ### P1 — An inquiry-type dispute leaves the order in `disputed` forever, and tells the artist their payout is being deducted
