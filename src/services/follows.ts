@@ -34,6 +34,17 @@ export async function unfollowArtist(profileId: string, artistId: string): Promi
   if (!data?.length) throw new Error('Could not unfollow — please refresh and try again.');
 }
 
+/** Just the artist ids, for the shared followed-state set the browse cards read. */
+export async function getFollowedArtistIds(profileId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('follows')
+    .select('artist_id')
+    .eq('follower_id', profileId);
+
+  if (error) throw error;
+  return (data ?? []).map((row) => row.artist_id as string);
+}
+
 export async function isFollowing(profileId: string, artistId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('follows')

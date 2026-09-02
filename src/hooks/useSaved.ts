@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getSavedListings, saveListing, unsaveListing, isListingSaved } from '@/services/saved';
+import { getSavedListings, getSavedListingIds, saveListing, unsaveListing } from '@/services/saved';
 import { useToast } from '@/components/ui/Toast';
 import { toastError } from '@/hooks/toastError';
 
@@ -11,17 +11,25 @@ export function useSavedListings(profileId: string) {
   });
 }
 
-export function useIsSaved(profileId: string, listingId: string) {
+// Module-level so React Query memoizes the derived Set across renders.
+const toIdSet = (ids: string[]) => new Set(ids);
+
+/** Every listing id the viewer has saved, as one query shared by every card
+ *  on the page. Replaces a per-card point lookup (100 cards = 100 requests,
+ *  and one heart click refetched all of them — 02-P2). */
+export function useSavedIds(profileId: string) {
   return useQuery({
-    queryKey: ['saved', profileId, listingId],
-    queryFn: () => isListingSaved(profileId, listingId),
-    enabled: !!profileId && !!listingId,
+    queryKey: ['saved-ids', profileId],
+    queryFn: () => getSavedListingIds(profileId),
+    enabled: !!profileId,
+    select: toIdSet,
   });
 }
 
 export function useToggleSave() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const surface = toastError(toast, 'useToggleSave');
 
   return useMutation({
     mutationFn: async ({
@@ -39,11 +47,25 @@ export function useToggleSave() {
         await saveListing(profileId, listingId);
       }
     },
-    onSuccess: (_, { profileId, listingId }) => {
-      queryClient.invalidateQueries({ queryKey: ['saved', profileId] });
-      queryClient.invalidateQueries({ queryKey: ['saved', profileId, listingId] });
+    // Optimistic: flip the id in the shared set so the heart responds at
+    // once, and roll back if the write is refused.
+    onMutate: async ({ profileId, listingId, isSaved }) => {
+      await queryClient.cancelQueries({ queryKey: ['saved-ids', profileId] });
+      const previous = queryClient.getQueryData<string[]>(['saved-ids', profileId]);
+      queryClient.setQueryData<string[]>(['saved-ids', profileId], (old = []) =>
+        isSaved ? old.filter((id) => id !== listingId) : [...old, listingId]
+      );
+      return { previous };
     },
     // Call sites fire-and-forget with .mutate() — surface failures here.
-    onError: toastError(toast, 'useToggleSave'),
+    onError: (err, { profileId }, context) => {
+      if (context?.previous) queryClient.setQueryData(['saved-ids', profileId], context.previous);
+      surface(err);
+    },
+    // Only the two keys this write can change: the id set and the /saved list.
+    onSettled: (_data, _err, { profileId }) => {
+      queryClient.invalidateQueries({ queryKey: ['saved-ids', profileId], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['saved', profileId], exact: true });
+    },
   });
 }
