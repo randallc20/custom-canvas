@@ -13,6 +13,9 @@
 //     120-char story + agreement 1.0 + one listing (approval-flow needs it)
 //   - creates the two guard fixtures (artist with no artist_profiles row,
 //     gallery with no gallery_profiles row)
+//   - creates a paid-buyer fixture: an Art Lover holding one PAID order
+//     (synthetic payment intent) so admin-safety 14.11b can assert that
+//     self-delete is refused (R1 / 01-P0)
 //
 // Never point this at prod: it uses the DEV service-role key from .env.local.
 import { readFileSync } from 'node:fs';
@@ -58,6 +61,19 @@ for (const u of stale) {
   const { error } = await admin.auth.admin.deleteUser(u.id);
   if (error) log(`could not delete stale ${u.email}: ${error.message}`);
   else log(`deleted stale ${u.email}`);
+}
+
+// 1a. The paid-buyer fixture's order outlives its user (00049 sets buyer_id
+//     NULL instead of cascading) — sweep prior runs' rows by their synthetic
+//     payment-intent prefix so the env artist's sales list doesn't silt up.
+{
+  const { data: gone, error } = await admin
+    .from('orders')
+    .delete()
+    .like('stripe_payment_intent_id', 'pi_e2e_%')
+    .select('id');
+  if (error) log(`e2e-order sweep failed: ${error.message}`);
+  else if (gone?.length) log(`deleted ${gone.length} prior e2e orders`);
 }
 
 // 1b. Aborted runs orphan the env artist's throwaway listings (a completed
@@ -153,6 +169,35 @@ const noGalleryEmail = `e2e.guard.nogallery.${TS}@customcanvas.dev`;
 await createUser(noGalleryEmail, { role: 'gallery', full_name: 'E2E Guard NoGallery' });
 log(`guard fixtures created: ${noProfileEmail}, ${noGalleryEmail}`);
 
+// 6. Paid-buyer fixture (admin-safety 14.11b): an Art Lover party to one
+//    PAID order, so /api/account/delete must answer 409. The order is a bare
+//    row sold by the env artist — no listing, no real Stripe object — under
+//    a synthetic payment intent that step 1a sweeps next run. Never settle or
+//    refund it: there is nothing at Stripe to refund.
+const paidBuyerEmail = `e2e.paidbuyer.${TS}@customcanvas.dev`;
+const paidBuyerUser = await createUser(paidBuyerEmail, { role: 'user', full_name: 'E2E Paid Buyer' });
+{
+  const seedArtist = byEmail.get('artist.test@customcanvas.dev');
+  const { data: artistRow, error: apErr } = await admin
+    .from('artist_profiles').select('id').eq('profile_id', seedArtist.id).single();
+  if (apErr || !artistRow) throw apErr ?? new Error('artist.test has no artist_profiles row');
+
+  const { error: orderErr } = await admin.from('orders').insert({
+    buyer_id: paidBuyerUser.id,
+    artist_id: artistRow.id,
+    amount_cents: 12500,
+    platform_fee_cents: 1875,
+    artist_payout_cents: 10625,
+    buyer_fee_cents: 1000,
+    shipping_cents: 0,
+    status: 'paid',
+    stripe_payment_intent_id: `pi_e2e_paid_${TS}`,
+    shipping_address: { street: '1 E2E Way', city: 'Houston', state: 'TX', zip: '77002', country: 'US' },
+  });
+  if (orderErr) throw orderErr;
+  log(`paid-buyer fixture created: ${paidBuyerEmail} (one paid order)`);
+}
+
 log('done — eval the export block below');
 
 // STDOUT: the env contract of the specs (see each spec's header comment).
@@ -169,3 +214,5 @@ console.log(`export E2E_GUARD_NO_PROFILE_EMAIL='${noProfileEmail}'`);
 console.log(`export E2E_GUARD_ARTIST_EMAIL='artist.test@customcanvas.dev'`);
 console.log(`export E2E_GUARD_NO_GALLERY_EMAIL='${noGalleryEmail}'`);
 console.log(`export E2E_GUARD_GALLERY_EMAIL='bayou-city-gallery@cc-demo.com'`);
+console.log(`export E2E_PAID_BUYER_EMAIL='${paidBuyerEmail}'`);
+console.log(`export E2E_PAID_BUYER_PASSWORD='${PASSWORD}'`);

@@ -16,8 +16,10 @@ export interface Order {
   id: string;
   listing_id: string | null;
   commission_id: string | null;
-  buyer_id: string;
-  artist_id: string;
+  /** NULL once the buyer's account is deleted (00049): the order outlives them. */
+  buyer_id: string | null;
+  /** artist_profiles id; NULL once the artist's account is deleted (00049). */
+  artist_id: string | null;
   amount_cents: number;
   platform_fee_cents: number;
   artist_payout_cents: number;
@@ -46,7 +48,8 @@ export interface Order {
 export interface Review {
   id: string;
   order_id: string;
-  reviewer_id: string;
+  /** NULL once the reviewer's account is deleted (00049). */
+  reviewer_id: string | null;
   rating: number;
   comment: string | null;
   created_at: string;

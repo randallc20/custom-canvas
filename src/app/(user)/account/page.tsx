@@ -28,6 +28,9 @@ export default function AccountPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
+  // A 409 refusal (open order) stays readable inside the dialog — a toast
+  // alone slides away before "contact support" has been read.
+  const [deleteBlocked, setDeleteBlocked] = useState<string | null>(null);
 
   const handleSave = async () => {
     if (!user) return;
@@ -71,13 +74,22 @@ export default function AccountPage() {
   const handleDeleteAccount = async () => {
     if (deleteConfirm !== 'DELETE') return;
     setDeleting(true);
+    setDeleteBlocked(null);
     try {
       // Server-side: the client-side profiles.delete() was an RLS no-op that
       // never touched the auth user — the account survived deletion.
       const res = await fetch('/api/account/delete', { method: 'POST' });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(typeof body.error === 'string' ? body.error : 'Failed');
+        const message = typeof body.error === 'string' ? body.error : 'Failed';
+        if (res.status === 409) {
+          // Expected refusal (party to an open order), not a failure.
+          setDeleteBlocked(message);
+          toast(message, 'warning');
+          setDeleting(false);
+          return;
+        }
+        throw new Error(message);
       }
       await signOut().catch(() => {});
       router.push('/');
@@ -164,13 +176,18 @@ export default function AccountPage() {
       <Modal
         isOpen={showDeleteModal}
         title="Delete Account"
-        onClose={() => { setShowDeleteModal(false); setDeleteConfirm(''); }}
+        onClose={() => { setShowDeleteModal(false); setDeleteConfirm(''); setDeleteBlocked(null); }}
       >
         <div className="space-y-4">
           <p className="text-sm text-muted">
             This will permanently delete your account, profile, and all associated data.
             This action cannot be undone.
           </p>
+          {deleteBlocked && (
+            <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              {deleteBlocked}
+            </p>
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium text-ink">
               Type <strong>DELETE</strong> to confirm
@@ -182,7 +199,7 @@ export default function AccountPage() {
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => { setShowDeleteModal(false); setDeleteConfirm(''); }}>
+            <Button variant="outline" onClick={() => { setShowDeleteModal(false); setDeleteConfirm(''); setDeleteBlocked(null); }}>
               Cancel
             </Button>
             <Button

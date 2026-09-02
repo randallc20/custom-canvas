@@ -147,6 +147,10 @@ export default function OrdersPage() {
                   <div className="mt-3">
                     {order.refund_approved_at ? (
                       <p className="text-xs text-muted">Refund approved — Custom Canvas is settling your payment.</p>
+                    ) : !order.artist?.profile_id ? (
+                      /* The artist's account is gone (00049 keeps the order);
+                         there is no thread to start a refund request in. */
+                      <p className="text-xs text-muted">The artist’s account is closed — email support@customcanvas.shop about this order.</p>
                     ) : (
                       <Button size="sm" variant="ghost" loading={cancelling === order.id} onClick={() => requestRefund(order)}>
                         Request a refund

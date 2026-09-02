@@ -12,7 +12,8 @@ export type CommissionStatus =
 export interface Commission {
   id: string;
   artist_id: string;
-  requester_id: string;
+  /** NULL once the requester's account is deleted (00049). */
+  requester_id: string | null;
   conversation_id: string | null;
   title: string;
   description: string;

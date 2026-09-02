@@ -36,7 +36,7 @@ export async function getReviewsByArtist(artistId: string): Promise<(Review & { 
     return {
       id: r.id as string,
       order_id: r.order_id as string,
-      reviewer_id: r.reviewer_id as string,
+      reviewer_id: r.reviewer_id as string | null,
       rating: r.rating as number,
       comment: r.comment as string | null,
       created_at: r.created_at as string,
