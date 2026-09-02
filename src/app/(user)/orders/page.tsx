@@ -131,6 +131,13 @@ export default function OrdersPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-xs text-muted">Order #{order.id.slice(0, 8)}</p>
+                    {(order.listing?.title || order.artist?.display_name) && (
+                      <p className="mt-1 text-sm text-ink">
+                        {order.listing?.title && <span className="font-medium">{order.listing.title}</span>}
+                        {order.listing?.title && order.artist?.display_name && <span className="text-muted"> · </span>}
+                        {order.artist?.display_name && <span className="text-muted">by {order.artist.display_name}</span>}
+                      </p>
+                    )}
                     <p className="mt-1 font-medium text-ink">{formatPrice(order.amount_cents)}</p>
                     <p className="text-xs text-muted">
                       {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

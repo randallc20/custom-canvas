@@ -1,4 +1,5 @@
-export type MessageType = 'text' | 'image' | 'listing_card' | 'quote_card' | 'system';
+// Mirrors the 00045 CHECK; ChatThread sends 'file' for document attachments.
+export type MessageType = 'text' | 'image' | 'file' | 'listing_card' | 'quote_card' | 'system';
 export type AttachmentType = 'image' | 'file' | 'listing_card' | 'quote_card';
 
 export interface Message {

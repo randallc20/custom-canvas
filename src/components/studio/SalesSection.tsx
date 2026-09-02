@@ -137,6 +137,7 @@ export function SalesSection() {
                 {order.shipping_address && (
                   <div className="mt-3 rounded-lg bg-sand/40 px-3 py-2 text-sm text-muted">
                     <p className="text-xs font-medium text-muted">Ship to:</p>
+                    {order.shipping_address.name && <p className="font-medium text-ink">{order.shipping_address.name}</p>}
                     <p>{order.shipping_address.street}</p>
                     <p>{order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.zip}</p>
                   </div>
