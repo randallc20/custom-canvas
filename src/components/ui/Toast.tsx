@@ -31,10 +31,15 @@ const icons: Record<ToastType, string> = {
 };
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
+  // Errors are the ones that need reading and often acting on — a validation
+  // message that vanishes in four seconds is the same as no message. They stay
+  // until dismissed; confirmations still clear themselves.
+  const persist = toast.type === 'error';
   useEffect(() => {
+    if (persist) return;
     const timer = setTimeout(() => onDismiss(toast.id), 4000);
     return () => clearTimeout(timer);
-  }, [toast.id, onDismiss]);
+  }, [toast.id, onDismiss, persist]);
 
   return (
     <div

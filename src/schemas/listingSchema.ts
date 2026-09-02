@@ -29,7 +29,9 @@ const listingObject = z.object({
   height_cm: z.number().positive().optional().nullable(),
   depth_cm: z.number().positive().optional().nullable(),
   year_created: z.number().int().min(1000).max(new Date().getFullYear()).optional().nullable(),
-  price_dollars: z.number().min(1, 'Price must be at least $1'),
+  // Both listing forms clear an empty price to null via numberOrNull, so the
+  // type failure IS the empty field — say that, not "expected number".
+  price_dollars: z.number({ error: 'Enter a price of at least $1' }).min(1, 'Price must be at least $1'),
   shipping_dollars: z.number().min(0).optional().nullable(),
   // Authenticity Policy: wholly AI-generated work is prohibited; AI-ASSISTED
   // work is allowed with disclosure. Asked at listing time rather than left for

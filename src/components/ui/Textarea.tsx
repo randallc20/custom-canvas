@@ -7,18 +7,23 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   error?: string;
   /** Helper copy rendered under the control (above any error). */
   hint?: string;
+  /** Keeps the accessible name where a fieldset legend already says it. */
+  hideLabel?: boolean;
 }
 
 /** Mirrors Input's useId label wiring — every hand-rolled `<label>` + bare
  *  `<textarea>` in the app was an unnamed "edit text, multiline". */
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, error, hint, id, className = '', ...props }, ref) => {
+  ({ label, error, hint, hideLabel = false, id, className = '', ...props }, ref) => {
     const autoId = useId();
     const textareaId = id ?? autoId;
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={textareaId} className="mb-1 block text-sm font-medium text-ink">
+          <label
+            htmlFor={textareaId}
+            className={hideLabel ? 'sr-only' : 'mb-1 block text-sm font-medium text-ink'}
+          >
             {label}
           </label>
         )}

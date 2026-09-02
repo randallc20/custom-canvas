@@ -171,16 +171,12 @@ export default function AccountPage() {
             This will permanently delete your account, profile, and all associated data.
             This action cannot be undone.
           </p>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">
-              Type <strong>DELETE</strong> to confirm
-            </label>
-            <Input
-              value={deleteConfirm}
-              onChange={(e) => setDeleteConfirm(e.target.value)}
-              placeholder="DELETE"
-            />
-          </div>
+          <Input
+            label="Type DELETE to confirm"
+            value={deleteConfirm}
+            onChange={(e) => setDeleteConfirm(e.target.value)}
+            placeholder="DELETE"
+          />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => { setShowDeleteModal(false); setDeleteConfirm(''); }}>
               Cancel

@@ -12,6 +12,7 @@ import { formatPrice } from '@/utils/formatPrice';
 import { PartnerBadge } from '@/components/gallery/PartnerBadge';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useSignedChatUrl } from '@/hooks/useSignedChatUrl';
 import type { PartnerType } from '@/types/gallery';
 
@@ -24,6 +25,7 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubbleProps) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [acting, setActing] = useState(false);
@@ -72,6 +74,16 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
 
     const act = async (action: 'confirm' | 'decline') => {
       if (!commissionId) return;
+      // Same terminal, unreopenable close as the rail's Decline — confirm it.
+      if (action === 'decline') {
+        const ok = await confirm({
+          title: 'Decline this quote?',
+          message: 'The commission closes and the artist is told you declined. This can\u2019t be undone \u2014 you would need to send a new request to start over.',
+          confirmLabel: 'Decline quote',
+          destructive: true,
+        });
+        if (!ok) return;
+      }
       setActing(true);
       try {
         const res = await fetch(`/api/commissions/${commissionId}/${action}`, { method: 'POST' });

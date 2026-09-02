@@ -9,6 +9,8 @@ import { setListingTags } from '@/services/listings';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Select } from '@/components/ui/Select';
 import { Spinner } from '@/components/ui/Spinner';
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -114,23 +116,18 @@ export default function EditListingPage() {
       <h1 className="mb-6 text-2xl font-bold text-ink">Edit Listing</h1>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input label="Title" {...register('title')} error={errors.title?.message} />
-        <div>
-          <label className="mb-1 block text-sm font-medium text-ink">Description</label>
-          <textarea {...register('description')} rows={4} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
-        </div>
+        <Textarea label="Description" rows={4} {...register('description')} error={errors.description?.message} />
         <Input label="Medium" {...register('medium')} error={errors.medium?.message} />
         <DimensionsFieldset unit={unit} onSwitch={switchUnit} register={register} />
+        <Input label="Year Created" type="number" {...register('year_created', { setValueAs: numberOrNull })} error={errors.year_created?.message} />
 
         {seriesOptions.length > 0 && (
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">Series (optional)</label>
-            <select {...register('series_id')} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm">
-              <option value="">No series</option>
-              {seriesOptions.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
+          <Select label="Series (optional)" {...register('series_id')}>
+            <option value="">No series</option>
+            {seriesOptions.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </Select>
         )}
 
         <TagPicker value={selectedTags} onChange={(tags) => setValue('tags', tags, { shouldDirty: true })} />
@@ -222,13 +219,13 @@ export default function EditListingPage() {
           )}
         </fieldset>
 
-        <select {...register('status')} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm">
+        <Select label="Status" {...register('status')} error={errors.status?.message}>
           <option value="available">Available</option>
           <option value="hidden">Hidden</option>
           <option value="commission_only">Commission Only</option>
           {isSold && <option value="sold">Sold</option>}
           {listing?.status === 'draft' && <option value="draft">Draft</option>}
-        </select>
+        </Select>
         <Button type="submit" loading={isSubmitting} className="w-full">Save Changes</Button>
       </form>
     </div>

@@ -9,6 +9,8 @@ import { ProfileSaveAuthError } from '@/services/artists';
 import { captureException } from '@/lib/sentry';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Select } from '@/components/ui/Select';
 import { Spinner } from '@/components/ui/Spinner';
 import { CompletenessBar } from '@/components/artist/CompletenessBar';
 import { AvatarBannerSection } from '@/components/profile/AvatarBannerSection';
@@ -19,7 +21,7 @@ import { EducationFieldset, type EducationDraft } from '@/components/profile/Edu
 import { PersonalPhotoUploader } from '@/components/profile/PersonalPhotoUploader';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArtistProfile } from '@/types/artist';
 import { calculateCompletenessScore } from '@/utils/completenessScore';
 import { useToast } from '@/components/ui/Toast';
@@ -39,6 +41,7 @@ export function ArtistProfileEdit() {
   const [educationDrafts, setEducationDrafts] = useState<EducationDraft[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const formRef = useRef<HTMLFormElement>(null);
 
   const { data: educationData } = useEducation(artist?.id ?? '');
   const saveEducationMutation = useSaveEducation();
@@ -238,16 +241,23 @@ export function ArtistProfileEdit() {
               : 'Something on this page needs fixing before it can save.',
             'error'
           );
+          // The toast alone left the artist staring at a Save button that did
+          // nothing: take them to the field and put the caret in it.
+          if (first) {
+            const control = formRef.current?.querySelector<HTMLElement>(
+              `[name="${CSS.escape(first)}"]`
+            );
+            control?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            control?.focus({ preventScroll: true });
+          }
         })}
+        ref={formRef}
         className="space-y-8"
       >
         <fieldset className="space-y-4">
           <legend className="text-lg font-semibold text-ink">Basics</legend>
           <Input label="Display Name" {...register('display_name')} error={errors.display_name?.message} />
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">Bio</label>
-            <textarea {...register('bio')} rows={3} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
-          </div>
+          <Textarea label="Bio" rows={3} {...register('bio')} error={errors.bio?.message} />
           <Controller
             control={control}
             name="primary_mediums"
@@ -255,41 +265,39 @@ export function ArtistProfileEdit() {
               <MediumsChips value={field.value ?? []} onChange={field.onChange} />
             )}
           />
-          <Input label="School" {...register('school')} />
-          <Input label="Graduation Year" type="number" {...register('graduation_year', { setValueAs: numberOrNull })} />
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">Status</label>
-            {/* '' must become null or the zod enum rejects an untouched "Select status". */}
-            <select {...register('status', { setValueAs: (v) => (v === '' ? null : v) })} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm">
-              <option value="">Select status</option>
-              <option value="student">Student</option>
-              <option value="recent_grad">Recent Graduate</option>
-              <option value="working_artist">Working Artist</option>
-            </select>
-          </div>
+          <Input label="School" {...register('school')} error={errors.school?.message} />
+          <Input label="Graduation Year" type="number" {...register('graduation_year', { setValueAs: numberOrNull })} error={errors.graduation_year?.message} />
+          {/* '' must become null or the zod enum rejects an untouched "Select status". */}
+          <Select
+            label="Status"
+            {...register('status', { setValueAs: (v) => (v === '' ? null : v) })}
+            error={errors.status?.message}
+          >
+            <option value="">Select status</option>
+            <option value="student">Student</option>
+            <option value="recent_grad">Recent Graduate</option>
+            <option value="working_artist">Working Artist</option>
+          </Select>
         </fieldset>
 
         <fieldset className="space-y-4">
           <legend className="text-lg font-semibold text-ink">Your Story</legend>
-          <div>
-            <textarea
-              {...register('story')}
-              rows={8}
-              placeholder="Tell your story. What drew you to art? What are you making right now? There are no rules here — this is your space."
-              className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
-            />
-            <p className="mt-1 text-xs text-muted">Shown as &ldquo;My Story&rdquo; at the top of your profile. At least 100 characters to submit your shop for review.</p>
-          </div>
+          <Textarea
+            label="Your Story"
+            hideLabel
+            rows={8}
+            placeholder="Tell your story. What drew you to art? What are you making right now? There are no rules here — this is your space."
+            hint="Shown as &ldquo;My Story&rdquo; at the top of your profile. At least 100 characters to submit your shop for review."
+            {...register('story')}
+            error={errors.story?.message}
+          />
         </fieldset>
 
         <fieldset className="space-y-4">
           <legend className="text-lg font-semibold text-ink">About Your Work</legend>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">Artist Statement</label>
-            <textarea {...register('artist_statement')} rows={4} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
-          </div>
-          <Input label="Influences" {...register('influences')} />
-          <Input label="Website" {...register('website_url')} placeholder="https://" />
+          <Textarea label="Artist Statement" rows={4} {...register('artist_statement')} error={errors.artist_statement?.message} />
+          <Input label="Influences" {...register('influences')} error={errors.influences?.message} />
+          <Input label="Website" {...register('website_url')} placeholder="https://" error={errors.website_url?.message} />
         </fieldset>
 
         <fieldset className="space-y-4">
@@ -309,20 +317,18 @@ export function ArtistProfileEdit() {
         <fieldset className="space-y-4">
           <legend className="text-lg font-semibold text-ink">Location</legend>
           <Input label="City" {...register('city')} error={errors.city?.message} />
-          <Input label="Neighborhood" {...register('neighborhood')} />
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">Fulfillment Preference</label>
-            <select
-              {...register('fulfillment_pref', { setValueAs: (v) => (v === '' ? null : v) })}
-              className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm"
-            >
-              <option value="">Select preference</option>
-              <option value="ships_national">Ships Nationally</option>
-              <option value="ships_local">Ships Locally</option>
-              <option value="pickup_only">Pickup Only</option>
-              <option value="artist_delivered">Artist Delivered</option>
-            </select>
-          </div>
+          <Input label="Neighborhood" {...register('neighborhood')} error={errors.neighborhood?.message} />
+          <Select
+            label="Fulfillment Preference"
+            {...register('fulfillment_pref', { setValueAs: (v) => (v === '' ? null : v) })}
+            error={errors.fulfillment_pref?.message}
+          >
+            <option value="">Select preference</option>
+            <option value="ships_national">Ships Nationally</option>
+            <option value="ships_local">Ships Locally</option>
+            <option value="pickup_only">Pickup Only</option>
+            <option value="artist_delivered">Artist Delivered</option>
+          </Select>
         </fieldset>
 
         <fieldset className="space-y-4">
@@ -331,12 +337,9 @@ export function ArtistProfileEdit() {
             <input type="checkbox" {...register('commissions_open')} className="rounded border-line" />
             <span className="text-sm text-ink">Open to commissions</span>
           </label>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">Commission Description</label>
-            <textarea {...register('commission_desc')} rows={3} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
-          </div>
-          <Input label="Minimum Price ($)" type="number" step="0.01" {...register('commission_min_dollars', { setValueAs: numberOrNull })} />
-          <Input label="Turnaround Time" {...register('commission_turnaround')} placeholder="e.g. 2-4 weeks" />
+          <Textarea label="Commission Description" rows={3} {...register('commission_desc')} error={errors.commission_desc?.message} />
+          <Input label="Minimum Price ($)" type="number" step="0.01" {...register('commission_min_dollars', { setValueAs: numberOrNull })} error={errors.commission_min_dollars?.message} />
+          <Input label="Turnaround Time" {...register('commission_turnaround')} placeholder="e.g. 2-4 weeks" error={errors.commission_turnaround?.message} />
         </fieldset>
 
         <fieldset className="space-y-4">

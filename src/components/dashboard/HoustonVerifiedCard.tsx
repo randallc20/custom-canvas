@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 
 export function HoustonVerifiedCard() {
@@ -57,15 +58,12 @@ export function HoustonVerifiedCard() {
         <p className="text-sm text-muted">Your request is in the queue — we&apos;ll notify you when it&apos;s reviewed.</p>
       ) : open ? (
         <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">How are you connected?</label>
-            <select value={connectionType} onChange={(e) => setConnectionType(e.target.value)} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink">
-              <option value="school">Local art school</option>
-              <option value="neighborhood">Live in the community</option>
-              <option value="studio">Local studio space</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
+          <Select label="How are you connected?" value={connectionType} onChange={(e) => setConnectionType(e.target.value)}>
+            <option value="school">Local art school</option>
+            <option value="neighborhood">Live in the community</option>
+            <option value="studio">Local studio space</option>
+            <option value="other">Other</option>
+          </Select>
           <Input label="Details" value={details} onChange={(e) => setDetails(e.target.value)} placeholder="e.g. MFA at UH, studio in the Heights" />
           <Input label="Links (optional)" value={links} onChange={(e) => setLinks(e.target.value)} placeholder="Portfolio, school page, etc." />
           <div className="flex gap-2">

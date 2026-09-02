@@ -9,6 +9,8 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import { reportUser } from '@/services/reports';
 import type { ReportReason } from '@/types/report';
 
@@ -97,13 +99,13 @@ export function ThreadMenu({ conversationId, otherUserId, otherName }: ThreadMen
 
       <Modal isOpen={reportOpen} title={`Report ${otherName}`} onClose={() => setReportOpen(false)}>
         <div className="space-y-3">
-          <select value={reportReason} onChange={(e) => setReportReason(e.target.value as ReportReason)} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink">
+          <Select label="Reason" value={reportReason} onChange={(e) => setReportReason(e.target.value as ReportReason)}>
             <option value="inappropriate">Inappropriate behavior</option>
             <option value="spam">Spam</option>
             <option value="misleading">Scam or misleading</option>
             <option value="other">Other</option>
-          </select>
-          <textarea value={reportDesc} onChange={(e) => setReportDesc(e.target.value)} rows={3} placeholder="Add details (optional)" className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink" />
+          </Select>
+          <Textarea label="Details (optional)" value={reportDesc} onChange={(e) => setReportDesc(e.target.value)} rows={3} placeholder="Add details (optional)" />
           <Button className="w-full" onClick={submitReport} loading={reporting}>Submit report</Button>
         </div>
       </Modal>

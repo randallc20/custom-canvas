@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { captureException } from '@/lib/sentry';
 import { CommissionStatus } from '@/components/commission/CommissionStatus';
 import { QuoteCard } from '@/components/commission/QuoteCard';
@@ -26,6 +27,7 @@ import { CommissionUpdates } from '@/components/commission/CommissionUpdates';
 export function CommissionPanel({ conversationId }: { conversationId: string }) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
 
   const [artistProfileId, setArtistProfileId] = useState<string | null>(null);
@@ -102,6 +104,32 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
       artist_notes: artistNotes || undefined,
     });
     setShowQuoteForm(false);
+  };
+
+  // Decline and Cancel Request close the commission for good — the decline
+  // route's status guard means it cannot be reopened — and on a phone they sit
+  // a thumb's width from Accept. Every other terminal action in the app
+  // confirms first; these two did not.
+  const handleRequesterDecline = async () => {
+    const ok = await confirm({
+      title: 'Decline this quote?',
+      message: 'The commission closes and the artist is told you declined. This can\u2019t be undone \u2014 you would need to send a new request to start over.',
+      confirmLabel: 'Decline quote',
+      destructive: true,
+    });
+    if (!ok) return;
+    performAction('decline');
+  };
+
+  const handleCancelRequest = async () => {
+    const ok = await confirm({
+      title: 'Cancel this request?',
+      message: 'The request closes and the artist can no longer quote it. This can\u2019t be undone \u2014 you would need to send a new request.',
+      confirmLabel: 'Cancel request',
+      destructive: true,
+    });
+    if (!ok) return;
+    performAction('decline');
   };
 
   const handleDispute = () => {
@@ -210,7 +238,7 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
                 <Button size="sm" onClick={() => performAction('confirm')} loading={actionLoading}>
                   Accept Quote
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => performAction('decline')} loading={actionLoading}>
+                <Button size="sm" variant="outline" onClick={handleRequesterDecline} loading={actionLoading}>
                   Decline
                 </Button>
               </>
@@ -226,7 +254,7 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
               </>
             )}
             {status === 'pending' && (
-              <Button size="sm" variant="outline" onClick={() => performAction('decline')} loading={actionLoading}>
+              <Button size="sm" variant="outline" onClick={handleCancelRequest} loading={actionLoading}>
                 Cancel Request
               </Button>
             )}
