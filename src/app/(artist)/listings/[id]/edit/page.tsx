@@ -1,6 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { listingSchema, ListingFormData, toCents } from '@/schemas/listingSchema';
@@ -12,6 +13,9 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { Spinner } from '@/components/ui/Spinner';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { useToast } from '@/components/ui/Toast';
+import { captureException } from '@/lib/sentry';
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { TagPicker } from '@/components/listing/TagPicker';
@@ -27,10 +31,12 @@ export default function EditListingPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const { data: listing, isLoading } = useListing(id);
+  const { data: listing, isLoading, isError } = useListing(id);
   const updateListing = useUpdateListing();
+  const { toast } = useToast();
   const [isPickupOnly, setIsPickupOnly] = useState(false);
   const [artistId, setArtistId] = useState('');
+  const [artistLoaded, setArtistLoaded] = useState(false);
   const { data: seriesOptions = [] } = useSeries(artistId);
 
   useEffect(() => {
@@ -39,6 +45,7 @@ export default function EditListingPage() {
       .then(({ data }) => {
         if (data) setArtistId(data.id);
         setIsPickupOnly(isPickupPref(data?.fulfillment_pref));
+        setArtistLoaded(true);
       });
   }, [user]);
 
@@ -83,31 +90,60 @@ export default function EditListingPage() {
   const aiInvolvement = watch('ai_involvement');
   const isSold = listing?.status === 'sold';
 
-  if (isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
+  if (isLoading || !artistLoaded) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
+
+  // A deleted listing (PGRST116) rendered as a blank editable form, and any
+  // public listing the session could read — another artist's — loaded into
+  // the editor with working image controls. The API route is the real guard;
+  // this is the honest surface for it.
+  if (isError || !listing || listing.artist_id !== artistId) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <EmptyState
+          title="Listing not found"
+          description="It may have been deleted, or it isn't one of yours."
+          action={<Link href="/studio/work"><Button variant="outline">Back to Studio</Button></Link>}
+        />
+      </div>
+    );
+  }
 
   const onSubmit = async (data: ListingFormData) => {
-    await updateListing.mutateAsync({
-      id,
-      data: {
-        title: data.title,
-        description: data.description || null,
-        medium: data.medium,
-        width_cm: toCm(data.width_cm, listing?.width_cm),
-        height_cm: toCm(data.height_cm, listing?.height_cm),
-        depth_cm: toCm(data.depth_cm, listing?.depth_cm),
-        year_created: data.year_created ?? null,
-        price_cents: toCents(data.price_dollars),
-        shipping_rate_cents: isPickupOnly ? 0 : toCents(data.shipping_dollars),
-        ai_involvement: data.ai_involvement,
-        ai_disclosure: data.ai_involvement === 'assisted' ? (data.ai_disclosure || null) : null,
-        price_visible: data.price_visible,
-        show_sold_price: data.show_sold_price ?? false,
-        sold_price_cents: data.sold_price_dollars != null ? toCents(data.sold_price_dollars) : null,
-        series_id: data.series_id || null,
-        status: data.status,
-      },
-    });
-    await setListingTags(id, data.tags ?? []);
+    try {
+      await updateListing.mutateAsync({
+        id,
+        data: {
+          title: data.title,
+          description: data.description || null,
+          medium: data.medium,
+          width_cm: toCm(data.width_cm, listing?.width_cm),
+          height_cm: toCm(data.height_cm, listing?.height_cm),
+          depth_cm: toCm(data.depth_cm, listing?.depth_cm),
+          year_created: data.year_created ?? null,
+          price_cents: toCents(data.price_dollars),
+          shipping_rate_cents: isPickupOnly ? 0 : toCents(data.shipping_dollars),
+          ai_involvement: data.ai_involvement,
+          ai_disclosure: data.ai_involvement === 'assisted' ? (data.ai_disclosure || null) : null,
+          price_visible: data.price_visible,
+          show_sold_price: data.show_sold_price ?? false,
+          sold_price_cents: data.sold_price_dollars != null ? toCents(data.sold_price_dollars) : null,
+          series_id: data.series_id || null,
+          status: data.status,
+        },
+      });
+    } catch {
+      // useUpdateListing toasts its own failure (toastError); nothing saved.
+      return;
+    }
+    try {
+      await setListingTags(id, data.tags ?? []);
+    } catch (err) {
+      // The PATCH landed; only the tag set did not. Say so — silence here
+      // read as "did my price change save?".
+      captureException(err, { where: 'listings/edit.setListingTags' });
+      toast('Your changes were saved, but the tags could not be updated. Save again to retry.', 'error');
+      return;
+    }
     router.push('/studio/work');
   };
 

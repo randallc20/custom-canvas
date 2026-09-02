@@ -7,11 +7,25 @@ import { useUnread } from '@/context/UnreadContext';
 import { NotificationDropdown } from '@/components/notification/NotificationDropdown';
 import { NavSearch } from '@/components/layout/NavSearch';
 import { LocationPicker } from '@/components/layout/LocationPicker';
+import { useToast } from '@/components/ui/Toast';
+import { captureException } from '@/lib/sentry';
 
 export function Navbar() {
   const { user, signOut } = useAuth();
   const { unreadCount } = useUnread();
+  const { toast } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // auth-js keeps the local session when the logout call fails with anything
+  // but 401/403/404, so a Supabase 5xx left the user signed in with an
+  // unhandled rejection and no feedback.
+  const handleSignOut = () => {
+    setMenuOpen(false);
+    signOut().catch((err) => {
+      captureException(err, { where: 'Navbar.signOut' });
+      toast('Could not sign out — please try again.', 'error');
+    });
+  };
 
   // Escape closes the menu and leaves focus on the toggle, which is where a
   // keyboard user opened it from.
@@ -88,7 +102,7 @@ export function Navbar() {
                     </Link>
                     <hr className="my-1" />
                     <button
-                      onClick={() => { signOut(); setMenuOpen(false); }}
+                      onClick={handleSignOut}
                       className="block w-full px-4 py-2 text-left text-sm text-ink hover:bg-sand/50"
                     >
                       Sign Out
@@ -163,7 +177,7 @@ export function Navbar() {
                 <Link href="/orders" className="block rounded-lg px-3 py-2 text-sm text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>
                   Orders
                 </Link>
-                <button onClick={() => { signOut(); setMenuOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-sand/50">
+                <button onClick={handleSignOut} className="block w-full rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-sand/50">
                   Sign Out
                 </button>
               </>

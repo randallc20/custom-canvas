@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useToast } from '@/components/ui/Toast';
+import { captureException } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
 import { numberOrNull } from '@/utils/formNumber';
 import { DimensionsFieldset, useDimensionUnit } from '@/components/listing/DimensionsFieldset';
@@ -27,7 +29,13 @@ export default function NewListingPage() {
   const router = useRouter();
   const { user } = useAuth();
   const createListing = useCreateListing();
+  const { toast } = useToast();
   const [artistId, setArtistId] = useState('');
+  // A failure AFTER the insert (images, tags) used to leave the form looking
+  // untouched, and the next Publish inserted a second listing. Remember what
+  // was created so a retry patches onto it instead.
+  const createdIdRef = useRef<string | null>(null);
+  const imagesAttachedRef = useRef(false);
   const [isPickupOnly, setIsPickupOnly] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
 
@@ -63,35 +71,55 @@ export default function NewListingPage() {
   const aiInvolvement = watch('ai_involvement');
 
   const onSubmit = async (data: ListingFormData, asDraft = false) => {
-    const listing = await createListing.mutateAsync({
-      title: data.title,
-      medium: data.medium,
-      status: asDraft ? 'draft' : data.status,
-      description: data.description || null,
-      width_cm: toCm(data.width_cm),
-      height_cm: toCm(data.height_cm),
-      depth_cm: toCm(data.depth_cm),
-      year_created: data.year_created ?? null,
-      price_cents: toCents(data.price_dollars),
-      shipping_rate_cents: isPickupOnly ? 0 : toCents(data.shipping_dollars),
-      ai_involvement: data.ai_involvement,
-      ai_disclosure: data.ai_involvement === 'assisted' ? (data.ai_disclosure || null) : null,
-      price_visible: data.price_visible,
-      sold_price_cents: null,
-      show_sold_price: false,
-      series_id: data.series_id || null,
-      artist_id: artistId,
-      is_featured: false,
-    });
-    if (imageUrls.length > 0) {
-      await addListingImages(listing.id, imageUrls, 0);
+    let stage: 'create' | 'images' | 'tags' = 'create';
+    try {
+      let listingId = createdIdRef.current;
+      if (!listingId) {
+        const listing = await createListing.mutateAsync({
+          title: data.title,
+          medium: data.medium,
+          status: asDraft ? 'draft' : data.status,
+          description: data.description || null,
+          width_cm: toCm(data.width_cm),
+          height_cm: toCm(data.height_cm),
+          depth_cm: toCm(data.depth_cm),
+          year_created: data.year_created ?? null,
+          price_cents: toCents(data.price_dollars),
+          shipping_rate_cents: isPickupOnly ? 0 : toCents(data.shipping_dollars),
+          ai_involvement: data.ai_involvement,
+          ai_disclosure: data.ai_involvement === 'assisted' ? (data.ai_disclosure || null) : null,
+          price_visible: data.price_visible,
+          sold_price_cents: null,
+          show_sold_price: false,
+          series_id: data.series_id || null,
+          artist_id: artistId,
+          is_featured: false,
+        });
+        listingId = listing.id;
+        createdIdRef.current = listingId;
+      }
+      stage = 'images';
+      if (imageUrls.length > 0 && !imagesAttachedRef.current) {
+        await addListingImages(listingId, imageUrls, 0);
+        imagesAttachedRef.current = true;
+      }
+      stage = 'tags';
+      if (data.tags.length > 0) {
+        await setListingTags(listingId, data.tags);
+      }
+      // First listing is worth 20 completeness points — refresh canonically.
+      supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
+      router.push('/studio/work');
+    } catch (err) {
+      captureException(err, { where: `listings/new.onSubmit:${stage}` });
+      // useCreateListing already toasts its own failure; these are the steps
+      // after the insert, where the listing exists and the retry is safe.
+      if (stage === 'images') {
+        toast('Your listing was saved, but the photos could not be attached. Press Publish again to retry.', 'error');
+      } else if (stage === 'tags') {
+        toast('Your listing was saved, but the tags could not be applied. Press Publish again to retry.', 'error');
+      }
     }
-    if (data.tags.length > 0) {
-      await setListingTags(listing.id, data.tags);
-    }
-    // First listing is worth 20 completeness points — refresh canonically.
-    supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
-    router.push('/studio/work');
   };
 
   return (
