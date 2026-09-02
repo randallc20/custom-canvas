@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { reviewSchema } from '@/schemas/reviewSchema';
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
           rating,
           comment || null,
           reviewer?.full_name ?? 'A collector'
-        ).catch(() => {});
+        ).catch((e) => Sentry.captureException(e));
       }
     }
   }

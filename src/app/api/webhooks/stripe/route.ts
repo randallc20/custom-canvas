@@ -178,7 +178,7 @@ async function completeSale(
       formatPrice(session.amount_total ?? (order.amount_cents + order.buyer_fee_cents + order.shipping_cents)),
       orderId,
       artistProf?.display_name ?? 'a Custom Canvas artist'
-    ).catch(() => {});
+    ).catch((e) => Sentry.captureException(e));
   }
 
   const artistEmail = (artistProf?.profile as unknown as { email: string } | null)?.email;
@@ -189,7 +189,7 @@ async function completeSale(
       listingTitle,
       formatPrice(order.amount_cents),
       formatPrice(order.artist_payout_cents)
-    ).catch(() => {});
+    ).catch((e) => Sentry.captureException(e));
   }
 
   // In-app sale notification — the 'new_order' type existed but was

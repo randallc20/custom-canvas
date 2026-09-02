@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { sendCommissionNudgeEmail } from '@/services/email';
 
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
     const email = artist.profile?.email;
     if (email && artist.profile?.email_preferences?.marketing !== false) {
       const { data: buyer } = await supabase.from('profiles').select('full_name').eq('id', c.requester_id).single();
-      sendCommissionNudgeEmail(email, artist.display_name, buyer?.full_name ?? 'your buyer', c.title, c.id).catch(() => {});
+      sendCommissionNudgeEmail(email, artist.display_name, buyer?.full_name ?? 'your buyer', c.title, c.id).catch((e) => Sentry.captureException(e));
     }
     await supabase.from('commissions').update({ last_nudge_at: new Date().toISOString() }).eq('id', c.id);
     nudged++;

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { sendReviewRequestEmail } from '@/services/email';
 
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
     const title = (o.listing as unknown as { title: string } | null)?.title ?? 'your purchase';
     const optedOut = (buyer?.email_preferences as { marketing?: boolean } | null)?.marketing === false;
     if (buyer?.email && !optedOut) {
-      sendReviewRequestEmail(buyer.email, buyer.full_name ?? 'there', title, o.id).catch(() => {});
+      sendReviewRequestEmail(buyer.email, buyer.full_name ?? 'there', title, o.id).catch((e) => Sentry.captureException(e));
     }
     await supabase.from('orders').update({ review_requested_at: new Date().toISOString() }).eq('id', o.id);
     sent++;
