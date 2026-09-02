@@ -2,11 +2,11 @@ import { ReactNode } from 'react';
 
 const variants = {
   default: 'bg-sand text-muted',
-  success: 'bg-sage/15 text-sage',
-  warning: 'bg-yellow-100 text-yellow-700',
+  success: 'bg-sage/15 text-sageText',
+  warning: 'bg-yellow-100 text-yellow-800',
   danger: 'bg-red-100 text-red-700',
-  info: 'bg-terraSoft text-terraDark',
-  verified: 'bg-sage/15 text-sage',
+  info: 'bg-terraSoft text-terraText',
+  verified: 'bg-sage/15 text-sageText',
 };
 
 interface BadgeProps {

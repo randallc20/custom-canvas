@@ -104,7 +104,7 @@ function AdminDashboard() {
         <div className="mb-8">
           <Link href="/admin/applications">
             <div className="rounded-lg border border-terra/40 bg-terraSoft/60 p-4">
-              <p className="text-sm text-terra">Artist applications awaiting review</p>
+              <p className="text-sm text-terraText">Artist applications awaiting review</p>
               <p className="text-2xl font-bold text-ink">{stats.pending_applications}</p>
             </div>
           </Link>
@@ -151,7 +151,7 @@ function AdminDashboard() {
         <div className="rounded-lg border border-line p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">Recent Orders</h2>
-            <Link href="/admin/orders" className="text-xs text-terra hover:underline">View all</Link>
+            <Link href="/admin/orders" className="text-xs text-terraText hover:underline">View all</Link>
           </div>
           {recentOrders.length > 0 ? (
             <div className="space-y-3">
@@ -176,7 +176,7 @@ function AdminDashboard() {
         <div className="rounded-lg border border-line p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">Recent Signups</h2>
-            <Link href="/admin/users" className="text-xs text-terra hover:underline">View all</Link>
+            <Link href="/admin/users" className="text-xs text-terraText hover:underline">View all</Link>
           </div>
           {recentUsers.length > 0 ? (
             <div className="space-y-3">
@@ -210,7 +210,7 @@ function StatCard({ label, value, highlight }: { label: string; value: string; h
   return (
     <div className="rounded-lg border border-line p-4">
       <p className="text-sm text-muted">{label}</p>
-      <p className={`text-2xl font-bold ${highlight ? 'text-terra' : 'text-ink'}`}>{value}</p>
+      <p className={`text-2xl font-bold ${highlight ? 'text-terraText' : 'text-ink'}`}>{value}</p>
     </div>
   );
 }

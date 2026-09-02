@@ -46,6 +46,13 @@ export function ThreadMenu({ conversationId, otherUserId, otherName }: ThreadMen
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+
   if (!user) return null;
 
   const onMute = () => {
@@ -86,7 +93,7 @@ export function ThreadMenu({ conversationId, otherUserId, otherName }: ThreadMen
 
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen((o) => !o)} aria-label="Conversation options" className="rounded-full p-1.5 text-muted hover:bg-sand/60 hover:text-ink">
+      <button onClick={() => setOpen((o) => !o)} aria-label="Conversation options" aria-haspopup="menu" aria-expanded={open} className="rounded-full p-1.5 text-muted hover:bg-sand/60 hover:text-ink">
         <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" /></svg>
       </button>
       {open && (

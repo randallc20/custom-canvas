@@ -123,7 +123,7 @@ function CheckoutContent() {
           </div>
           <p className="text-xs leading-relaxed text-muted">
             By completing this purchase you agree to the{' '}
-            <a href="/terms" target="_blank" className="font-medium text-terra underline">Terms of Sale</a>,
+            <a href="/terms" target="_blank" className="font-medium text-terraText underline">Terms of Sale</a>,
             including the artist-mediated refund policy and the non-refundable service fee.
             This charge will appear as <span className="font-medium text-ink">CUSTOM CANVAS</span> on
             your statement.
@@ -143,7 +143,7 @@ function CheckoutContent() {
           </div>
           <p className="text-xs leading-relaxed text-muted">
             By completing this purchase you agree to the{' '}
-            <a href="/terms" target="_blank" className="font-medium text-terra underline">Terms of Sale</a>,
+            <a href="/terms" target="_blank" className="font-medium text-terraText underline">Terms of Sale</a>,
             including the artist-mediated refund policy and the non-refundable service fee.
             This charge will appear as <span className="font-medium text-ink">CUSTOM CANVAS</span> on
             your statement.

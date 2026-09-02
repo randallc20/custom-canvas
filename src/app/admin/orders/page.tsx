@@ -115,7 +115,7 @@ function OrdersContent() {
         </div>
         <div className="rounded-lg border border-line p-4">
           <p className="text-sm text-muted">Platform Revenue (15% commission)</p>
-          <p className="text-2xl font-bold text-terra">{formatPrice(totalFees)}</p>
+          <p className="text-2xl font-bold text-terraText">{formatPrice(totalFees)}</p>
         </div>
         <div className="rounded-lg border border-line p-4">
           <p className="text-sm text-muted">Artist Payouts</p>

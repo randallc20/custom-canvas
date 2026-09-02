@@ -17,7 +17,18 @@ const config: Config = {
         terra: "#E8704A",
         terraDark: "#C95A38",
         terraSoft: "#FBEAE2",
+        // Text-use terracotta (D4). The brand terra fails AA against every
+        // ground in this palette at body sizes (2.85 on cream), and so does
+        // terraDark (3.90). terraText clears 4.5:1 on cream, white, sand AND
+        // terraSoft; terraTextDark is its hover/active step. Bright terra stays
+        // for large display type and non-text accents (bars, dots, rings).
+        terraText: "#A84928",
+        terraTextDark: "#8F3D21",
         sage: "#7C8B6F",
+        // Same story for sage: 3.63 on white as text. sageText on the sage/15
+        // tint (sageSoft when the tint must be opaque) is 6.37.
+        sageText: "#4C5943",
+        sageSoft: "#EBEEE9",
         sand: "#F1E8DA",
       },
       fontFamily: {

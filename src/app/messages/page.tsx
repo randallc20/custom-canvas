@@ -51,7 +51,7 @@ function MessagesContent() {
               key={t}
               onClick={() => router.replace(t === 'all' ? '/messages' : '/messages?tab=commissions')}
               className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                tab === t ? 'bg-terra text-white' : 'text-muted hover:bg-sand/50 hover:text-ink'
+                tab === t ? 'bg-terraText text-white' : 'text-muted hover:bg-sand/50 hover:text-ink'
               }`}
             >
               {t === 'all' ? 'All' : 'Commissions'}

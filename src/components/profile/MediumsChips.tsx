@@ -35,7 +35,7 @@ export function MediumsChips({ value, onChange, max = 10 }: MediumsChipsProps) {
               onClick={() => toggle(medium)}
               aria-pressed={selected}
               className={`rounded-full px-3 py-1 text-sm transition-colors duration-150
-                ${selected ? 'bg-terra text-white' : 'bg-sand text-muted hover:text-ink'}`}
+                ${selected ? 'bg-terraText text-white' : 'bg-sand text-muted hover:text-ink'}`}
             >
               {medium}
             </button>

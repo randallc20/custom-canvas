@@ -74,17 +74,17 @@ export default function StudioServicesPage() {
                   {s.blurb && <p className="mt-2 text-sm text-ink">{s.blurb}</p>}
                   <div className="mt-3 flex flex-wrap gap-3 text-sm">
                     {s.contact_email && (
-                      <a href={`mailto:${s.contact_email}`} className="font-medium text-terra hover:underline">
+                      <a href={`mailto:${s.contact_email}`} className="font-medium text-terraText hover:underline">
                         Email
                       </a>
                     )}
                     {s.contact_phone && (
-                      <a href={`tel:${s.contact_phone}`} className="font-medium text-terra hover:underline">
+                      <a href={`tel:${s.contact_phone}`} className="font-medium text-terraText hover:underline">
                         {s.contact_phone}
                       </a>
                     )}
                     {s.website_url && (
-                      <a href={s.website_url} target="_blank" rel="noopener noreferrer" className="font-medium text-terra hover:underline">
+                      <a href={s.website_url} target="_blank" rel="noopener noreferrer" className="font-medium text-terraText hover:underline">
                         Website ↗
                       </a>
                     )}

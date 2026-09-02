@@ -157,14 +157,17 @@ export function SetupChecklist({
                 aria-hidden
                 className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold ${
                   item.done
-                    ? 'border-terra bg-terra text-white'
+                    ? 'border-terraText bg-terraText text-white'
                     : 'border-line bg-surface text-transparent'
                 }`}
               >
                 ✓
               </span>
               <span>
-                <span className={`text-sm ${item.done ? 'text-muted line-through' : 'font-medium text-ink group-hover:text-terraDark'}`}>
+                {/* Colour and strikethrough are the only visual done-state;
+                    say it out loud for screen readers. */}
+                <span className="sr-only">{item.done ? 'Done: ' : 'Not done yet: '}</span>
+                <span className={`text-sm ${item.done ? 'text-muted line-through' : 'font-medium text-ink group-hover:text-terraTextDark'}`}>
                   {item.label}
                 </span>
                 {!item.done && item.hint && (

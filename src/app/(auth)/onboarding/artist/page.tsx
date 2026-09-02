@@ -151,7 +151,7 @@ export default function ArtistOnboardingPage() {
         <div className="mb-8">
           <div className="mb-2 flex justify-between text-sm text-muted">
             {STEPS.map((s, i) => (
-              <span key={s} className={i <= step ? 'font-medium text-terra' : ''}>{s}</span>
+              <span key={s} className={i <= step ? 'font-medium text-terraText' : ''}>{s}</span>
             ))}
           </div>
           <div className="h-2 rounded-full bg-sand">
@@ -210,7 +210,7 @@ export default function ArtistOnboardingPage() {
               </ul>
               <p className="text-xs text-muted">
                 The full agreement is available at{' '}
-                <a href="/artist-agreement" target="_blank" className="font-medium text-terra underline">
+                <a href="/artist-agreement" target="_blank" className="font-medium text-terraText underline">
                   Artist Agreement (v{ARTIST_AGREEMENT_VERSION})
                 </a>{' '}
                 and anytime from your Studio. Your acceptance and its date are recorded.

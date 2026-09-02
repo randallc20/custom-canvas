@@ -111,7 +111,7 @@ export function CommissionUpdates({ commissionId, isArtist, canPost }: Commissio
               )}
               <div className="mt-2 flex items-center gap-3 text-xs text-muted">
                 <span>{formatTime(u.created_at)}</span>
-                {u.progress_percent != null && <span className="rounded-full bg-terraSoft px-2 py-0.5 text-terraDark">{u.progress_percent}%</span>}
+                {u.progress_percent != null && <span className="rounded-full bg-terraSoft px-2 py-0.5 text-terraText">{u.progress_percent}%</span>}
               </div>
             </li>
           ))}

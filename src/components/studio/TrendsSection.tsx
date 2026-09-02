@@ -59,7 +59,7 @@ function StatCard({ label, value, highlight }: { label: string; value: string; h
   return (
     <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
       <p className="text-sm text-muted">{label}</p>
-      <p className={`text-2xl font-bold ${highlight ? 'text-terra' : 'text-ink'}`}>
+      <p className={`text-2xl font-bold ${highlight ? 'text-terraText' : 'text-ink'}`}>
         {value}
       </p>
     </div>

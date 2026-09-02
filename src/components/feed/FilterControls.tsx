@@ -147,7 +147,7 @@ export function FilterControls({ filters, city, onFilterChange, layout }: Filter
         <button
           type="button"
           onClick={() => onFilterChange({ search: filters.search })}
-          className="text-left text-sm text-terra hover:underline"
+          className="text-left text-sm text-terraText hover:underline"
         >
           Clear filters
         </button>

@@ -3,19 +3,23 @@ import Image from 'next/image';
 import type { ArtistProfile } from '@/types/artist';
 
 interface ProfileCardProps {
-  artist: ArtistProfile;
+  /** The gallery page embeds the artist's profile row; the avatar lives there. */
+  artist: ArtistProfile & { profile?: { avatar_url: string | null } | null };
 }
 
 export function ProfileCard({ artist }: ProfileCardProps) {
+  // The banner is the wide header image, not a face — showing it here gave the
+  // same artist a different picture on every surface.
+  const avatarUrl = artist.profile?.avatar_url ?? null;
   return (
     <Link
       href={`/artist/${artist.slug}`}
       className="group block rounded-xl border border-line p-4 transition-shadow hover:shadow-md"
     >
       <div className="flex items-center gap-3">
-        {artist.banner_image_url ? (
+        {avatarUrl ? (
           <Image
-            src={artist.banner_image_url}
+            src={avatarUrl}
             alt={artist.display_name}
             width={48}
             height={48}
@@ -30,7 +34,7 @@ export function ProfileCard({ artist }: ProfileCardProps) {
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium text-ink group-hover:text-terra">
+          <p className="truncate font-medium text-ink group-hover:text-terraText">
             {artist.display_name}
           </p>
           {artist.neighborhood && (

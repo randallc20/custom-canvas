@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useUnread } from '@/context/UnreadContext';
@@ -12,6 +12,15 @@ export function Navbar() {
   const { user, signOut } = useAuth();
   const { unreadCount } = useUnread();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Escape closes the menu and leaves focus on the toggle, which is where a
+  // keyboard user opened it from.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [menuOpen]);
 
   return (
     <nav className="sticky top-0 z-40 border-b border-line bg-cream/85 backdrop-blur-md">
@@ -34,7 +43,7 @@ export function Navbar() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
                 {unreadCount > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-terra text-[10px] font-bold text-white">
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-terraText text-[10px] font-bold text-white">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -46,6 +55,8 @@ export function Navbar() {
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
                   aria-label="Account menu"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-sand text-sm font-medium text-ink transition-colors duration-150 hover:bg-line"
                 >
                   {user.full_name?.[0]?.toUpperCase() ?? user.email[0].toUpperCase()}
@@ -88,12 +99,12 @@ export function Navbar() {
             </>
           ) : (
             <>
-              <Link href="/login" className="text-sm font-medium text-ink transition-colors duration-150 hover:text-terraDark">
+              <Link href="/login" className="text-sm font-medium text-ink transition-colors duration-150 hover:text-terraTextDark">
                 Log In
               </Link>
               <Link
                 href="/register"
-                className="press rounded-full bg-terra px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-terraDark"
+                className="press rounded-full bg-terraText px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-terraTextDark"
               >
                 Sign Up
               </Link>
@@ -103,7 +114,8 @@ export function Navbar() {
 
         <button
           className="md:hidden"
-          aria-label="Menu"
+          aria-label={menuOpen ? 'Close menu' : 'Menu'}
+          aria-expanded={menuOpen}
           onClick={() => setMenuOpen(!menuOpen)}
         >
           <svg className="h-6 w-6 text-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -53,7 +53,7 @@ export default function StudioHomePage() {
         <div className="mb-6 rounded-xl border border-terra/30 bg-terraSoft/60 p-4">
           <p className="text-sm text-ink">
             Set up your Stripe account to start accepting payments.{' '}
-            <Link href="/studio/sales" className="font-medium text-terra underline">Connect now</Link>
+            <Link href="/studio/sales" className="font-medium text-terraText underline">Connect now</Link>
           </p>
         </div>
       )}

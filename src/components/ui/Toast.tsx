@@ -16,11 +16,14 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
+// White on sage (3.63) and white on yellow-500 (1.92) both failed AA; the two
+// tinted variants are dark-on-tint instead. Red-600/white is 4.83 and
+// ink/cream is 13.26, so those stay.
 const typeStyles: Record<ToastType, string> = {
-  success: 'bg-sage text-white',
+  success: 'bg-sageSoft text-sageText',
   error: 'bg-red-600 text-white',
   info: 'bg-ink text-cream',
-  warning: 'bg-yellow-500 text-white',
+  warning: 'bg-yellow-100 text-yellow-800',
 };
 
 const icons: Record<ToastType, string> = {

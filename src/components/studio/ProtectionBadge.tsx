@@ -69,7 +69,7 @@ export function ProtectionBadge({ order }: { order: Order }) {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-          covered ? 'bg-sage/15 text-sage hover:bg-sage/25' : 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/25'
+          covered ? 'bg-sage/15 text-sageText hover:bg-sage/25' : 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/25'
         }`}
       >
         <span aria-hidden="true">{covered ? '✓' : '!'}</span>

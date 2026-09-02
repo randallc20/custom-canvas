@@ -74,7 +74,7 @@ export function NeedsAttention({ artistId }: { artistId: string }) {
         {items.map((item) => (
           <li key={item.key} className="flex items-center justify-between gap-4 py-2">
             <span className="text-sm text-ink">{item.text}</span>
-            <Link href={item.href} className="whitespace-nowrap text-sm font-medium text-terra hover:text-terraDark">
+            <Link href={item.href} className="whitespace-nowrap text-sm font-medium text-terraText hover:text-terraTextDark">
               {item.cta} →
             </Link>
           </li>

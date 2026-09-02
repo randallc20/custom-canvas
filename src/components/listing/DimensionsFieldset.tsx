@@ -74,7 +74,7 @@ export function DimensionsFieldset({
               onClick={() => onSwitch(u)}
               aria-pressed={unit === u}
               className={`px-3 py-1 font-medium transition-colors ${
-                unit === u ? 'bg-terra text-white' : 'bg-surface text-muted hover:bg-sand/50'
+                unit === u ? 'bg-terraText text-white' : 'bg-surface text-muted hover:bg-sand/50'
               }`}
             >
               {u}

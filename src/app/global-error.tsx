@@ -22,7 +22,7 @@ export default function GlobalError({
           <p className="mb-4 text-sm text-muted">We&apos;ve been notified and are looking into it.</p>
           <button
             onClick={reset}
-            className="rounded-full bg-terra px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-terraDark"
+            className="rounded-full bg-terraText px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-terraTextDark"
           >
             Try again
           </button>

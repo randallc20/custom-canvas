@@ -26,7 +26,7 @@ export function StudioNav() {
               href={tab.href}
               className={`whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
                 active
-                  ? 'border-terra text-terra'
+                  ? 'border-terra text-terraText'
                   : 'border-transparent text-muted hover:text-ink'
               }`}
             >

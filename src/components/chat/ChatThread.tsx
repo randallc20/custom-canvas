@@ -86,7 +86,7 @@ export function ChatThread({ conversationId, otherPartnerType }: ChatThreadProps
             <button
               onClick={handleLoadMore}
               disabled={isFetchingNextPage}
-              className="text-sm text-terra hover:underline disabled:opacity-50"
+              className="text-sm text-terraText hover:underline disabled:opacity-50"
             >
               {isFetchingNextPage ? 'Loading...' : 'Load earlier messages'}
             </button>

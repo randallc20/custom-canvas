@@ -46,7 +46,7 @@ export function ArtistBrowseCard({ artist }: ArtistBrowseCardProps) {
         <div className="-mt-6 mb-2">
           <Avatar src={artist.avatar_url} alt={artist.display_name} size="lg" className="border-2 border-surface" />
         </div>
-        <p className="truncate font-medium text-ink group-hover:text-terra">{artist.display_name}</p>
+        <p className="truncate font-medium text-ink group-hover:text-terraText">{artist.display_name}</p>
         <p className="truncate text-sm text-muted">
           {[artist.city, artist.neighborhood].filter(Boolean).join(' · ') || 'Local artist'}
         </p>

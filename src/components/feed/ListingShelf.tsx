@@ -41,13 +41,13 @@ export function ListingShelf({ title, subtitle, listings, isLoading, eyebrow, hr
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
           {eyebrow && (
-            <p className="text-xs font-medium uppercase tracking-wide text-terra">{eyebrow}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-terraText">{eyebrow}</p>
           )}
           <h2 className="font-display text-2xl font-bold text-ink">{title}</h2>
           {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
         </div>
         {href && (
-          <Link href={href} className="whitespace-nowrap text-sm font-medium text-terra hover:text-terraDark">
+          <Link href={href} className="whitespace-nowrap text-sm font-medium text-terraText hover:text-terraTextDark">
             {hrefLabel ?? 'View'} →
           </Link>
         )}

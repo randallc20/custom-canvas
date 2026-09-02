@@ -52,7 +52,7 @@ export default function AboutPage() {
         <h2 className="text-xl font-semibold text-ink">Contact</h2>
         <p>
           Questions or feedback? Reach us at{' '}
-          <span className="font-medium text-terra">support@customcanvas.shop</span>
+          <span className="font-medium text-terraText">support@customcanvas.shop</span>
         </p>
       </div>
     </div>
