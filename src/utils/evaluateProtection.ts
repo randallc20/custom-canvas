@@ -121,9 +121,11 @@ export function evaluateProtection(input: ProtectionInput): ProtectionResult {
     failures.push('No supported carrier was recorded (USPS, UPS, FedEx or DHL).');
   }
 
-  // 3. Carrier confirmed delivery.
+  // 3. Delivery confirmed. At launch this is the artist's Mark Delivered
+  //    (server-stamped and frozen, 00050) — not a carrier scan. Ruling D1,
+  //    DECISIONS.md 2026-09-02; the wording must not claim the carrier did it.
   if (!input.deliveredAt) {
-    failures.push('Delivery was never confirmed.');
+    failures.push('The order was never marked delivered.');
   }
 
   // 4. Signature confirmation on high-value orders.

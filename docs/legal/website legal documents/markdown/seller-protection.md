@@ -5,6 +5,13 @@ of 2026-08-25; this is the artist-facing document for it, which does not yet exi
 
 ---
 
+**This policy is part of the Artist Agreement**, incorporated into §4 by reference and
+versioned with it. It is kept as a separate document because it decides who bears a
+chargeback, which is the single term most worth reading properly, and because it is the
+term most likely to change as the platform's evidence handling improves.
+
+---
+
 ## The principle
 
 Protection is a **bargain, not a benefit**. You bear a chargeback by default. Custom
@@ -21,14 +28,27 @@ An order is **Protected** when all of the following are true:
 1. **Shipped within 5 business days** of the sale
 2. A **tracking number** from **USPS, UPS, FedEx or DHL** recorded before you marked it
    shipped
-3. **Delivery confirmed** to the address on the Custom Canvas order
+3. **Delivery confirmed** to the address on the Custom Canvas order and recorded before
+   the dispute arrived
 4. **Signature confirmation** obtained, for orders of **$750 or more**
 5. Your listing carried **3+ photographs** and a description of **150+ characters** — as
    measured *at the time of sale*
-6. **No buyer message left unanswered** for more than 3 business days
+6. **No buyer message about the order left unanswered** for more than 3 business days,
+   between the sale and confirmed delivery and for any later message about that order
 
-**Local pickup** is Protected only when both parties confirm handoff in the Custom
-Canvas message thread.
+**Two limits to know about before you rely on this:**
+
+**Delivery confirmation is your attestation, not the carrier's.** We do not yet read
+tracking from carrier APIs, so marking an order delivered is something you record. It
+still has to be true. A false attestation is a breach of the Artist Agreement and
+forfeits protection. Carrier verification is coming, and we will tell you before it
+changes.
+
+**Local pickup is not eligible today.** The rule is that pickup is Protected when both
+parties confirm handoff in the message thread, but **that confirmation feature is not
+built yet**, so pickup orders currently evaluate as unprotected. Until it ships, treat
+a pickup sale as carrying its own risk, and still get the buyer to confirm the handoff
+in writing in the thread. It remains the best evidence available to you.
 
 ## Why each requirement exists
 
@@ -74,9 +94,22 @@ A reversal can push your Stripe balance negative. That is why payouts run on a 1
 delay — so the money is usually still in your Stripe balance rather than already spent
 out of your bank account.
 
+**If your balance will not cover a reversal**, the shortfall is a debt to Custom Canvas
+and we recover it by setting it off against your future payouts. We will tell you the
+amount and how it is being recovered. We may also hold a payout or place a reserve
+while we investigate a dispute or a claim about a piece, for no longer than the
+investigation reasonably needs. See Artist Agreement §4.
+
 ## What this does not cover
 
 Protection covers **card chargebacks**. It is not shipping insurance, and it does not
-cover a piece lost or damaged in transit — insure your shipments.
+cover a piece lost or damaged in transit — insure your shipments, and note that risk of
+loss sits with you until delivery under Artist Agreement §7.
+
+It also does not cover a refund you approved yourself, a refund we make because a piece
+was never shipped, or one we make because we substantiated that a piece arrived damaged
+or was materially not as your listing described it. Protection is about defending
+against a bank; it is not a guarantee against the consequences of a sale that went
+wrong.
 
 *Questions: support@customcanvas.shop*

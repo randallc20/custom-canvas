@@ -7,6 +7,7 @@ import {
   pickupHandoffConfirmed,
   MIN_EVIDENCE_PHOTOS,
   DEFAULT_FULFILLMENT_WINDOW_DAYS,
+  REPLY_WINDOW_BUSINESS_DAYS,
 } from '@/utils/evaluateProtection';
 
 // Shows the artist where they stand BEFORE a dispute exists — the whole point
@@ -45,8 +46,11 @@ export function ProtectionBadge({ order }: { order: Order }) {
     evidencePhotoCount: order.evidence_photo_count ?? 0,
     evidenceHasConditionNotes: !!order.evidence_has_condition_notes,
     fulfillmentWindowDays: order.fulfillment_window_days ?? DEFAULT_FULFILLMENT_WINDOW_DAYS,
-    // Not measurable in the browser; the server checks it for real at dispute
-    // time. Shown optimistically here rather than alarming artists who replied.
+    // Not measurable in the browser; the webhook checks it for real at dispute
+    // time from the message history (utils/artistRepliedInTime). Shown
+    // optimistically here rather than alarming artists who replied — and the
+    // copy below says so, so "Protected" is never read as a promise about a
+    // requirement this badge cannot see.
     artistRepliedWithinWindow: true,
   });
 
@@ -83,7 +87,7 @@ export function ProtectionBadge({ order }: { order: Order }) {
             <p className="text-muted">
               {settled
                 ? 'This order met every requirement, so Custom Canvas absorbed the chargeback and your payout was not touched.'
-                : 'This order meets every requirement. If the buyer disputes the charge, Custom Canvas covers it and your payout is not affected.'}
+                : `This order meets every requirement we can check here. If the buyer disputes the charge, Custom Canvas covers it and your payout is not affected — provided you also replied to the buyer's messages within ${REPLY_WINDOW_BUSINESS_DAYS} business days, which is confirmed from your message history at dispute time.`}
             </p>
           ) : (
             <>

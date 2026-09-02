@@ -66,6 +66,20 @@ payout is reversed exactly, and the platform returns its commission.
 A never-shipped piece returns to the market automatically; a shipped or delivered
 piece does not — it stays sold and the artist relists by hand if the work comes back.
 
+**Three gaps between this flow and the drafts, all requiring code changes before the
+corresponding document is published:**
+
+1. **There is no non-delivery path.** If an artist simply never ships, nothing in the
+   product cancels the order or refunds the buyer without the artist's approval. The
+   buyer's only remedy today is a chargeback. The drafts give buyers a cancellation
+   right when the 5-business-day window is missed and give Custom Canvas the power to
+   refund an abandoned order unilaterally.
+2. **The service fee is retained on every refund**, including where the platform itself
+   substantiates that a piece was damaged, misdescribed or never sent. The drafts refund
+   it in those cases and retain it only on change-of-mind refunds.
+3. **The 5-business-day window is a promise, not a right.** It is displayed on every
+   listing, which is what makes the FTC's mail-order rule bite; see question 9 below.
+
 ## 4. Seller protection — built 2026-08-25, currently undocumented to artists
 
 The platform now decides, per order, whether the artist or Custom Canvas bears a
@@ -173,4 +187,53 @@ database level and are not readable by other users.
 7. **Authenticity.** Nothing currently defines "original", or governs prints, editions
    or reproductions. This is where "not as described" disputes originate.
 8. **Insurance and risk of loss.** No document states when title and risk pass, who
-   insures a piece in transit, or who bears a damage claim.
+   insures a piece in transit, or who bears a damage claim. The drafts place risk on the
+   artist until delivery, which is stricter than the default rule for shipment
+   contracts. Note also that the v1.0 obligation to insure "for at least the artwork
+   price" is not performable at higher values: the major carriers restrict or exclude
+   cover on one-of-a-kind artwork well below the price of a significant piece, so the
+   drafts require insurance to the extent cover is available and push higher-value work
+   to a fine-art shipper.
+
+### Added in this revision
+
+9. **FTC Mail, Internet, or Telephone Order Merchandise Rule (16 C.F.R. pt. 435).**
+   Every listing displays a 5-business-day shipping window, and Custom Canvas is the
+   merchant of record. That appears to make the window the "promised time" under the
+   rule, which requires a seller who cannot meet it to obtain the buyer's consent to a
+   revised date or issue a prompt refund. The live product treats a late shipment as a
+   conversation between buyer and artist. The drafts convert it into a buyer-side
+   cancellation right. **This is the largest compliance gap in the set and it needs a
+   code change, not only a document change.**
+10. **Merchant of record versus the warranty disclaimer.** We are the buyer's
+    counterparty for the goods and simultaneously disclaim every warranty about them.
+    Is the DTPA exposure adequately mitigated by the substantiated-misdescription refund
+    promise, or should the structure change so the artist is seller of record for the
+    goods while Custom Canvas remains merchant of record for payment only?
+11. **Minors.** v1.0 allowed 13-year-old account holders. The drafts raise the minimum
+    to 18 for all accounts. Confirm, and confirm the Texas SCOPE Act analysis: if
+    under-18 accounts are permitted, the platform knowingly hosts minors and inherits
+    duties it has built nothing to satisfy.
+12. **Service fee characterisation.** The fee is framed as a service fee applying to all
+    orders rather than a card surcharge, which is what keeps it clear of the surcharge
+    rules and the prohibition on surcharging debit. Today every payment method is a
+    card, so the framing is untested. Confirm it holds, and confirm the fee must extend
+    to any non-card method added later.
+13. **1099-K filing responsibility.** Charges are created on the Custom Canvas account
+    and transferred out. Is Custom Canvas the payment settlement entity for these
+    transactions rather than a beneficiary of Stripe's filing? Confirm in writing with
+    Stripe and reflect whoever it is in Artist Agreement §9.
+14. **Recovering a negative balance.** Nothing in v1.0 lets Custom Canvas recover a
+    reversed payout once the artist's Stripe balance is empty. The drafts add a set-off
+    right against future payouts and a right to hold payouts or place a reserve pending
+    investigation. Confirm the drafting and whether notice or a cap is needed.
+15. **Seller protection promises a benefit the platform cannot yet deliver.** The
+    artist-facing document says local pickup is protected on confirmed handoff, but the
+    confirmation mechanism does not exist, so every pickup order evaluates as
+    unprotected. The drafts say so explicitly. Separately, delivery confirmation is
+    artist-attested rather than carrier-verified, and the drafts now disclose that too.
+    Both disclosures are commercially unwelcome and legally necessary.
+16. **Arbitration reaching buyers.** The Terms of Sale is the document accepted at
+    checkout and contained no dispute-resolution provision. The drafts add an express
+    incorporation of ToS §15. Confirm that incorporation binds a buyer who accepts only
+    the Terms of Sale at the Pay button.

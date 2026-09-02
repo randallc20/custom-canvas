@@ -1,8 +1,9 @@
 # Custom Canvas Privacy Policy
 
-**DRAFT v2 — complete draft for counsel review.** Rewritten 2026-08-25 against the actual code: the
+**DRAFT v3 — complete draft for counsel review.** Rewritten 2026-08-25 against the actual code: the
 previous version named three processors where the platform uses eight, and omitted
-geolocation entirely.
+geolocation entirely. The separate Cookie Policy is now §10 of this document, next to
+the processor table it describes.
 
 Custom Canvas LLC · 3120 Southwest Freeway, Ste 101 #991985, Houston TX 77098
 support@customcanvas.shop · Last updated: [DATE]
@@ -129,6 +130,14 @@ sell personal data at all.
 and we would rather not rebuild our practices the day we outgrow the exemption. Write to
 support@customcanvas.shop.
 
+**If we turn a request down**, we will tell you why within 45 days, and you may **appeal**
+by replying to that decision. We will answer an appeal within 60 days, and if we refuse
+it again we will tell you how to complain to the **Texas Attorney General**.
+
+**Browser signals.** Where your browser sends a Global Privacy Control signal, we treat
+it as an opt-out of any sale or sharing of personal data. We do not sell or share
+personal data in any case.
+
 **California residents.** We do not currently meet the CCPA/CPRA applicability
 thresholds. We extend the same rights described above to California residents
 voluntarily, and we do not sell or share personal data for cross-context behavioural
@@ -150,25 +159,61 @@ provider. Rate limiting and CAPTCHA on sensitive endpoints.
 No system is perfectly secure, and we will not claim otherwise.
 
 **If a breach affects your personal data**, we will notify you without unreasonable
-delay once we have determined what happened and what data was involved. Texas law
-requires notification to affected individuals **within 60 days** of determining that a
-breach occurred, and requires us to notify the Texas Attorney General where more than
-250 Texas residents are affected. We will meet those obligations and aim to tell you
-sooner where we can do so usefully.
+delay once we have determined what happened and what data was involved. Texas law sets
+two different deadlines, and they are easy to confuse: affected individuals must be
+notified **within 60 days** of determining that a breach occurred, while the **Texas
+Attorney General must be notified within 30 days** where **250 or more** Texas residents
+are affected. We will meet both and aim to tell you sooner where we can do so
+usefully.
 
 Our notice will describe what happened, what data was involved, what we have done, and
 what you can do.
 
-*[Counsel: confirm the 60-day figure and the AG-notification threshold against the
-current text of Tex. Bus. & Com. Code §521.053.]*
+*[Counsel: confirm both deadlines and the threshold against the current text of Tex.
+Bus. & Com. Code §521.053. The previous draft gave 60 days for both and described the
+threshold as "more than 250"; the AG deadline was shortened to 30 days by amendment and
+the threshold is expressed as "at or over" 250. Worth being exact: these are the two
+numbers someone will be reading off this page at the worst possible moment.]*
 
-## 9. Children
+## 9. Age
 
-Custom Canvas is not for children under 13, and we do not knowingly collect their
-information. If you believe a child has given us information, write to us and we will
-delete it.
+You must be **18 or over** to hold a Custom Canvas account, whether you buy or sell.
+We do not knowingly collect personal information from anyone under 18. If we learn that
+an account holder is under 18 we close the account and delete the information, and if
+you believe a minor has given us information, write to us and we will do the same.
 
-## 10. Changes
+*[Counsel: this follows the change to Terms of Service §2. If you overrule that change
+and the account minimum stays at 13, this section has to come back to a COPPA-shaped
+under-13 clause and the Texas SCOPE Act analysis becomes live.]*
+
+## 10. Cookies and similar technologies
+
+**Strictly necessary.** Sign-in and session cookies, set by our authentication provider,
+that keep you logged in and secure your session. Security cookies set by Cloudflare
+Turnstile when you sign up or sign in. Without these the site cannot work.
+
+**Preferences.** Your chosen community (city) and your acknowledgement of the cookie
+banner are stored in your browser's **local storage**, not sent to us. Clearing your
+browser data resets them.
+
+**Analytics — and these set no cookies.** Vercel Web Analytics and Speed Insights record
+aggregate usage and page-performance data. They are **cookieless**: visitors are counted
+using a hash derived from the request rather than a stored identifier, no personally
+identifying information is collected, and nothing tracks you across other websites.
+
+**We use no advertising or cross-site tracking cookies**, and no third-party advertising
+networks.
+
+**Your choices.** Most browsers let you refuse or delete cookies. Refusing strictly
+necessary cookies will prevent you from signing in.
+
+*[Counsel: because the only cookies we set are strictly necessary — session
+authentication and the sign-in CAPTCHA — and analytics is cookieless, the consent banner
+currently shown may not be required at all. Worth confirming: an unnecessary banner is
+friction on every first visit, and a banner that implies choices it does not actually
+offer is its own small problem.]*
+
+## 11. Changes
 
 We will post any update here and change the date above. Material changes will be
 notified.

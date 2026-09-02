@@ -1,7 +1,11 @@
 # Custom Canvas Terms of Service
 
-**DRAFT v2 — complete draft for counsel review.** Governs *use of the site*. Purchases are governed by
-the separate **Terms of Sale**; selling is governed by the **Artist Agreement**.
+**DRAFT v3 — complete draft for counsel review.** Governs *use of the site*. Purchases are governed by
+the separate **Terms of Sale**; selling is governed by the **Artist Agreement**. The
+conduct rules formerly kept in a separate Community Guidelines document are now stated
+here, in §6, §8 and §9, so that they are binding rather than advisory. A plain-language
+Community Guidelines help page will summarise them and will say expressly that these
+Terms control.
 
 Custom Canvas LLC, a Texas limited liability company. Last updated: [DATE].
 
@@ -14,12 +18,23 @@ the platform. If you use it on behalf of an organisation, you confirm you may bi
 
 ## 2. Who may use Custom Canvas
 
-You must be **at least 18** to sell. You must be at least 13 to hold an account; if you
-are under 18 you may use the platform only with a parent or guardian's involvement, and
-purchases must be made by an adult.
+You must be **at least 18** to hold an account, whether you buy or sell. Anyone under
+18 may browse Custom Canvas, but may not register, message an artist, buy, sell or post
+a review. If we learn an account holder is under 18 we close the account and delete the
+information we hold.
 
-Custom Canvas is intended for buyers and sellers in the **United States**. We do not
-knowingly collect information from children under 13; if we learn we have, we delete it.
+Custom Canvas is intended for buyers and sellers in the **United States**.
+
+*[Counsel: v1.0 set the account minimum at 13 with a parental-involvement caveat.
+Raising it to 18 is recommended for three reasons. Accounts are contractual: a minor's
+purchase is voidable, and this platform sells one-of-a-kind objects that ship
+immediately. The platform pairs private messaging with adults selling to strangers, and
+a 13-year-old account holder is the population that makes that a safeguarding question
+rather than a product question. And Texas's SCOPE Act imposes duties on digital service
+providers that know they host minors, including parental-consent and data-use
+obligations that this platform has built nothing to satisfy. An 18+ rule removes all
+three at the cost of a user group the business does not currently want. Confirm, and
+confirm the SCOPE Act analysis against its current text and any pending litigation.]*
 
 ## 3. Accounts
 
@@ -36,7 +51,7 @@ shipment are the artist's.
 
 We review artists before their shops go live. **That review is not an authentication
 service.** We do not appraise, authenticate, or independently verify any work. See the
-Authenticity & Provenance Policy for what we do and do not check.
+**Listing Standards** for what we do and do not check.
 
 Commissioned work arranged through Custom Canvas is an agreement **between the buyer and
 the artist**. We provide the messaging and, where applicable, payment; we are not a
@@ -61,14 +76,27 @@ Do not:
 
 - Infringe copyright, trademark, publicity or moral rights
 - List forgeries, reproductions passed off as originals, stolen or misattributed work,
-  or anything else in the Prohibited & Restricted Items Policy
+  or anything else prohibited by the **Listing Standards**
 - Misrepresent a work's authorship, medium, age, edition, condition or provenance
 - Harass, threaten, defraud, spam or impersonate anyone
-- Transact off-platform to avoid commission on a relationship formed here
+- Transact off-platform to avoid commission on a relationship formed here. **Commissioned
+  work is excluded from this**: at launch, commissions are arranged and paid off-platform
+  by design (see §4 and the Terms of Sale §8)
 - Scrape, reverse-engineer, probe or overload the platform, or evade rate limits
 - Manipulate reviews, saves, follows or search ranking
+- Post images that are not of your own work, or stock photography presented as your work
+- Use Messages for unsolicited marketing or chain messages
 
-We may remove content and suspend accounts for breach. Where practical we explain why.
+**Sexual content involving a minor** means immediate account closure, a report to the
+**National Center for Missing & Exploited Children**, which we are required by federal
+law to make, and a report to law enforcement. There is no warning and no appeal.
+
+Disagreements about a sale are normal; contempt is not. Depending on severity we remove
+content, warn, suspend a shop, or close an account. Where practical we explain why and
+give you a chance to respond. Illegal activity is reported.
+
+**Reporting.** Report a message or a listing from the item itself, or write to
+support@customcanvas.shop. Tell us what you saw and where.
 
 ## 7. Copyright — DMCA
 
@@ -78,22 +106,41 @@ counter-notice, and for our designated agent's contact details.
 
 ## 8. Reviews
 
-Only a buyer with a **delivered** order may review it, once. Reviews must be honest
-first-hand experience. We remove reviews that are fake, incentivised, defamatory,
-or contain personal information — but we do not remove a review merely because an
+Only a buyer with a **delivered** order may review it, once. Reviews must be honest,
+first-hand, and about the work and the transaction.
+
+Do not write or solicit fake reviews, offer anything in exchange for a review, or review
+your own work or a competitor's.
+
+We remove reviews that are fake, incentivised, defamatory, or contain someone's personal
+information. **We do not remove a review simply because it is negative**, or because an
 artist dislikes it.
 
 ## 9. Messaging
 
 Messages between buyers and artists are private to those two parties, except that we
-may access them to investigate a report, a dispute, or a legal obligation. You may
-block another user; blocking stops them contacting you.
+may access them to investigate a report, a dispute, or a legal obligation.
+
+Messages are for talking about art, commissions and orders. Do not use them for
+unsolicited marketing, chain messages, or to push a buyer off-platform to avoid
+commission on a relationship formed here. **Commissions are the exception** and are
+arranged off-platform at launch by design.
+
+You may **block** another user. Blocking stops them contacting you.
 
 ## 10. Fees
 
-Buyers pay a **service fee** covering card processing, disclosed before payment. Artists
-pay a commission under the Artist Agreement. Fees may change on notice; a change never
-applies retroactively to a completed sale.
+Buyers pay a **service fee** covering card processing, disclosed as its own line before
+payment. It is calculated as just under 3% of the artwork price plus shipping, plus a
+small fixed amount per order, and it applies to every order regardless of payment
+method. Artists pay a commission under the Artist Agreement. Fees may change on notice;
+a change never applies retroactively to a completed sale.
+
+*[Counsel: the fee is deliberately structured as a service fee applying to all orders
+rather than as a card surcharge, which is what keeps it out of the surcharge rules and
+the network prohibition on surcharging debit. That framing only holds if the fee really
+does apply to every order. If a non-card payment method is ever added, the fee must
+apply to it too, or the characterisation fails retroactively.]*
 
 ## 11. Availability
 
@@ -118,6 +165,18 @@ warrant that the platform will be uninterrupted, secure or error-free.
 not appraise, authenticate or independently verify any piece. We make **no warranty
 about any artwork's authenticity, attribution, condition, value or provenance.** Your
 rights as a buyer come from the Terms of Sale and from law, not from this section.
+
+*[Counsel: this is the sharpest tension in the document set and needs your eye
+specifically. Custom Canvas is the merchant of record, so the buyer's contract for the
+goods is with us, and here we disclaim every warranty about the goods. A disclaimer of
+implied warranties can be drafted to hold (this one is conspicuous and names
+merchantability, per UCC §2-316), but a disclaimer does not answer a Texas DTPA claim
+built on a representation about the work, and the listing text we host is arguably
+ours to answer for as merchant of record. The mitigation already in the drafts is the
+promise to refund a substantiated misdescription regardless of what the artist wants,
+which converts a warranty fight into a refund. Confirm that is enough, or tell us to
+restructure so the artist is the seller of record for the goods while we remain the
+merchant of record for payment.]*
 
 **13.3 Exclusions.** To the fullest extent permitted by law, Custom Canvas is not liable
 for indirect, incidental, special, consequential, exemplary or punitive damages, or for

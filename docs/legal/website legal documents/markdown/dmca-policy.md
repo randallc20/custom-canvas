@@ -39,6 +39,11 @@ Custom Canvas LLC
 3120 Southwest Freeway, Ste 101 #991985, Houston TX 77098
 [AGENT EMAIL]
 
+These details must match, word for word, what is filed in the Copyright Office's online
+directory. A mismatch between the registered record and the published page is a common
+way for a safe-harbor defence to fail on a technicality. Whoever updates one updates the
+other.
+
 **Misuse warning.** Knowingly misrepresenting that material is infringing can make you
 liable for damages, including costs and legal fees, under 17 U.S.C. §512(f).
 
@@ -81,10 +86,11 @@ assessing a repeat-infringer policy. Confirm the threshold and, more importantly
 confirm we will actually apply it as written — an unapplied policy is worse than a
 lenient one.]*
 
-## Not a substitute for the Authenticity Policy
+## Not a substitute for the Listing Standards
 
-A DMCA notice addresses **copyright**. Claims that a work is **forged, misattributed or
-misdescribed** are handled under the Authenticity & Provenance Policy — different
-problem, different process.
+A DMCA notice addresses **copyright**: who owns an image. Claims that a work is
+**forged, misattributed or misdescribed** address whether a piece is what it claims to
+be, and are handled under the **Listing Standards**. Different problem, different
+process.
 
 *Questions: support@customcanvas.shop*

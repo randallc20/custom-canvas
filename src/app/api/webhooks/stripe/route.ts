@@ -1,62 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
+import type Stripe from 'stripe';
 import { getStripe, STRIPE_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET } from '@/lib/stripe';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { buildOrderRecord } from '@/utils/orderRecord';
-import { pickupHandoffConfirmed, evaluateProtection, ProtectionInput } from '@/utils/evaluateProtection';
+import {
+  pickupHandoffConfirmed,
+  evaluateProtection,
+  ProtectionInput,
+  REPLY_WINDOW_BUSINESS_DAYS,
+} from '@/utils/evaluateProtection';
+import { artistRepliedInTime } from '@/utils/artistRepliedInTime';
+import { selectDisputeOpenAction, selectDisputeCloseOutcome } from '@/utils/disputeOutcome';
 import { sendOrderConfirmationEmail, sendNewSaleEmail } from '@/services/email';
 import { formatPrice } from '@/utils/formatPrice';
 
 
 type AdminClient = ReturnType<typeof createAdminSupabaseClient>;
+type OrderRecord = NonNullable<ReturnType<typeof buildOrderRecord>>;
 
-// Requirement 6 needs the message history. Conversations are keyed by
-// listing/commission, not by order, so we look at the buyer<->artist thread
-// for this order's listing. No buyer messages at all means there was nothing
-// to answer -- that must not fail the artist. Either party may be NULL once
-// their account is deleted (00049): their thread cascaded away with them, so
-// there is nothing left to judge and the artist is not failed for it.
-async function artistRepliedInTime(
+/** Non-2xx so Stripe redelivers. 500 = our write failed; 409 = the row this
+ *  event belongs to does not exist YET (retry after checkout.session.completed
+ *  has created it). Every state write in this file goes through here on
+ *  failure — a 200 over a failed write is an event Stripe never resends. */
+function retryLater(message: string, status: 500 | 409 = 500) {
+  return NextResponse.json({ error: message }, { status });
+}
+
+// Requirement 6 needs the message history. Conversations are keyed by the
+// participant pair, not by order or listing (findOrCreateConversation matches
+// on participants only, and the pickup branch below reuses any thread between
+// the two), so the buyer<->artist thread is found the same way here. Only
+// messages written after the order exists count; the rule itself lives in
+// utils/artistRepliedInTime so the money tests can pin it. Read failures
+// degrade to "replied" — the lenient direction.
+async function artistRepliedInTimeForOrder(
   supabase: AdminClient,
-  order: { listing_id: string | null; buyer_id: string | null; artist_id: string | null },
-  windowBusinessDays: number
+  order: { buyer_id: string | null; artist_id: string | null; created_at: string }
 ): Promise<boolean> {
-  if (!order.buyer_id || !order.artist_id || !order.listing_id) return true;
+  // Either party may be NULL once their account is deleted (00049): their
+  // thread cascaded away with them, so there is nothing to judge.
+  if (!order.buyer_id || !order.artist_id) return true;
   const { data: artist } = await supabase
     .from('artist_profiles').select('profile_id').eq('id', order.artist_id).maybeSingle();
-  if (!artist?.profile_id) return true;
+  const artistUserId = artist?.profile_id as string | undefined;
+  if (!artistUserId) return true;
 
-  const { data: convo } = await supabase
+  const { data: convos } = await supabase
     .from('conversations')
     .select('id')
-    .eq('context_type', 'listing')
-    .eq('context_id', order.listing_id)
-    .or(`and(participant_one.eq.${order.buyer_id},participant_two.eq.${artist.profile_id}),and(participant_one.eq.${artist.profile_id},participant_two.eq.${order.buyer_id})`)
-    .maybeSingle();
-  if (!convo) return true;
+    .or(`and(participant_one.eq.${order.buyer_id},participant_two.eq.${artistUserId}),and(participant_one.eq.${artistUserId},participant_two.eq.${order.buyer_id})`);
+  const convoIds = (convos ?? []).map((c) => c.id as string);
+  if (!convoIds.length) return true;
 
   const { data: msgs } = await supabase
     .from('messages')
     .select('sender_id, created_at')
-    .eq('conversation_id', convo.id)
+    .in('conversation_id', convoIds)
+    .gt('created_at', order.created_at)
     .order('created_at', { ascending: true });
-  if (!msgs?.length) return true;
 
-  const { businessDaysBetween } = await import('@/utils/evaluateProtection');
-  let awaitingSince: string | null = null;
-  for (const m of msgs) {
-    if (m.sender_id === order.buyer_id) {
-      if (!awaitingSince) awaitingSince = m.created_at as string;
-    } else if (m.sender_id === artist.profile_id && awaitingSince) {
-      if (businessDaysBetween(awaitingSince, m.created_at as string) > windowBusinessDays) return false;
-      awaitingSince = null;
-    }
-  }
-  // Still awaiting a reply right now: only a failure once the window is past.
-  if (awaitingSince) {
-    return businessDaysBetween(awaitingSince, new Date().toISOString()) <= windowBusinessDays;
-  }
-  return true;
+  return artistRepliedInTime((msgs ?? []) as { sender_id: string; created_at: string }[], {
+    buyerId: order.buyer_id,
+    artistUserId,
+    orderCreatedAt: order.created_at,
+    windowBusinessDays: REPLY_WINDOW_BUSINESS_DAYS,
+  });
 }
 
 async function assessProtection(supabase: AdminClient, orderId: string) {
@@ -84,13 +93,117 @@ async function assessProtection(supabase: AdminClient, orderId: string) {
     evidencePhotoCount: (o.evidence_photo_count as number) ?? 0,
     evidenceHasConditionNotes: !!o.evidence_has_condition_notes,
     fulfillmentWindowDays: (o.fulfillment_window_days as number) ?? 5,
-    artistRepliedWithinWindow: await artistRepliedInTime(
-      supabase,
-      { listing_id: o.listing_id as string | null, buyer_id: o.buyer_id as string | null, artist_id: o.artist_id as string | null },
-      (o.fulfillment_window_days as number) ?? 5
-    ),
+    artistRepliedWithinWindow: await artistRepliedInTimeForOrder(supabase, {
+      buyer_id: o.buyer_id as string | null,
+      artist_id: o.artist_id as string | null,
+      created_at: o.created_at as string,
+    }),
   };
   return evaluateProtection(input);
+}
+
+async function adminIds(supabase: AdminClient): Promise<string[]> {
+  const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+  return (admins ?? []).map((a) => a.id as string);
+}
+
+// Everything that follows a successful order insert: the listing leaves the
+// market, the parties are emailed, the artist gets the in-app sale. Factored
+// out because a redelivery must be able to RESUME it — a first delivery that
+// died between the insert and these steps (function timeout) used to leave
+// the listing available and nobody emailed, and the retry short-circuited on
+// "already recorded". Returns a response only on a failure Stripe must retry.
+async function completeSale(
+  supabase: AdminClient,
+  args: {
+    session: Stripe.Checkout.Session;
+    listingId: string;
+    listingTitle: string;
+    artistId: string;
+    order: OrderRecord;
+    orderId: string;
+  }
+): Promise<NextResponse | null> {
+  const { session, listingId, listingTitle, artistId, order, orderId } = args;
+
+  const { error: soldError } = await supabase
+    .from('listings')
+    .update({ status: 'sold', sold_price_cents: order.amount_cents })
+    .eq('id', listingId);
+  if (soldError) {
+    Sentry.captureException(new Error(`Listing ${listingId} sold-update failed for order ${orderId}: ${soldError.message}`));
+    return retryLater('Listing sold-update failed');
+  }
+
+  const [{ data: buyer }, { data: artistProf }] = await Promise.all([
+    supabase.from('profiles').select('email, full_name').eq('id', order.buyer_id).single(),
+    supabase.from('artist_profiles').select('display_name, profile_id, profile:profiles!artist_profiles_profile_id_fkey(email)').eq('id', artistId).single(),
+  ]);
+
+  // Local pickup: open/find the buyer↔artist thread and post a system
+  // note so they can coordinate handoff.
+  if (session.metadata?.pickup === 'true' && artistProf?.profile_id) {
+    const artistUserId = artistProf.profile_id as string;
+    const { data: existingConv } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`and(participant_one.eq.${order.buyer_id},participant_two.eq.${artistUserId}),and(participant_one.eq.${artistUserId},participant_two.eq.${order.buyer_id})`)
+      .limit(1)
+      .maybeSingle();
+    let convId = existingConv?.id;
+    if (!convId) {
+      const { data: newConv } = await supabase
+        .from('conversations')
+        .insert({ participant_one: order.buyer_id, participant_two: artistUserId, context_type: 'listing', context_id: listingId })
+        .select('id')
+        .single();
+      convId = newConv?.id;
+    }
+    if (convId) {
+      await supabase.from('messages').insert({
+        conversation_id: convId,
+        sender_id: artistUserId,
+        content: `Order for "${listingTitle}" is ready to coordinate for local pickup.`,
+        message_type: 'system',
+      });
+      await supabase.from('conversations').update({ last_message_text: 'Pickup coordination', last_message_at: new Date().toISOString() }).eq('id', convId);
+    }
+  }
+
+  if (buyer?.email) {
+    sendOrderConfirmationEmail(
+      buyer.email,
+      buyer.full_name ?? 'Collector',
+      listingTitle,
+      formatPrice(session.amount_total ?? (order.amount_cents + order.buyer_fee_cents + order.shipping_cents)),
+      orderId,
+      artistProf?.display_name ?? 'a Custom Canvas artist'
+    ).catch(() => {});
+  }
+
+  const artistEmail = (artistProf?.profile as unknown as { email: string } | null)?.email;
+  if (artistProf && artistEmail) {
+    sendNewSaleEmail(
+      artistEmail,
+      artistProf.display_name,
+      listingTitle,
+      formatPrice(order.amount_cents),
+      formatPrice(order.artist_payout_cents)
+    ).catch(() => {});
+  }
+
+  // In-app sale notification — the 'new_order' type existed but was
+  // never wired here (artists only got the email + Studio queue).
+  if (artistProf?.profile_id) {
+    await supabase.from('notifications').insert({
+      user_id: artistProf.profile_id,
+      type: 'new_order',
+      title: 'New sale',
+      body: `"${listingTitle}" just sold for ${formatPrice(order.amount_cents)}.`,
+      link: '/studio/sales',
+    });
+  }
+  return null;
 }
 
 export async function POST(request: NextRequest) {
@@ -144,20 +257,48 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      // Stripe delivers at-least-once: bail out if this payment was already
-      // recorded (also enforced by the DB unique constraint below).
-      const { data: existingOrder } = await supabase
-        .from('orders')
-        .select('id')
-        .eq('stripe_payment_intent_id', paymentIntentId)
-        .maybeSingle();
-      if (existingOrder) break;
-
       const { data: listing } = await supabase
         .from('listings')
         .select('*, artist:artist_profiles(id)')
         .eq('id', listingId)
         .single();
+
+      // Stripe delivers at-least-once. An already-recorded payment is a
+      // redelivery — but if the listing is still on the market the first
+      // delivery died before completeSale ran, so resume it (the listing's
+      // status is the idempotent check: sold means the steps happened).
+      const resumeIfIncomplete = async (orderId: string): Promise<NextResponse | null> => {
+        const { data: fresh } = await supabase
+          .from('listings').select('status').eq('id', listingId).single();
+        if (!listing || fresh?.status !== 'available') return null;
+        const artistObj = listing.artist as unknown as { id: string };
+        const order = buildOrderRecord(
+          {
+            payment_intent: paymentIntentId,
+            metadata: session.metadata,
+            total_details: session.total_details,
+            collected_information: session.collected_information,
+          },
+          artistObj.id
+        );
+        if (!order) return null;
+        Sentry.captureMessage(`Resuming post-insert steps for order ${orderId} (${paymentIntentId})`, 'warning');
+        return completeSale(supabase, {
+          session, listingId, listingTitle: listing.title, artistId: artistObj.id, order, orderId,
+        });
+      };
+
+      const { data: existingOrder } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('stripe_payment_intent_id', paymentIntentId)
+        .maybeSingle();
+      if (existingOrder) {
+        const failed = await resumeIfIncomplete(existingOrder.id);
+        if (failed) return failed;
+        break;
+      }
+
       if (!listing) {
         // The listing row vanished between session creation and webhook
         // delivery (artist/admin deleted it). The buyer HAS been charged and
@@ -167,7 +308,7 @@ export async function POST(request: NextRequest) {
         Sentry.captureException(
           new Error(`Paid session ${paymentIntentId} for missing listing ${listingId} — orphaned charge`)
         );
-        return NextResponse.json({ error: 'Listing missing for paid session' }, { status: 500 });
+        return retryLater('Listing missing for paid session');
       }
 
       const artistObj = listing.artist as unknown as { id: string };
@@ -184,7 +325,7 @@ export async function POST(request: NextRequest) {
         // Money metadata missing — never fabricate amounts and never ack a
         // paid session silently. 500 → Stripe retries and Sentry screams.
         Sentry.captureException(new Error(`Unbuildable order for paid session ${paymentIntentId}`));
-        return NextResponse.json({ error: 'Order metadata missing' }, { status: 500 });
+        return retryLater('Order metadata missing');
       }
 
       // Claim the listing with a live order. The partial unique index
@@ -204,7 +345,11 @@ export async function POST(request: NextRequest) {
             .select('id')
             .eq('stripe_payment_intent_id', paymentIntentId)
             .maybeSingle();
-          if (samePayment) break; // redelivery — already handled
+          if (samePayment) {
+            const failed = await resumeIfIncomplete(samePayment.id);
+            if (failed) return failed;
+            break; // redelivery — already handled
+          }
 
           // Oversell: refund this buyer and reverse the artist transfer.
           try {
@@ -217,9 +362,11 @@ export async function POST(request: NextRequest) {
             // Do NOT ack: Stripe retries the event, the insert 23505s again,
             // and we re-attempt the refund. Acking here would record a
             // "refunded" order for money the buyer never got back.
-            return NextResponse.json({ error: 'Oversell refund failed' }, { status: 500 });
+            return retryLater('Oversell refund failed');
           }
           // Record the refunded order for the buyer's history / audit trail.
+          // charge.refunded for this refund matches THIS row (409 until it
+          // exists), so the refund event can never be dropped as an orphan.
           const { error: auditError } = await supabase.from('orders').insert({ ...order, status: 'refunded' });
           if (auditError) {
             Sentry.captureException(
@@ -234,83 +381,14 @@ export async function POST(request: NextRequest) {
         }
         Sentry.captureException(new Error(`Order insert failed for ${paymentIntentId}: ${insertError.message}`));
         // Non-2xx makes Stripe retry — the order must not be silently lost.
-        return NextResponse.json({ error: 'Order insert failed' }, { status: 500 });
+        return retryLater('Order insert failed');
       }
       if (!inserted) break;
 
-      await supabase
-        .from('listings')
-        .update({ status: 'sold', sold_price_cents: order.amount_cents })
-        .eq('id', listingId);
-
-      const [{ data: buyer }, { data: artistProf }] = await Promise.all([
-        supabase.from('profiles').select('email, full_name').eq('id', order.buyer_id).single(),
-        supabase.from('artist_profiles').select('display_name, profile_id, profile:profiles!artist_profiles_profile_id_fkey(email)').eq('id', artistObj.id).single(),
-      ]);
-
-      // Local pickup: open/find the buyer↔artist thread and post a system
-      // note so they can coordinate handoff.
-      if (session.metadata?.pickup === 'true' && artistProf?.profile_id) {
-        const artistUserId = artistProf.profile_id as string;
-        const { data: existingConv } = await supabase
-          .from('conversations')
-          .select('id')
-          .or(`and(participant_one.eq.${order.buyer_id},participant_two.eq.${artistUserId}),and(participant_one.eq.${artistUserId},participant_two.eq.${order.buyer_id})`)
-          .limit(1)
-          .maybeSingle();
-        let convId = existingConv?.id;
-        if (!convId) {
-          const { data: newConv } = await supabase
-            .from('conversations')
-            .insert({ participant_one: order.buyer_id, participant_two: artistUserId, context_type: 'listing', context_id: listingId })
-            .select('id')
-            .single();
-          convId = newConv?.id;
-        }
-        if (convId) {
-          await supabase.from('messages').insert({
-            conversation_id: convId,
-            sender_id: artistUserId,
-            content: `Order for "${listing.title}" is ready to coordinate for local pickup.`,
-            message_type: 'system',
-          });
-          await supabase.from('conversations').update({ last_message_text: 'Pickup coordination', last_message_at: new Date().toISOString() }).eq('id', convId);
-        }
-      }
-
-      if (buyer?.email) {
-        sendOrderConfirmationEmail(
-          buyer.email,
-          buyer.full_name ?? 'Collector',
-          listing.title,
-          formatPrice(session.amount_total ?? (order.amount_cents + order.buyer_fee_cents + order.shipping_cents)),
-          inserted.id,
-          artistProf?.display_name ?? 'a Custom Canvas artist'
-        ).catch(() => {});
-      }
-
-      const artistEmail = (artistProf?.profile as unknown as { email: string } | null)?.email;
-      if (artistProf && artistEmail) {
-        sendNewSaleEmail(
-          artistEmail,
-          artistProf.display_name,
-          listing.title,
-          formatPrice(order.amount_cents),
-          formatPrice(order.artist_payout_cents)
-        ).catch(() => {});
-      }
-
-      // In-app sale notification — the 'new_order' type existed but was
-      // never wired here (artists only got the email + Studio queue).
-      if (artistProf?.profile_id) {
-        await supabase.from('notifications').insert({
-          user_id: artistProf.profile_id,
-          type: 'new_order',
-          title: 'New sale',
-          body: `"${listing.title}" just sold for ${formatPrice(order.amount_cents)}.`,
-          link: '/studio/sales',
-        });
-      }
+      const failed = await completeSale(supabase, {
+        session, listingId, listingTitle: listing.title, artistId: artistObj.id, order, orderId: inserted.id,
+      });
+      if (failed) return failed;
       break;
     }
 
@@ -328,7 +406,13 @@ export async function POST(request: NextRequest) {
         .select('id, listing_id, status, artist_payout_cents')
         .eq('stripe_payment_intent_id', paymentIntentId)
         .maybeSingle();
-      if (!order) break;
+      if (!order) {
+        // No order (and no oversell audit row — that is an orders row too)
+        // for this payment yet: events retry independently, so the refund
+        // can outrun checkout.session.completed during an outage. Acking
+        // would drop it and leave a refunded sale recorded as paid.
+        return retryLater(`No order for refunded payment ${paymentIntentId} yet`, 409);
+      }
       if (order.status === 'refunded') break; // already reconciled
 
       const wasShipped = order.status === 'shipped' || order.status === 'delivered';
@@ -345,10 +429,9 @@ export async function POST(request: NextRequest) {
               `Full refund WITHOUT transfer reversal: order ${order.id} — artist keeps ${order.artist_payout_cents}¢. Reverse it in the Stripe dashboard.`,
               'error'
             );
-            const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
-            for (const a of admins ?? []) {
+            for (const adminId of await adminIds(supabase)) {
               await supabase.from('notifications').insert({
-                user_id: a.id,
+                user_id: adminId,
                 type: 'refund_approved',
                 title: 'Refund needs attention',
                 body: 'A full refund was issued without reversing the artist payout — check Stripe.',
@@ -361,12 +444,17 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      await supabase.from('orders').update({ status: 'refunded' }).eq('id', order.id);
+      const { error: refundedError } = await supabase.from('orders').update({ status: 'refunded' }).eq('id', order.id);
+      if (refundedError) {
+        Sentry.captureException(new Error(`Order ${order.id} refunded-update failed: ${refundedError.message}`));
+        return retryLater('Order refunded-update failed');
+      }
 
       // Return the piece to the market ONLY if (a) it was never shipped —
       // a delivered piece is physically with the buyer regardless of the
-      // refund — and (b) no OTHER live order still holds it (protects the
-      // legit buyer when an oversell refund arrives).
+      // refund — (b) no OTHER live order still holds it (protects the
+      // legit buyer when an oversell refund arrives), and (c) it is still
+      // `sold`: an artist who hid the listing in the meantime keeps it hidden.
       if (order.listing_id && !wasShipped) {
         const { count } = await supabase
           .from('orders')
@@ -375,52 +463,47 @@ export async function POST(request: NextRequest) {
           .in('status', ['paid', 'shipped', 'delivered'])
           .neq('id', order.id);
         if ((count ?? 0) === 0) {
-          await supabase
+          const { error: relistError } = await supabase
             .from('listings')
             .update({ status: 'available', sold_price_cents: null })
-            .eq('id', order.listing_id);
+            .eq('id', order.listing_id)
+            .eq('status', 'sold');
+          if (relistError) {
+            Sentry.captureException(new Error(`Relist of ${order.listing_id} failed after refund: ${relistError.message}`));
+            return retryLater('Relist failed');
+          }
         }
       }
       break;
     }
 
-    case 'charge.dispute.created': {
-      // A card chargeback. The Artist Agreement (section 4) promises we handle
-      // the dispute response and ask the artist promptly for shipping
-      // evidence -- before this, no dispute event was handled at all, so that
-      // promise had no implementation and a lost dispute silently debited the
-      // platform while the artist kept their transfer.
+    case 'charge.dispute.created':
+    case 'charge.dispute.updated': {
+      // A card chargeback — or a card-network INQUIRY, which Stripe delivers
+      // through the same event with a `warning_*` status. The Artist
+      // Agreement (section 4) promises we handle the dispute response and ask
+      // the artist promptly for shipping evidence. Branch selection is pure
+      // (utils/disputeOutcome) and tested; this block does the reads, writes
+      // and notifications it names.
+      //
+      // `updated` is handled with the same logic because an inquiry that
+      // escalates to a chargeback keeps its dispute id and arrives as
+      // charge.dispute.updated with a non-warning status — the only moment
+      // the order can be frozen. Redeliveries and evidence updates fall out
+      // as 'already_recorded'.
       const dispute = event.data.object;
       const paymentIntentId = dispute.payment_intent as string | null;
       if (!paymentIntentId) break;
 
       const { data: order } = await supabase
         .from('orders')
-        .select('id, status, artist_id, listing:listings(title)')
+        .select('id, status, artist_id, stripe_refund_id, dispute_id, listing:listings(title)')
         .eq('stripe_payment_intent_id', paymentIntentId)
         .maybeSingle();
-      if (!order) break;
-      if (order.status === 'disputed') break; // already recorded
+      if (!order) return retryLater(`No order for disputed payment ${paymentIntentId} yet`, 409);
 
-      // Evaluate protection NOW, against the evidence frozen at checkout plus
-      // what the artist actually did, and persist it. The artist must never
-      // have to work out whether they are covered.
-      const assessment = await assessProtection(supabase, order.id);
-      const protectionStatus = assessment?.status ?? 'ineligible';
-
-      await supabase
-        .from('orders')
-        .update({
-          status: 'disputed',
-          dispute_id: dispute.id,
-          protection_status: protectionStatus,
-        })
-        .eq('id', order.id);
-
-      const covered = protectionStatus === 'protected';
-      const artistLine = covered
-        ? `Good news: this order was Protected, so Custom Canvas covers the loss — your payout is not affected.`
-        : `This order was not Protected, so the amount will be deducted from your payout. Reasons: ${(assessment?.failures ?? []).join(' ')}`;
+      const action = selectDisputeOpenAction(order, { id: dispute.id, status: dispute.status });
+      if (action === 'already_recorded') break;
 
       const title = (order.listing as unknown as { title: string } | null)?.title ?? 'an order';
       // artist_id is NULL once the artist's account is deleted (00049): the
@@ -440,22 +523,111 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const artistUserId = artistProf?.profile_id as string | undefined;
       // Artist and admins get different links: /studio is artist-gated, so an
       // admin sent there is bounced to the home page.
-      const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+      const admins = await adminIds(supabase);
       const rows: Array<Record<string, string>> = [];
-      if (artistProf?.profile_id) {
+
+      if (action === 'inquiry') {
+        // No funds have moved; the order is not frozen and protection is NOT
+        // assessed — the artist can still ship/deliver, and an assessment now
+        // would freeze a verdict on an order that may never be disputed.
+        const { error } = await supabase.from('orders').update({ dispute_id: dispute.id }).eq('id', order.id);
+        if (error) {
+          Sentry.captureException(new Error(`Inquiry ${dispute.id} record failed on order ${order.id}: ${error.message}`));
+          return retryLater('Inquiry record failed');
+        }
+        if (artistUserId) {
+          rows.push({
+            user_id: artistUserId,
+            type: 'order_disputed',
+            title: 'Bank inquiry on a payment',
+            body: `The buyer's bank is asking about the payment for "${title}". This is an inquiry, not a chargeback: no funds have moved and nothing changes on this order. If you have shipping or delivery evidence, send it to support@customcanvas.shop — answering early usually closes it before it becomes a dispute.`,
+            link: '/studio/sales',
+          });
+        }
+        for (const adminId of admins) {
+          rows.push({
+            user_id: adminId,
+            type: 'order_disputed',
+            title: 'Bank inquiry on a payment',
+            body: `An inquiry (not a chargeback) was opened on "${title}" — the bank is asking about this payment; no funds have moved. Respond in the Stripe dashboard before its deadline.`,
+            link: '/admin/orders',
+          });
+        }
+        if (rows.length) await supabase.from('notifications').insert(rows);
+        Sentry.captureMessage(`Inquiry opened on order ${order.id} (${dispute.reason}) — respond in Stripe.`, 'warning');
+        break;
+      }
+
+      if (action === 'post_refund') {
+        // The buyer already has the money back (admin settle or dashboard
+        // refund) and the payout reversal, if any, is on the row. Freezing a
+        // refunded order as `disputed` is what let a won dispute flip it back
+        // to `paid`. Record the id, tell admins, leave the status alone.
+        const { error } = await supabase.from('orders').update({ dispute_id: dispute.id }).eq('id', order.id);
+        if (error) {
+          Sentry.captureException(new Error(`Post-refund dispute ${dispute.id} record failed on order ${order.id}: ${error.message}`));
+          return retryLater('Dispute record failed');
+        }
+        for (const adminId of admins) {
+          rows.push({
+            user_id: adminId,
+            type: 'order_disputed',
+            title: 'Dispute on a refunded order',
+            body: `A chargeback was filed on "${title}" after its refund. The money already went back — respond in the Stripe dashboard with the refund as evidence.`,
+            link: '/admin/orders',
+          });
+        }
+        if (rows.length) await supabase.from('notifications').insert(rows);
+        Sentry.captureMessage(`Dispute ${dispute.id} opened on already-refunded order ${order.id} (${dispute.reason}).`, 'error');
+        break;
+      }
+
+      // Chargeback on a live order. Evaluate protection NOW, against the
+      // evidence frozen at checkout plus what the artist actually did, and
+      // persist it. The artist must never have to work out whether they are
+      // covered. The pre-dispute status is saved in the same write so the
+      // closed handler can put the order back exactly where it was.
+      const assessment = await assessProtection(supabase, order.id);
+      const protectionStatus = assessment?.status ?? 'ineligible';
+
+      const { data: frozen, error: freezeError } = await supabase
+        .from('orders')
+        .update({
+          status: 'disputed',
+          dispute_id: dispute.id,
+          protection_status: protectionStatus,
+          pre_dispute_status: order.status,
+        })
+        .eq('id', order.id)
+        .neq('status', 'disputed')
+        .select('id')
+        .maybeSingle();
+      if (freezeError) {
+        Sentry.captureException(new Error(`Dispute freeze failed on order ${order.id}: ${freezeError.message}`));
+        return retryLater('Dispute freeze failed');
+      }
+      if (!frozen) break; // a concurrent delivery froze it first
+
+      const covered = protectionStatus === 'protected';
+      const artistLine = covered
+        ? `Good news: this order was Protected, so Custom Canvas covers the loss — your payout is not affected.`
+        : `This order was not Protected, so the amount will be deducted from your payout. Reasons: ${(assessment?.failures ?? []).join(' ')}`;
+
+      if (artistUserId) {
         rows.push({
-          user_id: artistProf.profile_id,
+          user_id: artistUserId,
           type: 'order_disputed',
           title: 'Payment disputed',
           body: `${artistLine} A dispute was opened on "${title}". Send any shipping or delivery evidence to support@customcanvas.shop right away — the bank sets the response deadline.`,
           link: '/studio/sales',
         });
       }
-      for (const a of admins ?? []) {
+      for (const adminId of admins) {
         rows.push({
-          user_id: a.id,
+          user_id: adminId,
           type: 'order_disputed',
           title: 'Payment disputed',
           body: `A dispute was opened on "${title}" — protection: ${protectionStatus}. Respond in the Stripe dashboard before the bank's deadline.`,
@@ -471,81 +643,135 @@ export async function POST(request: NextRequest) {
     }
 
     case 'charge.dispute.closed': {
+      // Stripe closes a dispute as `lost`, `won`, or `warning_closed` (an
+      // inquiry that never escalated). "Not lost" is the restore branch.
       const dispute = event.data.object;
       const paymentIntentId = dispute.payment_intent as string | null;
       if (!paymentIntentId) break;
 
       const { data: order } = await supabase
         .from('orders')
-        .select('id, status, artist_payout_cents, delivered_at, stripe_reversal_id, protection_status')
+        .select('id, status, artist_id, artist_payout_cents, shipped_at, delivered_at, stripe_refund_id, stripe_reversal_id, protection_status, pre_dispute_status, dispute_outcome, listing:listings(title)')
         .eq('stripe_payment_intent_id', paymentIntentId)
         .maybeSingle();
-      if (!order) break;
+      if (!order) return retryLater(`No order for disputed payment ${paymentIntentId} yet`, 409);
 
-      const lost = dispute.status === 'lost';
-      if (lost) {
+      const outcome = selectDisputeCloseOutcome(order, { status: dispute.status, amount: dispute.amount });
+      if (outcome.kind === 'noop') break; // redelivery of a processed loss
+
+      const title = (order.listing as unknown as { title: string } | null)?.title ?? 'an order';
+      let artistTitle: string;
+      let artistBody: string;
+
+      if (outcome.kind === 'lost') {
         // THE BARGAIN. A Protected order means the artist did the things that
         // would have won this dispute, so Custom Canvas absorbs the loss and
-        // the payout is NOT reversed. An ineligible order is reversed exactly,
-        // idempotency-keyed on the dispute so a Stripe retry can't double it.
-        const protectedOrder = order.protection_status === 'protected';
-
-        if (!protectedOrder && order.artist_payout_cents > 0 && !order.stripe_reversal_id) {
+        // the payout is NOT reversed. An ineligible order is reversed for the
+        // DISPUTED amount (a partial chargeback claws back less than the
+        // payout), idempotency-keyed on the dispute so a Stripe retry can't
+        // double it, and skipped entirely when a settled refund already
+        // reversed the payout.
+        let reversedCents = 0;
+        if (outcome.reverseCents > 0) {
           try {
             const charge = await getStripe().charges.retrieve(dispute.charge as string);
             if (charge.transfer) {
               const reversal = await getStripe().transfers.createReversal(
                 typeof charge.transfer === 'string' ? charge.transfer : charge.transfer.id,
-                { amount: order.artist_payout_cents },
+                { amount: outcome.reverseCents },
                 { idempotencyKey: `dispute_${dispute.id}` }
               );
-              await supabase
+              reversedCents = outcome.reverseCents;
+              const { error: reversalError } = await supabase
                 .from('orders')
                 .update({ stripe_reversal_id: reversal.id })
                 .eq('id', order.id);
+              if (reversalError) {
+                // The reversal exists at Stripe; a retry finds it by the
+                // idempotency key. Do not ack over a lost id.
+                Sentry.captureException(new Error(`Reversal ${reversal.id} persist failed on order ${order.id}: ${reversalError.message}`));
+                return retryLater('Reversal persist failed');
+              }
             }
           } catch (err) {
             Sentry.captureException(err);
             // Non-2xx so Stripe retries: the payout must not stay un-clawed.
-            return NextResponse.json({ error: 'Dispute reversal failed' }, { status: 500 });
+            return retryLater('Dispute reversal failed');
           }
         }
 
-        await supabase
+        const { error: lostError } = await supabase
           .from('orders')
           .update({ status: 'refunded', dispute_outcome: 'lost' })
           .eq('id', order.id);
+        if (lostError) {
+          Sentry.captureException(new Error(`Dispute-lost update failed on order ${order.id}: ${lostError.message}`));
+          return retryLater('Dispute-lost update failed');
+        }
 
         Sentry.captureMessage(
-          protectedOrder
-            ? `Dispute LOST on PROTECTED order ${order.id} — platform absorbs ${order.artist_payout_cents}c, payout NOT reversed.`
-            : `Dispute LOST on ineligible order ${order.id} — payout reversed.`,
+          outcome.platformAbsorbs
+            ? `Dispute LOST on PROTECTED order ${order.id} — platform absorbs ${dispute.amount}c, payout NOT reversed.`
+            : outcome.reversalAlreadyExists
+            ? `Dispute LOST on order ${order.id} — payout was already reversed (${order.stripe_reversal_id}, refund settled earlier or prior delivery); nothing reversed now.`
+            : reversedCents > 0
+            ? `Dispute LOST on ineligible order ${order.id} — ${reversedCents}c of the ${order.artist_payout_cents}c payout reversed.`
+            : `Dispute LOST on order ${order.id} — no payout to reverse.`,
           'error'
         );
-      } else if (dispute.status === 'won') {
-        // Money stays. Restore the pre-dispute state.
-        await supabase
+
+        if (outcome.platformAbsorbs) {
+          artistTitle = 'Dispute lost — you are covered';
+          artistBody = `The bank sided with the buyer on "${title}". This order was Protected, so Custom Canvas absorbed the loss and your payout is not affected.`;
+        } else if (reversedCents > 0) {
+          artistTitle = 'Dispute lost';
+          artistBody = `The bank sided with the buyer on "${title}". ${formatPrice(reversedCents)} was deducted from your payout, as this order was not Protected.`;
+        } else {
+          artistTitle = 'Dispute lost';
+          artistBody = `The bank sided with the buyer on "${title}". Your payout for this order had already been returned, so nothing further was deducted.`;
+        }
+      } else {
+        // Money stays. Put the order back where it was and clear the dispute.
+        const { error: restoreError } = await supabase
           .from('orders')
           .update({
-            status: order.delivered_at ? 'delivered' : 'paid',
-            dispute_outcome: 'won',
+            status: outcome.status,
+            dispute_outcome: outcome.outcome,
             dispute_id: null,
+            pre_dispute_status: null,
           })
           .eq('id', order.id);
+        if (restoreError) {
+          Sentry.captureException(new Error(`Dispute restore to ${outcome.status} failed on order ${order.id}: ${restoreError.message}`));
+          return retryLater('Dispute restore failed');
+        }
+        Sentry.captureMessage(`Dispute ${dispute.id} closed as ${dispute.status}; order ${order.id} restored to ${outcome.status}.`, 'info');
+
+        if (outcome.outcome === 'won') {
+          artistTitle = 'Dispute won';
+          artistBody = `The bank ruled in your favor on "${title}". Your payout is unaffected and the order is back to ${outcome.status}.`;
+        } else {
+          artistTitle = 'Bank inquiry closed';
+          artistBody = `The bank closed its inquiry about "${title}" without a chargeback. Nothing changes on this order.`;
+        }
       }
 
-      const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
-      if (admins?.length) {
-        await supabase.from('notifications').insert(
-          admins.map((a) => ({
-            user_id: a.id,
-            type: 'order_disputed',
-            title: `Dispute ${dispute.status}`,
-            body: `The dispute on order ${order.id.slice(0, 8)} closed as ${dispute.status}.`,
-            link: '/admin/orders',
-          }))
-        );
+      const { data: artistProf } = await supabase
+        .from('artist_profiles').select('profile_id').eq('id', order.artist_id).maybeSingle();
+      const rows: Array<Record<string, string>> = [];
+      if (artistProf?.profile_id) {
+        rows.push({ user_id: artistProf.profile_id, type: 'order_disputed', title: artistTitle, body: artistBody, link: '/studio/sales' });
       }
+      for (const adminId of await adminIds(supabase)) {
+        rows.push({
+          user_id: adminId,
+          type: 'order_disputed',
+          title: `Dispute ${dispute.status}`,
+          body: `The dispute on order ${order.id.slice(0, 8)} closed as ${dispute.status}.`,
+          link: '/admin/orders',
+        });
+      }
+      if (rows.length) await supabase.from('notifications').insert(rows);
       break;
     }
 

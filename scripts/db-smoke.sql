@@ -322,4 +322,139 @@ END $$;
 
 ROLLBACK;
 
+-- ---------------------------------------------------------------------------
+-- 4. Order transition matrix (00050). guard_orders_update must check the
+--    TRANSITION, not the target state: an artist may only move paid -> shipped,
+--    and every platform-owned stamp is frozen for them. The artist is
+--    simulated by setting request.jwt.claims — that is all auth.uid() reads,
+--    so is_privileged() is false and the guard's non-privileged branch runs.
+--    The privileged path (service role: no claims) is exercised too, because
+--    /api/orders/[id]/mark-delivered depends on the 00022 delivered_at stamp
+--    still firing for it. Fixture rows come from the live schema (an order
+--    needs a real buyer and artist); everything rolls back.
+-- ---------------------------------------------------------------------------
+BEGIN;
+DO $$
+DECLARE
+  artist_row record;
+  buyer uuid;
+  o uuid;
+  denied boolean;
+  first_shipped timestamptz;
+  row_after orders%ROWTYPE;
+BEGIN
+  SELECT ap.id, ap.profile_id INTO artist_row
+    FROM artist_profiles ap JOIN profiles p ON p.id = ap.profile_id
+    WHERE p.role <> 'admin' LIMIT 1;
+  IF artist_row IS NULL THEN
+    RAISE EXCEPTION 'transition matrix: no non-admin artist_profiles row to build the fixture from';
+  END IF;
+  SELECT id INTO buyer FROM profiles WHERE id <> artist_row.profile_id LIMIT 1;
+  IF buyer IS NULL THEN
+    RAISE EXCEPTION 'transition matrix: no second profiles row to act as the buyer';
+  END IF;
+
+  INSERT INTO orders (buyer_id, artist_id, amount_cents, platform_fee_cents, artist_payout_cents,
+                      buyer_fee_cents, shipping_cents, status, stripe_payment_intent_id)
+  VALUES (buyer, artist_row.id, 10000, 1500, 8500, 330, 0, 'paid', 'pi_smoke_' || gen_random_uuid())
+  RETURNING id INTO o;
+
+  -- Become the artist (non-privileged).
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', artist_row.profile_id, 'role', 'authenticated')::text, true);
+  IF is_privileged() THEN
+    RAISE EXCEPTION 'transition matrix: fixture artist evaluates as privileged';
+  END IF;
+
+  -- paid -> shipped: allowed, shipped_at stamped.
+  UPDATE orders SET status = 'shipped', tracking_number = 'SMOKE', carrier = 'usps' WHERE id = o;
+  SELECT * INTO row_after FROM orders WHERE id = o;
+  IF row_after.status <> 'shipped' OR row_after.shipped_at IS NULL THEN
+    RAISE EXCEPTION 'transition matrix: paid -> shipped should be allowed and stamp shipped_at';
+  END IF;
+  first_shipped := row_after.shipped_at;
+
+  -- Frozen stamps: the write is silently discarded, never applied.
+  UPDATE orders SET delivered_at = now(), pre_dispute_status = 'paid', shipped_email_sent_at = now(),
+                    shipped_at = now() - interval '30 days'
+    WHERE id = o;
+  SELECT * INTO row_after FROM orders WHERE id = o;
+  IF row_after.delivered_at IS NOT NULL THEN
+    RAISE EXCEPTION 'transition matrix: delivered_at must be frozen for the artist';
+  END IF;
+  IF row_after.pre_dispute_status IS NOT NULL THEN
+    RAISE EXCEPTION 'transition matrix: pre_dispute_status must be frozen for the artist';
+  END IF;
+  IF row_after.shipped_email_sent_at IS NOT NULL THEN
+    RAISE EXCEPTION 'transition matrix: shipped_email_sent_at must be frozen for the artist';
+  END IF;
+  IF row_after.shipped_at IS DISTINCT FROM first_shipped THEN
+    RAISE EXCEPTION 'transition matrix: shipped_at must not be client-writable';
+  END IF;
+
+  -- shipped -> delivered: denied (delivered is server-side only now).
+  denied := false;
+  BEGIN
+    UPDATE orders SET status = 'delivered' WHERE id = o;
+  EXCEPTION WHEN raise_exception THEN denied := true;
+  END;
+  IF NOT denied THEN
+    RAISE EXCEPTION 'transition matrix: shipped -> delivered was ALLOWED for the artist';
+  END IF;
+
+  -- Privileged: freeze the order as disputed, remembering the prior state.
+  PERFORM set_config('request.jwt.claims', '', true);
+  UPDATE orders SET status = 'disputed', pre_dispute_status = 'shipped', dispute_id = 'dp_smoke' WHERE id = o;
+
+  -- disputed -> shipped: denied.
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', artist_row.profile_id, 'role', 'authenticated')::text, true);
+  denied := false;
+  BEGIN
+    UPDATE orders SET status = 'shipped' WHERE id = o;
+  EXCEPTION WHEN raise_exception THEN denied := true;
+  END;
+  IF NOT denied THEN
+    RAISE EXCEPTION 'transition matrix: disputed -> shipped was ALLOWED for the artist';
+  END IF;
+
+  -- Privileged: settle as refunded.
+  PERFORM set_config('request.jwt.claims', '', true);
+  UPDATE orders SET status = 'refunded', pre_dispute_status = NULL WHERE id = o;
+
+  -- refunded -> delivered: denied (this is the one-live-order re-occupation hole).
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', artist_row.profile_id, 'role', 'authenticated')::text, true);
+  denied := false;
+  BEGIN
+    UPDATE orders SET status = 'delivered' WHERE id = o;
+  EXCEPTION WHEN raise_exception THEN denied := true;
+  END;
+  IF NOT denied THEN
+    RAISE EXCEPTION 'transition matrix: refunded -> delivered was ALLOWED for the artist';
+  END IF;
+
+  -- Privileged restore to paid (a won dispute), then the artist ships again:
+  -- allowed, and the ORIGINAL shipped_at survives (stamp only when NULL).
+  PERFORM set_config('request.jwt.claims', '', true);
+  UPDATE orders SET status = 'paid' WHERE id = o;
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', artist_row.profile_id, 'role', 'authenticated')::text, true);
+  UPDATE orders SET status = 'shipped' WHERE id = o;
+  SELECT * INTO row_after FROM orders WHERE id = o;
+  IF row_after.status <> 'shipped' OR row_after.shipped_at IS DISTINCT FROM first_shipped THEN
+    RAISE EXCEPTION 'transition matrix: re-shipping must keep the original shipped_at';
+  END IF;
+
+  -- Privileged shipped -> delivered (the mark-delivered route's write): the
+  -- 00022 trigger must still stamp delivered_at under the service role.
+  PERFORM set_config('request.jwt.claims', '', true);
+  UPDATE orders SET status = 'delivered' WHERE id = o AND status = 'shipped';
+  SELECT * INTO row_after FROM orders WHERE id = o;
+  IF row_after.status <> 'delivered' OR row_after.delivered_at IS NULL THEN
+    RAISE EXCEPTION 'transition matrix: privileged shipped -> delivered must stamp delivered_at';
+  END IF;
+END $$;
+ROLLBACK;
+
 \echo 'db-smoke: all checks passed'

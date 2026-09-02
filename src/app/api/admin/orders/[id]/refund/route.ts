@@ -101,7 +101,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   await admin.from('orders').update({ status: 'refunded' }).neq('status', 'refunded').eq('id', order.id);
 
   // Relist ONLY a never-shipped piece — a shipped/delivered artwork is
-  // physically with the buyer; the artist relists manually after return.
+  // physically with the buyer; the artist relists manually after return —
+  // and only from `sold`: a listing the artist has since hidden stays hidden.
   if (order.listing_id && !wasShipped) {
     const { count } = await admin
       .from('orders')
@@ -113,7 +114,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       await admin
         .from('listings')
         .update({ status: 'available', sold_price_cents: null })
-        .eq('id', order.listing_id);
+        .eq('id', order.listing_id)
+        .eq('status', 'sold');
     }
   }
 

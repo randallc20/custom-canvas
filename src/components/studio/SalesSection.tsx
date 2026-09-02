@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { captureException } from '@/lib/sentry';
-import { useConfirmPickup, useArtistOrders, useUpdateOrderStatus } from '@/hooks/useOrders';
+import { useConfirmPickup, useArtistOrders, useUpdateOrderStatus, useMarkDelivered } from '@/hooks/useOrders';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Badge } from '@/components/ui/Badge';
@@ -38,6 +38,7 @@ export function SalesSection() {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrier, setCarrier] = useState('');
   const confirmPickup = useConfirmPickup();
+  const markDelivered = useMarkDelivered();
 
   // Local pickup: your half of the handoff confirmation. Protection for a
   // pickup order attaches only when the buyer confirms too.
@@ -91,14 +92,13 @@ export function SalesSection() {
     }
   };
 
-  const handleDelivered = async (orderId: string) => {
-    try {
-      await updateStatus.mutateAsync({ id: orderId, status: 'delivered' });
-      toast('Order marked as delivered', 'success');
-    } catch (err) {
-      captureException(err, { where: 'SalesSection.updateOrder' });
-      toast('Failed to update order', 'error');
-    }
+  // Delivery is server-stamped (00050 froze `delivered` and delivered_at for
+  // client writes) — the route checks ownership and CASes shipped -> delivered.
+  const handleDelivered = (orderId: string) => {
+    markDelivered.mutate(orderId, {
+      onSuccess: () => toast('Order marked as delivered', 'success'),
+      onError: (e) => { captureException(e, { where: 'SalesSection.markDelivered' }); toast(e.message, 'error'); },
+    });
   };
 
   return (
@@ -171,7 +171,14 @@ export function SalesSection() {
                     <Button size="sm" onClick={() => setShipModal(order)}>Mark as Shipped</Button>
                   )}
                   {order.status === 'shipped' && (
-                    <Button size="sm" variant="outline" onClick={() => handleDelivered(order.id)}>Mark Delivered</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      loading={markDelivered.isPending && markDelivered.variables === order.id}
+                      onClick={() => handleDelivered(order.id)}
+                    >
+                      Mark Delivered
+                    </Button>
                   )}
                   {['paid', 'shipped', 'delivered'].includes(order.status) && (
                     order.refund_approved_at ? (

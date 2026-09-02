@@ -20,7 +20,9 @@ Canvas's chargeback ratio, not theirs.
 >
 > 1. Shipped within the fulfillment window stated on the listing
 > 2. A tracking number from a supported carrier was entered before shipping
-> 3. The carrier confirmed delivery to the address on the Custom Canvas order
+> 3. The order was marked delivered to the address on the Custom Canvas order
+>    (at launch the artist confirms this in Studio; carrier confirmation will
+>    replace it — DECISIONS.md 2026-09-02, ruling D1)
 > 4. **Signature confirmation** was obtained, for orders of **$750 or more**
 > 5. The listing carried at least three photographs and written condition notes
 > 6. The artist replied to buyer messages within three business days

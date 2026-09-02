@@ -60,20 +60,36 @@ If a buyer disputes a charge with their bank, the amount is **deducted from your
 payout by default**. Custom Canvas covers the loss instead when the order was
 **Protected** at the time of sale and shipment.
 
+The **Seller Protection Policy** is part of this agreement and is incorporated into it
+by reference. It is versioned with this agreement, so a change to it asks you to
+re-accept in the same way a change to any other section does.
+
 An order is Protected when **all** of the following are true:
 
 1. You shipped within **5 business days** of the sale.
 2. You recorded a **tracking number** from a supported carrier (**USPS, UPS, FedEx or
    DHL**) before marking the order shipped.
-3. The carrier confirmed **delivery** to the address on the Custom Canvas order.
+3. **Delivery was confirmed** to the address on the Custom Canvas order and
+   recorded on the order before the dispute arrived.
 4. For orders of **$750 or more**, **signature confirmation** was obtained.
 5. Your listing carried at least **three photographs** and a written description of at
-   least **150 characters** *at the time of sale*. Requirements 5 is measured against
+   least **150 characters** *at the time of sale*. Requirement 5 is measured against
    the listing as it stood when the buyer paid, not as it stands later.
-6. You answered every buyer message within **three business days**.
+6. You answered every buyer message about the order within **three business days**,
+   at any time between the sale and confirmed delivery, and thereafter for any message
+   about that order.
 
-**Local pickup** orders are Protected only when both parties confirm handoff in the
-Custom Canvas message thread.
+**Delivery confirmation today is recorded by you, not read from the carrier.** We do
+not yet integrate with carrier tracking APIs, so marking an order delivered is your
+attestation. Attesting to a delivery that did not happen is a breach of this agreement
+and forfeits protection on that order and any other affected by it. We expect to
+replace attestation with carrier verification, and will tell you before we do.
+
+**Local pickup is not currently eligible for protection.** Pickup orders will be
+Protected once both parties can confirm handoff in the Custom Canvas message thread,
+but that confirmation feature is not yet built. Until it ships, treat every pickup sale
+as unprotected and get the buyer's written confirmation in the thread anyway, because
+it is still the best evidence you will have.
 
 You can see the protection standing of every order in Studio → Sales **before** any
 dispute exists, including exactly what is missing.
@@ -87,6 +103,20 @@ with the card networks, not yours.
 dispute. When you produce them, we can defend the charge, so we can afford to absorb
 the loss when we lose anyway. When they are missing, the dispute is unwinnable and the
 loss sits with the sale it came from.
+
+**Recovering an unprotected loss.** Where an unprotected order is reversed, the amount
+comes out of your Stripe balance. If your balance will not cover it, you owe us the
+shortfall, and you authorise us to recover it by **setting it off against your future
+payouts** on this platform. We will tell you the amount and how it is being recovered.
+We may also **hold a payout, or place a reserve on your account**, while we investigate
+a dispute, a suspected misdescription, or a claim that work is not yours, for no longer
+than the investigation reasonably requires.
+
+*[Counsel: this clause and the reserve right are new. The platform can already reverse
+a payout in code, but nothing in v1.0 gives us a contractual route to a shortfall once
+the artist's Stripe balance is empty, which is precisely the case where recovery
+matters. Confirm the set-off language and whether it needs a stated cap or notice
+period.]*
 
 ## 5. Your work: originality, rights and authenticity
 
@@ -152,12 +182,39 @@ You are responsible for packing, shipping and insuring your work. You must:
 - Obtain signature confirmation on orders of **$750 or more**.
 - Pack to survive ordinary carrier handling.
 
+**If you cannot meet the window.** Tell the buyer in Messages before it expires and
+offer them the choice of a new date or a cancellation. If the buyer does not agree to
+the new date, they may cancel for a full refund and we will settle it whether or not
+you approve. This is not a house rule: federal law governing mail and internet orders
+requires a seller who cannot ship in the promised time to obtain the buyer's consent to
+a delay or refund them promptly, and Custom Canvas is the merchant of record on the
+sale.
+
+*[Counsel: confirm this tracks 16 C.F.R. Part 435. The 5-business-day window is a
+promise made on every listing page, so it is the "promised time" the rule attaches to.
+This is currently the largest compliance gap in the live product: today a late shipment
+is handled as a conversation, not as a refund right.]*
+
 **Risk of loss stays with you until the piece is delivered.** If a work is lost,
 stolen or damaged in transit, that is your loss, not the buyer's, and the buyer is
 entitled to a refund.
 
-**You must insure every shipment for at least the artwork price.** Build the cost into
-your shipping charge.
+**You must insure every shipment for the artwork price, to the extent cover is
+available for the piece.** Build the cost into your shipping charge.
+
+Check the limits before you ship. Carriers restrict cover on artwork more than most
+sellers expect: declared-value limits, exclusions for one-of-a-kind or hand-made
+objects, and packaging conditions that void a claim are all common, and the usual
+carrier maximum sits well below the price of a significant piece. Where a carrier will
+not cover the full price, use a fine-art shipper or a third-party transit policy, or
+tell us before listing so we can look at the piece with you. What we require is that
+the shipment is insured to the price where that is possible, and that you do not
+represent a piece as insured when it is not.
+
+*[Counsel: v1.0 required insurance "for at least the artwork price" without
+qualification, which for higher-value work asks artists to buy cover the major carriers
+will not sell. An obligation that cannot be performed is worse than a softer one that
+can.]*
 
 This is deliberately stricter than the default rule for shipment contracts, and it is
 set this way because it matches what actually happens: a buyer whose piece never
@@ -176,11 +233,21 @@ If you approve, Custom Canvas settles it: the buyer receives the artwork price,
 shipping, and the sales tax on those amounts. The **service fee and its tax are not
 refunded**. Your payout is reversed exactly and our commission is returned.
 
-Approving a refund is your decision, not ours — with three exceptions. We will refund a
+Approving a refund is your decision, not ours — with four exceptions. We will refund a
 buyer without your approval where a card network determines the dispute against us,
-where the law requires it, or where **we substantiate that the piece arrived damaged or
-was materially not as your listing described it**. Your discretion covers a buyer who
-changed their mind; it does not cover a misdescription.
+where the law requires it, where **we substantiate that the piece arrived damaged or
+was materially not as your listing described it**, or where **the piece was never
+shipped**. Your discretion covers a buyer who changed their mind; it does not cover a
+misdescription, and it does not cover a sale you did not fulfil.
+
+**Unfulfilled and abandoned orders.** If you have not shipped within the window and
+have not answered the buyer or us within **five business days** of our asking, we will
+cancel the order and refund the buyer in full. The payout is reversed. Repeated
+non-fulfilment is grounds for closing your shop.
+
+*[Counsel: the fourth exception and the abandoned-order path are new. Without them a
+buyer whose piece never ships has no route except a chargeback, which is the worst
+outcome for everyone including the artist.]*
 
 ## 9. Taxes
 
@@ -192,17 +259,29 @@ give us any information we reasonably need to calculate tax correctly.
 
 **Income tax.** You are an independent seller, not an employee, partner or agent of
 Custom Canvas. Nothing here creates an employment or partnership relationship. You are
-responsible for your own income and self-employment taxes. Stripe issues **Form 1099-K**
+responsible for your own income and self-employment taxes. **Form 1099-K** is issued
 for payments to your connected account; because card payments are reportable without a
-minimum threshold, you may receive one even for a small amount.
+minimum threshold, you may receive one even for a small amount. Keep your tax details
+current in Stripe, or reporting and payouts can be held.
+
+*[Counsel and accountant: confirm who actually files. Charges are created on the Custom
+Canvas account and transferred out, so Custom Canvas may itself be the payment
+settlement entity for these transactions rather than a passive beneficiary of Stripe's
+filing. Stripe files on behalf of Connect platforms in most configurations, but the
+obligation is worth confirming in writing rather than assuming, and the artist-facing
+sentence should name whoever it turns out to be.]*
 
 ## 10. Your responsibilities
 
 - Keep your listings, prices, availability and profile accurate.
 - Answer buyer messages within three business days.
 - Do not transact around the platform to avoid commission on a buyer you met here.
-- Do not list prohibited items (see the Prohibited & Restricted Items Policy).
-- Treat buyers and other artists civilly (see the Community Guidelines).
+  **Commissioned work is the exception**: at launch, commissions are arranged and paid
+  off-platform by design, and doing so is not a breach. Sales of listed, finished work
+  to a buyer you met here must go through Custom Canvas.
+- Do not list prohibited items, and describe every piece as the **Listing Standards**
+  require.
+- Treat buyers and other artists civilly (see Terms of Service §6).
 
 ## 11. Review, suspension and termination
 
@@ -318,9 +397,8 @@ enforce a provision is not a waiver of it.
 13.4 (indemnity), 13.5–13.6 (law and disputes) and this §13.11 survive termination.
 
 **13.12 Entire agreement.** This agreement, together with the policies it references —
-Seller Protection, Prohibited & Restricted Items, Authenticity & Provenance, Community
-Guidelines, and the Privacy Policy — is the entire agreement between us about selling on
-Custom Canvas, and replaces any earlier understanding. Where this agreement and a
+Seller Protection, Listing Standards, and the Privacy Policy — is the entire agreement
+between us about selling on Custom Canvas, and replaces any earlier understanding. Where this agreement and a
 referenced policy conflict, **this agreement controls**.
 
 Your Stripe Connected Account Agreement is a separate contract between you and Stripe.

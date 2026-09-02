@@ -37,6 +37,25 @@ export function useUpdateOrderStatus() {
   });
 }
 
+/** The artist confirms delivery of a shipped order. Server-side because the
+ *  `delivered` status and `delivered_at` are frozen for client writes (00050);
+ *  the route compare-and-swaps shipped -> delivered under the service role. */
+export function useMarkDelivered() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const res = await fetch(`/api/orders/${orderId}/mark-delivered`, { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? 'Could not mark the order delivered.');
+      return body as { ok: boolean; alreadyDelivered?: boolean };
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+}
+
 /** Both sides of a local-pickup handoff confirm through this. Invalidation
  *  runs on SETTLED, not just success: the route can 500 with the confirmation
  *  already stamped (only the delivered-promotion failed), and skipping the
