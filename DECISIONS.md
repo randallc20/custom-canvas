@@ -3,6 +3,24 @@
 Deliberate choices with lasting consequences, recorded so they read as
 choices — not oversights. Newest first.
 
+## 2026-09-02 — Seller protection requirement 3: artist attestation of delivery accepted at launch (ruling D1)
+
+Requirement 3 of Seller Protection is met at launch by the artist clicking
+Mark Delivered in Studio, not by a carrier scan — there is no carrier
+integration yet, and requiring buyer confirmation (the way pickup works)
+would leave every shipped order unprotected whenever a buyer simply never
+taps. This is the default from `docs/REVIEW-FIX-PLAN.md` D1, taken with eyes
+open: the artist-facing wording (policy text, `evaluateProtection`, the
+Studio badge) no longer claims the carrier confirms delivery. What changed
+to make the attestation honest: `delivered` is no longer client-writable
+(the order guard now checks the transition, and only `paid/shipped ->
+shipped` is open to the artist), `delivered_at` is stamped server-side by
+`/api/orders/[id]/mark-delivered` after an ownership check and frozen for
+non-privileged writers (00050) — a once-only, auditable act rather than an
+editable timestamp. Revisit with a carrier tracking lookup post-launch;
+until then a lost-in-transit dispute on a "delivered" order is a platform
+cost we accept.
+
 ## 2026-08-24 — The 85/15 split is artist-facing only; click-wrap Artist Agreement
 
 The commission split appears nowhere buyers can see (home stat, About, Terms,
