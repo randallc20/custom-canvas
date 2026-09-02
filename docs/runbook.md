@@ -34,6 +34,25 @@ Dashboard → Developers → Webhooks shows failed deliveries to
   balance → recurring 502. Fix by backfilling orders.stripe_refund_id with
   the refund id visible in Stripe, then retry (it will skip to the reversal).
 
+### Stripe reconcile cron (the safety net)
+`/api/cron/stripe-reconcile` runs daily at 14:00 UTC (`vercel.json`). It lists
+every succeeded Stripe payment from the last 7 days and diffs it against
+`orders` — read-only, it never writes to `orders` or `listings`. A payment with
+no row, a Stripe refund or dispute the row does not reflect, or a row marked
+`refunded` that Stripe never refunded, produces ONE admin notification
+("Stripe reconcile found mismatches", every admin) and a Sentry error listing
+each payment intent id with the reason. Nothing wrong → no alert.
+When it fires:
+1. Open the Sentry event; each line is `kind pi_… order=…: detail`.
+2. In Stripe → Payments, open each `pi_…` and read its refund / dispute state.
+3. Fix the row by replaying the missed webhook event (step 1 above) — resend
+   `checkout.session.completed` for a missing order, `charge.refunded` or
+   `charge.dispute.*` for a status disagreement. Only hand-edit `orders` when
+   there is no event to replay (e.g. a row marked refunded with no Stripe
+   refund: issue the refund from the dashboard, or correct the row).
+4. It re-runs tomorrow; a clean run confirms the fix. To run it now:
+   `curl -H "Authorization: Bearer $CRON_SECRET" https://<host>/api/cron/stripe-reconcile`.
+
 ## Chargebacks (card disputes)
 `charge.dispute.created` marks the order `disputed`, notifies the artist AND
 every admin to send shipping/delivery evidence, and raises a Sentry error —
