@@ -13,15 +13,18 @@ type AdminClient = ReturnType<typeof createAdminSupabaseClient>;
 // Requirement 6 needs the message history. Conversations are keyed by
 // listing/commission, not by order, so we look at the buyer<->artist thread
 // for this order's listing. No buyer messages at all means there was nothing
-// to answer -- that must not fail the artist.
+// to answer -- that must not fail the artist. Either party may be NULL once
+// their account is deleted (00049): their thread cascaded away with them, so
+// there is nothing left to judge and the artist is not failed for it.
 async function artistRepliedInTime(
   supabase: AdminClient,
-  order: { listing_id: string | null; buyer_id: string; artist_id: string },
+  order: { listing_id: string | null; buyer_id: string | null; artist_id: string | null },
   windowBusinessDays: number
 ): Promise<boolean> {
+  if (!order.buyer_id || !order.artist_id || !order.listing_id) return true;
   const { data: artist } = await supabase
     .from('artist_profiles').select('profile_id').eq('id', order.artist_id).maybeSingle();
-  if (!artist?.profile_id || !order.listing_id) return true;
+  if (!artist?.profile_id) return true;
 
   const { data: convo } = await supabase
     .from('conversations')
@@ -83,7 +86,7 @@ async function assessProtection(supabase: AdminClient, orderId: string) {
     fulfillmentWindowDays: (o.fulfillment_window_days as number) ?? 5,
     artistRepliedWithinWindow: await artistRepliedInTime(
       supabase,
-      { listing_id: o.listing_id as string | null, buyer_id: o.buyer_id as string, artist_id: o.artist_id as string },
+      { listing_id: o.listing_id as string | null, buyer_id: o.buyer_id as string | null, artist_id: o.artist_id as string | null },
       (o.fulfillment_window_days as number) ?? 5
     ),
   };
@@ -420,11 +423,22 @@ export async function POST(request: NextRequest) {
         : `This order was not Protected, so the amount will be deducted from your payout. Reasons: ${(assessment?.failures ?? []).join(' ')}`;
 
       const title = (order.listing as unknown as { title: string } | null)?.title ?? 'an order';
-      const { data: artistProf } = await supabase
-        .from('artist_profiles')
-        .select('profile_id')
-        .eq('id', order.artist_id)
-        .maybeSingle();
+      // artist_id is NULL once the artist's account is deleted (00049): the
+      // order and its money logic carry on; only the artist's notification is
+      // skipped, and loudly, so support knows nobody was told.
+      const { data: artistProf } = order.artist_id
+        ? await supabase
+            .from('artist_profiles')
+            .select('profile_id')
+            .eq('id', order.artist_id)
+            .maybeSingle()
+        : { data: null };
+      if (!order.artist_id) {
+        Sentry.captureMessage(
+          `Dispute opened on order ${order.id} whose artist account is deleted — no artist notification sent.`,
+          'warning'
+        );
+      }
 
       // Artist and admins get different links: /studio is artist-gated, so an
       // admin sent there is bounced to the home page.

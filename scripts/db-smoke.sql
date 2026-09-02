@@ -280,6 +280,46 @@ BEGIN
   END IF;
 END $$;
 
+-- ---------------------------------------------------------------------------
+-- 4. FK delete-action matrix for the money rows (00049, R1 / 01-P0). The
+--    party columns must DETACH (SET NULL, 'n') when a person leaves, never
+--    take the order with them (CASCADE, 'c'); the two references an artist's
+--    cascade would otherwise leave dangling must detach too. Each is also
+--    pinned nullable — a re-added NOT NULL would turn SET NULL into a
+--    delete-time error. Action codes: a=NO ACTION c=CASCADE n=SET NULL.
+-- ---------------------------------------------------------------------------
+CREATE TEMP TABLE expected_fk_actions(tbl text, con text, col text, action char) ON COMMIT DROP;
+INSERT INTO expected_fk_actions VALUES
+  ('orders',      'orders_buyer_id_fkey',          'buyer_id',      'n'),
+  ('orders',      'orders_artist_id_fkey',         'artist_id',     'n'),
+  ('orders',      'orders_listing_id_fkey',        'listing_id',    'n'),
+  ('orders',      'orders_commission_id_fkey',     'commission_id', 'n'),
+  ('reviews',     'reviews_reviewer_id_fkey',      'reviewer_id',   'n'),
+  ('commissions', 'commissions_requester_id_fkey', 'requester_id',  'n');
+
+DO $$
+DECLARE diff text;
+BEGIN
+  SELECT string_agg(marker || ' ' || row, E'\n' ORDER BY marker, row) INTO diff FROM (
+    SELECT 'WRONG delete action (want ' || e.action || '):' AS marker,
+           e.tbl || '.' || e.con || ' = ' || coalesce(c.confdeltype::text, 'MISSING') AS row
+      FROM expected_fk_actions e
+      LEFT JOIN pg_constraint c
+        ON c.conname = e.con AND c.contype = 'f'
+       AND c.conrelid = ('public.' || e.tbl)::regclass
+      WHERE c.confdeltype IS DISTINCT FROM e.action
+    UNION ALL
+    SELECT 'NOT NULL on a SET NULL column:', e.tbl || '.' || e.col
+      FROM expected_fk_actions e
+      JOIN pg_attribute a
+        ON a.attrelid = ('public.' || e.tbl)::regclass AND a.attname = e.col
+      WHERE a.attnotnull
+  ) d;
+  IF diff IS NOT NULL THEN
+    RAISE EXCEPTION E'money-row FK drift:\n%', diff;
+  END IF;
+END $$;
+
 ROLLBACK;
 
 \echo 'db-smoke: all checks passed'

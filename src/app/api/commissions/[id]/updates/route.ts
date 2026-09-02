@@ -58,7 +58,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
   }
 
-  // Notify the buyer (in-app always; email best-effort).
+  // Notify the buyer (in-app always; email best-effort). requester_id is
+  // NULL once their account is deleted (00049): the update is still recorded,
+  // there is just nobody to tell.
+  if (!commission.requester_id) return NextResponse.json(update);
+
   await admin.from('notifications').insert({
     user_id: commission.requester_id,
     type: 'commission_update',
