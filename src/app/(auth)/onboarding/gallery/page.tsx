@@ -59,6 +59,8 @@ export default function GalleryOnboardingPage() {
         profile_id: user.id,
         slug,
         ...data,
+        // '' is "no website"; the column's CHECK (00052) accepts NULL or http(s).
+        website_url: data.website_url || null,
       });
 
     // Same fresh-session race as artist onboarding: an RLS refusal moments

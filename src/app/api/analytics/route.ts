@@ -36,10 +36,8 @@ export async function GET(request: NextRequest) {
       .eq('artist_id', artistId)
       .eq('event_type', 'listing_save')
       .gte('created_at', since),
-    supabase
-      .from('follows')
-      .select('*', { count: 'exact', head: true })
-      .eq('artist_id', artistId),
+    // follows is own-rows-only (00052); the count comes from the RPC.
+    supabase.rpc('follower_count', { p_artist_id: artistId }),
     supabase
       .from('orders')
       .select('artist_payout_cents')
@@ -53,7 +51,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     total_views: viewsRes.count ?? 0,
     total_saves: savesRes.count ?? 0,
-    total_followers: followersRes.count ?? 0,
+    total_followers: Number(followersRes.data ?? 0),
     total_earnings_cents: totalEarnings,
     total_orders: orders.length,
   });

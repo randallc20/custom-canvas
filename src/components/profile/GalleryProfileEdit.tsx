@@ -79,7 +79,10 @@ export function GalleryProfileEdit() {
     // .select('id').maybeSingle(): a zero-row update (RLS refusal) must fail
     // visibly instead of toasting success over an unsaved profile.
     const { data: updated, error } = await supabase
-      .from('gallery_profiles').update(data).eq('id', galleryId).select('id').maybeSingle();
+      .from('gallery_profiles')
+      // '' is "no website"; the column's CHECK (00052) accepts NULL or http(s).
+      .update({ ...data, website_url: data.website_url || null })
+      .eq('id', galleryId).select('id').maybeSingle();
     if (error || !updated) {
       captureException(error ?? new Error('gallery profile save matched zero rows'), { where: 'GalleryProfileEdit.save' });
       toast('Failed to save changes.', 'error');
