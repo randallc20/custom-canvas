@@ -8,6 +8,10 @@ import { artistCreds } from './helpers/auth';
  * Requires:
  *   E2E_ADMIN_EMAIL  / E2E_ADMIN_PASSWORD   — the admin fixture
  *   E2E_ARTIST_EMAIL / E2E_ARTIST_PASSWORD  — a LIVE (approved) artist
+ * Optional (the "account deletion refusal" block skips without it):
+ *   E2E_PAID_BUYER_EMAIL / E2E_PAID_BUYER_PASSWORD — a throwaway Art Lover
+ *     the seeder gives ONE paid order (synthetic payment intent, no Stripe
+ *     object behind it); 14.11b asserts self-delete is refused
  *
  * A fresh throwaway Art Lover is registered through the real /register form
  * each run (DEV/staging autoconfirm signs them straight in). ONLY that
@@ -30,6 +34,11 @@ const admin = {
 const artist = artistCreds();
 const adminReady = !!(admin.email && admin.password);
 const ready = adminReady && !!artist;
+const paidBuyer = {
+  email: process.env.E2E_PAID_BUYER_EMAIL,
+  password: process.env.E2E_PAID_BUYER_PASSWORD,
+};
+const paidBuyerReady = !!(paidBuyer.email && paidBuyer.password);
 
 const RUN = Date.now().toString(36);
 const loverEmail = `e2e.safety.${RUN}@customcanvas.dev`;
@@ -605,5 +614,48 @@ test.describe.serial('marketplace safety journey', () => {
     await loverPage.getByRole('button', { name: /sign in/i }).click();
     await expect(loverPage).toHaveURL(/\/login/, { timeout: 20_000 });
     await expect(loverPage.locator('p.text-red-600')).toBeVisible({ timeout: 20_000 });
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* R1 (01-P0) — money rows outlive the people in them                  */
+/* ------------------------------------------------------------------ */
+
+test.describe('account deletion refusal', () => {
+  test.skip(!paidBuyerReady, 'paid-buyer fixture not configured (E2E_PAID_BUYER_*)');
+  test.beforeEach(async ({}, testInfo) => testInfo.setTimeout(120_000));
+
+  test('14.11b — a buyer with a paid order cannot delete their account; the refusal points to support and nothing is deleted', async ({ page }) => {
+    await login(page, paidBuyer.email!, paidBuyer.password!);
+
+    // The fixture really is party to a paid order.
+    await page.goto('/orders');
+    await expect(page.getByRole('heading', { name: 'My Orders' })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Paid', { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+
+    await page.goto('/account');
+    await expect(page.getByText('Danger Zone')).toBeVisible({ timeout: 20_000 });
+    await page.getByRole('button', { name: 'Delete Account' }).click();
+
+    const dialog = page.getByRole('dialog');
+    const confirmBtn = dialog.getByRole('button', { name: 'Delete My Account' });
+    await dialog.getByPlaceholder('DELETE').fill('DELETE');
+    await expect(confirmBtn).toBeEnabled();
+    await confirmBtn.click();
+
+    // 409 from /api/account/delete: the message stays inside the dialog (not
+    // just a toast) and names the way out.
+    const refusal = dialog.getByRole('alert');
+    await expect(refusal).toBeVisible({ timeout: 20_000 });
+    await expect(refusal).toContainText(/open order/i);
+    await expect(refusal).toContainText('support@customcanvas.shop');
+    await expect(dialog).toBeVisible(); // no redirect, no sign-out
+
+    // Nothing was deleted: the session and the account are intact, and the
+    // order is still on the books.
+    await page.goto('/orders');
+    await expect(page.getByRole('heading', { name: 'My Orders' })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Paid', { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('link', { name: 'Log In' })).toHaveCount(0);
   });
 });
