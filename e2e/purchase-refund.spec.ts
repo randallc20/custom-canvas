@@ -1,4 +1,5 @@
 import { test, expect, Page, BrowserContext } from '@playwright/test';
+import { fetchAvailableListings, fetchLiveArtists } from './helpers/data';
 
 /**
  * Parts 9 + 10 of the live test plan: the full money loop on Stripe TEST mode.
@@ -79,13 +80,13 @@ test.describe.serial('purchase and refund (Stripe test mode)', () => {
     await page.getByRole('button', { name: /publish listing/i }).click();
     await expect(page).toHaveURL(/\/studio\/work/, { timeout: 30_000 });
 
-    // Resolve the listing id via the public API (the artist is live).
+    // Resolve the listing id from the public rows (the artist is live).
     await expect
       .poll(
         async () => {
-          const listings = await (await page.request.get('/api/listings')).json();
-          const mine = listings.find((l: { title: string }) => l.title === listingTitle);
-          listingId = mine?.id;
+          const listings = await fetchAvailableListings(page.request);
+          const mine = listings.find((l) => l.title === listingTitle);
+          if (mine) listingId = mine.id;
           return !!mine;
         },
         { timeout: 20_000 }
@@ -249,10 +250,9 @@ test.describe.serial('purchase and refund (Stripe test mode)', () => {
     await buyerPage.getByRole('button', { name: /submit review/i }).click();
     await expect(buyerPage.getByText(/review submitted/i).first()).toBeVisible({ timeout: 15_000 });
     // The review is displayed on the artist's public page.
-    const artistLink = await buyerPage.request.get('/api/artists');
-    const artists = await artistLink.json();
-    const seller = artists.find((a: { stripe_onboarded: boolean }) => a.stripe_onboarded);
-    await buyerPage.goto(`/artist/${seller.slug}`);
+    const artists = await fetchLiveArtists(buyerPage.request);
+    const seller = artists.find((a) => a.stripe_onboarded);
+    await buyerPage.goto(`/artist/${seller!.slug}`);
     await expect(buyerPage.getByText(`Arrived fast and even better in person (${RUN}).`)).toBeVisible({ timeout: 15_000 });
   });
 

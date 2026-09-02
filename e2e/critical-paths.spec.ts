@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { login, buyerCreds, artistCreds } from './helpers/auth';
+import { fetchAvailableListings, fetchLiveArtists } from './helpers/data';
 
 // Authenticated critical paths from the go-live plan. These run against staging
 // (E2E_BASE_URL, defaults to the staging deploy) using seeded test accounts:
@@ -67,24 +68,21 @@ test.describe('critical paths — money (opt-in)', () => {
     test.setTimeout(150_000);
     await login(page, buyer!.email, buyer!.password);
 
-    // The real flow: pick an available listing via the API (home cards are
-    // image links with artwork titles, not "view" buttons), open its page,
-    // Buy Now → the app's /checkout/[id] shipping page → Stripe's HOSTED
+    // The real flow: pick an available listing from the public rows (home
+    // cards are image links with artwork titles, not "view" buttons), open its
+    // page, Buy Now → the app's /checkout/[id] shipping page → Stripe's HOSTED
     // checkout (a full-page redirect, NOT an iframe) → /orders?success=true.
-    // Find the Stripe-onboarded artist via the artists API (stripe_onboarded
+    // Find the Stripe-onboarded artist among the live artists (stripe_onboarded
     // is public), then one of their available listings. Deliberately ZERO
     // calls to /api/payments here — it's rate-limited to 10/min and probing
     // it per-listing exhausts the budget before the real checkout.
-    const artists = await (await page.request.get('/api/artists')).json();
-    const seller = artists.find((a: { stripe_onboarded: boolean }) => a.stripe_onboarded);
+    const artists = await fetchLiveArtists(page.request);
+    const seller = artists.find((a) => a.stripe_onboarded);
     expect(seller, 'no Stripe-onboarded artist seeded').toBeTruthy();
-    const listings = await (await page.request.get('/api/listings')).json();
-    const target = listings.find(
-      (l: { artist_id: string; price_visible: boolean | null }) =>
-        l.artist_id === seller.id && l.price_visible !== false
-    );
+    const listings = await fetchAvailableListings(page.request);
+    const target = listings.find((l) => l.artist_id === seller!.id && l.price_visible !== false);
     expect(target, 'onboarded artist has no purchasable listing').toBeTruthy();
-    await page.goto(`/listing/${target.id}`);
+    await page.goto(`/listing/${target!.id}`);
     await page.getByRole('button', { name: /buy now/i }).click();
 
     // App shipping page (pickup-only artists skip the address fields).

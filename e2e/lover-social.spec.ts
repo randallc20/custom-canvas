@@ -1,5 +1,6 @@
 import { test, expect, Page, BrowserContext } from '@playwright/test';
 import { login } from './helpers/auth';
+import { fetchAvailableListings, fetchLiveArtists } from './helpers/data';
 
 /**
  * Part 8 of docs/LIVE-TEST-PLAN.md — The Art Lover: browsing and talking.
@@ -157,20 +158,20 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
     await login(page, artistCreds.email!, artistCreds.password!);
 
     // The artist's own slug via the Studio profile page's preview link — the
-    // public /api/artists payload has no email to match on.
+    // public artist rows carry no email to match on.
     await page.goto('/studio/page');
     const preview = page.getByRole('link', { name: /preview as visitor/i });
     await preview.waitFor({ state: 'visible', timeout: 20_000 });
     artistSlug = (await preview.getAttribute('href'))!.match(/\/artist\/([^?]+)/)![1];
     expect(artistSlug).toBeTruthy();
 
-    const artists = await (await page.request.get('/api/artists')).json();
-    const me = artists.find((a: { slug: string }) => a.slug === artistSlug);
-    expect(me, `env artist ${artistSlug} not in /api/artists — not live?`).toBeTruthy();
-    artistDisplayName = me.display_name;
+    const artists = await fetchLiveArtists(page.request);
+    const me = artists.find((a) => a.slug === artistSlug);
+    expect(me, `env artist ${artistSlug} is not among the live artists — not live?`).toBeTruthy();
+    artistDisplayName = me!.display_name ?? '';
 
-    const listings = await (await page.request.get('/api/listings')).json();
-    const mine = listings.filter((l: { artist_id: string }) => l.artist_id === me.id);
+    const listings = await fetchAvailableListings(page.request);
+    const mine = listings.filter((l) => l.artist_id === me!.id);
     expect(mine.length, 'env artist has no available listings').toBeGreaterThan(0);
     listingId = mine[0].id;
     listingTitle = mine[0].title;
