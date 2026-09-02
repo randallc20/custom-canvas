@@ -40,7 +40,7 @@ export function NotLiveNotice() {
               : 'Your shop hasn’t been submitted for review yet — buyers can’t find your profile or listings until it’s approved.'}
         </p>
         {!pending && (
-          <Link href="/studio" className="mt-2 inline-block text-sm font-medium text-terra hover:underline">
+          <Link href="/studio" className="mt-2 inline-block text-sm font-medium text-terraText hover:underline">
             {rejected ? 'See the feedback →' : 'Finish setup & submit for review →'}
           </Link>
         )}

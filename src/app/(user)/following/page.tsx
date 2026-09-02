@@ -26,7 +26,9 @@ export default function FollowingPage() {
               href={`/artist/${artist.slug}`}
               className="flex items-center gap-3 rounded-lg border border-line p-4 transition-colors hover:border-line hover:bg-sand/50"
             >
-              <Avatar src={artist.banner_image_url} alt={artist.display_name} size="md" />
+              {/* The avatar, not the banner — the same artist showed a
+                  different picture here than on their own page. */}
+              <Avatar src={artist.profile?.avatar_url ?? null} alt={artist.display_name} size="md" />
               <div>
                 <p className="font-medium text-ink">{artist.display_name}</p>
                 {artist.neighborhood ? (

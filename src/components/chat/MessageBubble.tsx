@@ -12,6 +12,7 @@ import { formatPrice } from '@/utils/formatPrice';
 import { PartnerBadge } from '@/components/gallery/PartnerBadge';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useSignedChatUrl } from '@/hooks/useSignedChatUrl';
 import type { PartnerType } from '@/types/gallery';
 
@@ -24,6 +25,7 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubbleProps) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [acting, setActing] = useState(false);
@@ -72,6 +74,16 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
 
     const act = async (action: 'confirm' | 'decline') => {
       if (!commissionId) return;
+      // Same terminal, unreopenable close as the rail's Decline — confirm it.
+      if (action === 'decline') {
+        const ok = await confirm({
+          title: 'Decline this quote?',
+          message: 'The commission closes and the artist is told you declined. This can\u2019t be undone \u2014 you would need to send a new request to start over.',
+          confirmLabel: 'Decline quote',
+          destructive: true,
+        });
+        if (!ok) return;
+      }
       setActing(true);
       try {
         const res = await fetch(`/api/commissions/${commissionId}/${action}`, { method: 'POST' });
@@ -96,11 +108,11 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
       <Wrapper isOwn={isOwn} senderPartnerType={senderPartnerType} createdAt={message.created_at}>
         <div className="w-64 rounded-xl border border-line bg-surface p-4 text-ink">
           <p className="font-display text-sm font-semibold">Commission quote</p>
-          {typeof price === 'number' && <p className="mt-1 text-lg font-bold text-terra">{formatPrice(price)}</p>}
+          {typeof price === 'number' && <p className="mt-1 text-lg font-bold text-terraText">{formatPrice(price)}</p>}
           {completion && <p className="text-xs text-muted">Est. completion: {completion}</p>}
           {notes && <p className="mt-2 whitespace-pre-wrap text-sm text-muted">{notes}</p>}
           {resolved ? (
-            <p className="mt-3 text-sm font-medium text-sage">{resolved}</p>
+            <p className="mt-3 text-sm font-medium text-sageText">{resolved}</p>
           ) : !isOwn ? (
             <div className="mt-3 flex gap-2">
               <Button size="sm" className="flex-1" onClick={() => act('confirm')} loading={acting}>Accept</Button>
@@ -132,7 +144,7 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
   if (attachment?.attachment_type === 'file') {
     return (
       <Wrapper isOwn={isOwn} senderPartnerType={senderPartnerType} createdAt={message.created_at}>
-        <a href={signedUrl ?? '#'} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 text-sm underline ${isOwn ? 'text-white' : 'text-terra'} ${signedUrl ? '' : 'pointer-events-none opacity-60'}`}>
+        <a href={signedUrl ?? '#'} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 text-sm underline ${isOwn ? 'text-white' : 'text-terraText'} ${signedUrl ? '' : 'pointer-events-none opacity-60'}`}>
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
           {message.content || 'Attachment'}
         </a>
@@ -156,7 +168,7 @@ function Wrapper({ isOwn, senderPartnerType, createdAt, children }: {
 }) {
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${isOwn ? 'bg-terra text-white' : 'bg-sand text-ink'}`}>
+      <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${isOwn ? 'bg-terraText text-white' : 'bg-sand text-ink'}`}>
         {children}
         <p className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${isOwn ? 'text-white/70' : 'text-muted'}`}>
           {!isOwn && senderPartnerType != null && <PartnerBadge partnerType={senderPartnerType} compact />}

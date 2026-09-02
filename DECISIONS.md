@@ -20,6 +20,30 @@ non-privileged writers (00050) — a once-only, auditable act rather than an
 editable timestamp. Revisit with a carrier tracking lookup post-launch;
 until then a lost-in-transit dispute on a "delivered" order is a platform
 cost we accept.
+## 2026-09-02 — D4: a darker terracotta for text; bright terra keeps the accents
+
+The brand terracotta `#E8704A` fails AA as text on every ground in the palette
+(2.85 on cream) and so does `terraDark` (3.90), so links, prices, eyebrows and
+the primary button label all sat below 4.5:1 (`docs/reviews/03-frontend.md`).
+Taken as D4's default with two forced adjustments, both arithmetic rather than
+taste:
+
+- The ruling's suggested `≈#B5502E` clears cream (4.70) and white (5.06) but
+  not `terraSoft` (4.33) or `sand` (4.17), and text-terra sits on both today.
+  `terraText` is therefore `#A84928` — same hue, one step darker — at 5.35 on
+  cream, 5.76 on white, 4.92 on terraSoft, 4.74 on sand. `terraTextDark`
+  (`#8F3D21`) is its hover step.
+- No label colour passes on both the primary button's rest and hover
+  background (white/terra 3.07, white/terraDark 4.20; ink/terra 4.66 but
+  ink/terraDark 3.40), so the *background* moved: primary buttons and the
+  text-bearing terra pills are `terraText` with a `terraTextDark` hover.
+
+Bright `terra` is unchanged wherever it is not behind or beside text —
+progress bars, status dots, focus rings, timeline markers, HomeHero's display
+type. Success and warning toasts (and with them the success/verified/warning
+Badges) are now dark-on-tint. Shipped in R9; the full recomputed table is in
+that commit.
+
 ## 2026-09-02 — Pickup-order tax sourcing stays on the billing address (OPEN counsel question)
 
 Checkout collects a shipping address only for shipped orders, so Stripe Tax

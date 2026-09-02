@@ -149,7 +149,7 @@ function Content() {
                   <Link
                     href={`/artist/${a.slug}?preview=1`}
                     target="_blank"
-                    className="shrink-0 text-sm font-medium text-terra hover:underline"
+                    className="shrink-0 text-sm font-medium text-terraText hover:underline"
                   >
                     View profile ↗
                   </Link>
@@ -238,7 +238,7 @@ function Content() {
                 {unsubmitted.map((a) => (
                   <tr key={a.id}>
                     <td className="px-4 py-2">
-                      <Link href={`/artist/${a.slug}?preview=1`} target="_blank" className="font-medium text-ink hover:text-terra">
+                      <Link href={`/artist/${a.slug}?preview=1`} target="_blank" className="font-medium text-ink hover:text-terraText">
                         {a.display_name ?? 'Unnamed artist'}
                       </Link>
                     </td>

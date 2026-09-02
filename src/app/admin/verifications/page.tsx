@@ -72,7 +72,7 @@ function Content() {
               <p className="font-medium text-ink">{r.artist?.display_name ?? 'Unknown artist'}</p>
               <p className="text-xs text-muted">{r.connection_type}</p>
               <p className="mt-2 text-sm text-ink">{r.details}</p>
-              {r.links && <p className="mt-1 text-sm text-terra">{r.links}</p>}
+              {r.links && <p className="mt-1 text-sm text-terraText">{r.links}</p>}
               <div className="mt-4 flex gap-2">
                 <Button size="sm" loading={acting === r.id} onClick={() => act(r.id, 'approve')}>Approve</Button>
                 <Button size="sm" variant="outline" disabled={acting === r.id} onClick={() => act(r.id, 'reject')}>Reject</Button>

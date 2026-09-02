@@ -72,7 +72,7 @@ export function ConversationList({
                   </p>
                 )}
                 {unread > 0 && !muted && (
-                  <span className="ml-2 flex h-5 min-w-[1.25rem] flex-shrink-0 items-center justify-center rounded-full bg-terra px-1.5 text-[10px] font-bold text-white">
+                  <span className="ml-2 flex h-5 min-w-[1.25rem] flex-shrink-0 items-center justify-center rounded-full bg-terraText px-1.5 text-[10px] font-bold text-white">
                     {unread}
                   </span>
                 )}

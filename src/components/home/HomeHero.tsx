@@ -37,7 +37,7 @@ export function HomeHero() {
           {city ? (
             <Link
               href="#feed"
-              className="press rounded-full bg-terra px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-terraDark"
+              className="press rounded-full bg-terraText px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-terraTextDark"
             >
               Explore {city} Art
             </Link>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { captureException } from '@/lib/sentry';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -145,15 +146,12 @@ export function SeriesSection() {
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="e.g. Bayou Landscapes"
           />
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">Description (optional)</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              rows={3}
-              className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
-            />
-          </div>
+          <Textarea
+            label="Description (optional)"
+            value={form.description}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            rows={3}
+          />
           <div>
             <p className="mb-1 text-sm font-medium text-ink">Cover image (optional)</p>
             {form.cover_image_url && (

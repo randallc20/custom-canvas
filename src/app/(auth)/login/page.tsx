@@ -81,7 +81,7 @@ export default function LoginPage() {
           <p className="mb-4 rounded-lg border border-terra/30 bg-terraSoft/60 p-3 text-sm text-ink">
             That confirmation link is no longer valid — it may have expired or already been used.
             Try signing in; if your email isn&apos;t confirmed yet,{' '}
-            <Link href="/register" className="font-medium text-terra hover:underline">register again</Link>{' '}
+            <Link href="/register" className="font-medium text-terraText hover:underline">register again</Link>{' '}
             to get a fresh link.
           </p>
         )}
@@ -90,7 +90,7 @@ export default function LoginPage() {
           <Input label="Password" id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex justify-end">
-            <Link href="/forgot-password" className="text-sm text-terra hover:underline">
+            <Link href="/forgot-password" className="text-sm text-terraText hover:underline">
               Forgot password?
             </Link>
           </div>
@@ -99,7 +99,7 @@ export default function LoginPage() {
         </form>
         <p className="mt-4 text-center text-sm text-muted">
           Don&apos;t have an account?{' '}
-          <Link href="/register" className="text-terra hover:underline">Sign up</Link>
+          <Link href="/register" className="text-terraText hover:underline">Sign up</Link>
         </p>
       </div>
     </div>

@@ -3,7 +3,9 @@
 import { ButtonHTMLAttributes, ReactNode } from 'react';
 
 const variants = {
-  primary: 'bg-terra hover:bg-terraDark text-white',
+  // White on the brand terra is 3.07:1 at this text size — the label had to
+  // move or the background did, and the hover step (terraDark) fails too.
+  primary: 'bg-terraText hover:bg-terraTextDark text-white',
   secondary: 'bg-ink hover:bg-ink/85 text-white',
   outline: 'border border-line hover:bg-sand/50 text-ink',
   ghost: 'hover:bg-sand/50 text-ink',

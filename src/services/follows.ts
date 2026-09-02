@@ -1,15 +1,18 @@
 import { supabase } from '@/lib/supabase';
 import { ArtistProfile } from '@/types/artist';
-import { ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
+import { ARTIST_PROFILE_EMBED, ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 
-export async function getFollowedArtists(profileId: string): Promise<ArtistProfile[]> {
+/** Following rows render the artist's avatar, which lives on the profiles row. */
+export type FollowedArtist = ArtistProfile & { profile?: { avatar_url: string | null } | null };
+
+export async function getFollowedArtists(profileId: string): Promise<FollowedArtist[]> {
   const { data, error } = await supabase
     .from('follows')
-    .select(`artist:artist_profiles(${ARTIST_PUBLIC_COLS})`)
+    .select(`artist:artist_profiles(${ARTIST_PUBLIC_COLS}, ${ARTIST_PROFILE_EMBED})`)
     .eq('follower_id', profileId);
 
   if (error) throw error;
-  return (data?.map((f) => f.artist) ?? []) as unknown as ArtistProfile[];
+  return (data?.map((f) => f.artist) ?? []) as unknown as FollowedArtist[];
 }
 
 export async function followArtist(profileId: string, artistId: string): Promise<void> {

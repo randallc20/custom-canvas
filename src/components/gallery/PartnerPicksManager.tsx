@@ -216,7 +216,7 @@ export function PartnerPicksManager({ galleryId }: { galleryId: string }) {
               {results.map((r) => (
                 <li key={r.id} className="flex items-center justify-between gap-4 py-2">
                   <div className="min-w-0">
-                    <Link href={`/listing/${r.id}`} target="_blank" className="truncate text-sm font-medium text-ink hover:text-terra">
+                    <Link href={`/listing/${r.id}`} target="_blank" className="truncate text-sm font-medium text-ink hover:text-terraText">
                       {r.title}
                     </Link>
                     <p className="text-xs text-muted">

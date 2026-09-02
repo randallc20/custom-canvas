@@ -22,9 +22,9 @@ export function CookieConsent() {
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-3 px-4 py-3 text-sm sm:flex-row">
         <p className="flex-1 text-muted">
           We use cookies to improve your experience.{' '}
-          <Link href="/privacy" className="text-terra hover:underline">Learn more</Link>.
+          <Link href="/privacy" className="text-terraText hover:underline">Learn more</Link>.
         </p>
-        <button onClick={accept} className="press rounded-full bg-terra px-5 py-2 text-sm font-medium text-white hover:bg-terraDark">
+        <button onClick={accept} className="press rounded-full bg-terraText px-5 py-2 text-sm font-medium text-white hover:bg-terraTextDark">
           Accept
         </button>
       </div>

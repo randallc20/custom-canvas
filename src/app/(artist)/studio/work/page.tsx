@@ -38,7 +38,7 @@ function WorkContent() {
             key={t.key}
             onClick={() => router.replace(t.key === 'listings' ? '/studio/work' : `/studio/work?tab=${t.key}`)}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              tab === t.key ? 'bg-terra text-white' : 'bg-sand text-ink hover:bg-sand/70'
+              tab === t.key ? 'bg-terraText text-white' : 'bg-sand text-ink hover:bg-sand/70'
             }`}
           >
             {t.label}

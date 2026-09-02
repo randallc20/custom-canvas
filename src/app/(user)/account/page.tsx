@@ -132,10 +132,16 @@ export default function AccountPage() {
       <div className="mb-8 rounded-lg border border-line p-6">
         <h2 className="mb-4 text-lg font-semibold text-ink">Password</h2>
         {showPasswordForm ? (
-          <div className="space-y-4">
+          // A real <form>: Enter submits, and password managers get the
+          // new-password hint instead of offering to fill the old one.
+          <form
+            className="space-y-4"
+            onSubmit={(e) => { e.preventDefault(); handlePasswordChange(); }}
+          >
             <Input
               label="New Password"
               type="password"
+              autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Minimum 8 characters"
@@ -143,18 +149,19 @@ export default function AccountPage() {
             <Input
               label="Confirm Password"
               type="password"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
             />
             <div className="flex gap-2">
-              <Button onClick={handlePasswordChange} loading={changingPassword}>
+              <Button type="submit" loading={changingPassword}>
                 Update Password
               </Button>
-              <Button variant="outline" onClick={() => { setShowPasswordForm(false); setNewPassword(''); setConfirmPassword(''); }}>
+              <Button type="button" variant="outline" onClick={() => { setShowPasswordForm(false); setNewPassword(''); setConfirmPassword(''); }}>
                 Cancel
               </Button>
             </div>
-          </div>
+          </form>
         ) : (
           <Button variant="outline" onClick={() => setShowPasswordForm(true)}>
             Change Password
@@ -188,16 +195,12 @@ export default function AccountPage() {
               {deleteBlocked}
             </p>
           )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">
-              Type <strong>DELETE</strong> to confirm
-            </label>
-            <Input
-              value={deleteConfirm}
-              onChange={(e) => setDeleteConfirm(e.target.value)}
-              placeholder="DELETE"
-            />
-          </div>
+          <Input
+            label="Type DELETE to confirm"
+            value={deleteConfirm}
+            onChange={(e) => setDeleteConfirm(e.target.value)}
+            placeholder="DELETE"
+          />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => { setShowDeleteModal(false); setDeleteConfirm(''); setDeleteBlocked(null); }}>
               Cancel

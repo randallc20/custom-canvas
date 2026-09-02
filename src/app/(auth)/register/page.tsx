@@ -89,8 +89,8 @@ export default function RegisterPage() {
               is coming — give that person their actual way in. */}
           <p className="mt-3 text-sm text-muted">
             Already have an account with this email? No new email is sent —{' '}
-            <Link href="/login" className="text-terra hover:underline">sign in</Link> or{' '}
-            <Link href="/forgot-password" className="text-terra hover:underline">reset your password</Link> instead.
+            <Link href="/login" className="text-terraText hover:underline">sign in</Link> or{' '}
+            <Link href="/forgot-password" className="text-terraText hover:underline">reset your password</Link> instead.
           </p>
           <div className="mt-4 space-y-3 text-left">
             <p className="text-center text-sm text-muted">
@@ -114,7 +114,7 @@ export default function RegisterPage() {
               <p className="text-center text-sm text-red-600">Couldn&apos;t resend — wait a moment and try again.</p>
             )}
           </div>
-          <Link href="/login" className="mt-4 inline-block text-sm text-terra hover:underline">
+          <Link href="/login" className="mt-4 inline-block text-sm text-terraText hover:underline">
             Go to sign in
           </Link>
         </div>
@@ -141,7 +141,7 @@ export default function RegisterPage() {
                   onClick={() => setRole(r.value)}
                   aria-pressed={role === r.value}
                   className={`rounded-lg border p-3 text-center text-sm transition-colors
-                    ${role === r.value ? 'border-terra bg-orange-50 text-terra' : 'border-line hover:bg-sand/50'}`}
+                    ${role === r.value ? 'border-terra bg-orange-50 text-terraText' : 'border-line hover:bg-sand/50'}`}
                 >
                   <div className="font-medium">{r.label}</div>
                   <div className="mt-0.5 text-xs text-muted">{r.desc}</div>
@@ -159,9 +159,9 @@ export default function RegisterPage() {
             />
             <span>
               I agree to the{' '}
-              <Link href="/terms" target="_blank" className="text-terra hover:underline">Terms of Service</Link>{' '}
+              <Link href="/terms" target="_blank" className="text-terraText hover:underline">Terms of Service</Link>{' '}
               and{' '}
-              <Link href="/privacy" target="_blank" className="text-terra hover:underline">Privacy Policy</Link>.
+              <Link href="/privacy" target="_blank" className="text-terraText hover:underline">Privacy Policy</Link>.
             </span>
           </label>
 
@@ -171,7 +171,7 @@ export default function RegisterPage() {
         </form>
         <p className="mt-4 text-center text-sm text-muted">
           Already have an account?{' '}
-          <Link href="/login" className="text-terra hover:underline">Sign in</Link>
+          <Link href="/login" className="text-terraText hover:underline">Sign in</Link>
         </p>
       </div>
     </div>

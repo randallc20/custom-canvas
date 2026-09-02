@@ -141,7 +141,7 @@ function DisputesContent() {
                       <>
                         Listing:{' '}
                         {report.listing ? (
-                          <Link href={`/listing/${report.listing_id}`} className="font-medium text-terra hover:underline">
+                          <Link href={`/listing/${report.listing_id}`} className="font-medium text-terraText hover:underline">
                             {report.listing.title}
                           </Link>
                         ) : (

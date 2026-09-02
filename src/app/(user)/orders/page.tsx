@@ -123,7 +123,7 @@ export default function OrdersPage() {
                   </div>
                 )}
                 {alreadyReviewed && (
-                  <p className="mt-3 text-xs text-sage">Review submitted — thank you!</p>
+                  <p className="mt-3 text-xs text-sageText">Review submitted — thank you!</p>
                 )}
                 {order.is_pickup && ['paid', 'shipped', 'delivered'].includes(order.status) && !order.refund_approved_at && (
                   <div className="mt-3">

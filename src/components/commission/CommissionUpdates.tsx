@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useCommissionUpdates } from '@/hooks/useCommissionUpdates';
 import { ImageUpload } from '@/components/upload/ImageUpload';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { formatTime } from '@/utils/formatTime';
@@ -110,18 +111,26 @@ export function CommissionUpdates({ commissionId, isArtist, canPost }: Commissio
               )}
               <div className="mt-2 flex items-center gap-3 text-xs text-muted">
                 <span>{formatTime(u.created_at)}</span>
-                {u.progress_percent != null && <span className="rounded-full bg-terraSoft px-2 py-0.5 text-terraDark">{u.progress_percent}%</span>}
+                {u.progress_percent != null && <span className="rounded-full bg-terraSoft px-2 py-0.5 text-terraText">{u.progress_percent}%</span>}
               </div>
             </li>
           ))}
         </ol>
       )}
 
-      {lightbox && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/80 p-4" onClick={() => setLightbox(null)}>
+      <Modal
+        isOpen={!!lightbox}
+        onClose={() => setLightbox(null)}
+        ariaLabel="Progress photo"
+        containerClassName="fixed inset-0 z-50 flex items-center justify-center p-4"
+        overlayClassName="fixed inset-0 animate-fade-in bg-ink/80"
+        panelClassName="relative z-10 max-h-full"
+        floatingClose
+      >
+        {lightbox && (
           <Image src={lightbox} alt="Progress" width={1000} height={1000} className="max-h-[90vh] w-auto rounded-lg object-contain" />
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

@@ -19,7 +19,10 @@ import { PARTNER_TYPE_LABELS, type GalleryProfile } from '@/types/gallery';
 import { PartnerBadge } from '@/components/gallery/PartnerBadge';
 import { PartnerPicksManager } from '@/components/gallery/PartnerPicksManager';
 import type { ArtistProfile } from '@/types/artist';
-import { ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
+import { ARTIST_PROFILE_EMBED, ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
+
+/** The roster rows carry the embedded profile (for the avatar) and the join row's role. */
+type RosterExtras = { gallery_role?: string; profile?: { avatar_url: string | null } | null };
 
 export function GalleryDashboard() {
   const { user } = useAuth();
@@ -27,7 +30,7 @@ export function GalleryDashboard() {
   const confirm = useConfirm();
   const router = useRouter();
   const [gallery, setGallery] = useState<GalleryProfile | null>(null);
-  const [artists, setArtists] = useState<(ArtistProfile & { gallery_role?: string })[]>([]);
+  const [artists, setArtists] = useState<(ArtistProfile & RosterExtras)[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,11 +66,11 @@ export function GalleryDashboard() {
 
     const { data: ga } = await supabase
       .from('gallery_artists')
-      .select(`role, artist:artist_profiles(${ARTIST_PUBLIC_COLS})`)
+      .select(`role, artist:artist_profiles(${ARTIST_PUBLIC_COLS}, ${ARTIST_PROFILE_EMBED})`)
       .eq('gallery_id', g.id);
 
     const mapped = (ga ?? []).map((row: Record<string, unknown>) => ({
-      ...(row.artist as ArtistProfile),
+      ...(row.artist as ArtistProfile & RosterExtras),
       gallery_role: row.role as string,
     }));
     setArtists(mapped);
@@ -182,7 +185,8 @@ export function GalleryDashboard() {
             {artists.map((artist) => (
               <div key={artist.id} className="flex items-center justify-between py-3">
                 <Link href={`/artist/${artist.slug}`} className="flex items-center gap-3 hover:opacity-80">
-                  <Avatar src={artist.banner_image_url} alt={artist.display_name} size="sm" />
+                  {/* The avatar is the artist's face; banner_image_url is the wide header. */}
+                  <Avatar src={artist.profile?.avatar_url ?? null} alt={artist.display_name} size="sm" />
                   <div>
                     <p className="text-sm font-medium text-ink">{artist.display_name}</p>
                     {artist.neighborhood && (
@@ -194,7 +198,7 @@ export function GalleryDashboard() {
                   <Badge>{artist.gallery_role ?? 'represented'}</Badge>
                   <button
                     onClick={() => handleRemoveArtist(artist.id)}
-                    className="text-xs text-muted hover:text-terra"
+                    className="text-xs text-muted hover:text-terraText"
                   >
                     Remove
                   </button>

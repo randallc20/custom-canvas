@@ -9,6 +9,8 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import { reportUser } from '@/services/reports';
 import type { ReportReason } from '@/types/report';
 
@@ -43,6 +45,13 @@ export function ThreadMenu({ conversationId, otherUserId, otherName }: ThreadMen
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
 
   if (!user) return null;
 
@@ -84,7 +93,7 @@ export function ThreadMenu({ conversationId, otherUserId, otherName }: ThreadMen
 
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen((o) => !o)} aria-label="Conversation options" className="rounded-full p-1.5 text-muted hover:bg-sand/60 hover:text-ink">
+      <button onClick={() => setOpen((o) => !o)} aria-label="Conversation options" aria-haspopup="menu" aria-expanded={open} className="rounded-full p-1.5 text-muted hover:bg-sand/60 hover:text-ink">
         <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" /></svg>
       </button>
       {open && (
@@ -97,13 +106,13 @@ export function ThreadMenu({ conversationId, otherUserId, otherName }: ThreadMen
 
       <Modal isOpen={reportOpen} title={`Report ${otherName}`} onClose={() => setReportOpen(false)}>
         <div className="space-y-3">
-          <select value={reportReason} onChange={(e) => setReportReason(e.target.value as ReportReason)} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink">
+          <Select label="Reason" value={reportReason} onChange={(e) => setReportReason(e.target.value as ReportReason)}>
             <option value="inappropriate">Inappropriate behavior</option>
             <option value="spam">Spam</option>
             <option value="misleading">Scam or misleading</option>
             <option value="other">Other</option>
-          </select>
-          <textarea value={reportDesc} onChange={(e) => setReportDesc(e.target.value)} rows={3} placeholder="Add details (optional)" className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink" />
+          </Select>
+          <Textarea label="Details (optional)" value={reportDesc} onChange={(e) => setReportDesc(e.target.value)} rows={3} placeholder="Add details (optional)" />
           <Button className="w-full" onClick={submitReport} loading={reporting}>Submit report</Button>
         </div>
       </Modal>

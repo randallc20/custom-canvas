@@ -37,7 +37,7 @@ export function GalleryHero({ gallery }: GalleryHeroProps) {
             href={gallery.website_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1 inline-block text-sm text-terra hover:underline"
+            className="mt-1 inline-block text-sm text-terraText hover:underline"
           >
             {gallery.website_url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
           </a>

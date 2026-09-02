@@ -77,7 +77,7 @@ export default async function PartnersPage({ searchParams }: Props) {
               </div>
               <div className="p-4">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-ink group-hover:text-terra">
+                  <h3 className="font-medium text-ink group-hover:text-terraText">
                     {partner.gallery_name}
                   </h3>
                   <PartnerBadge partnerType={partner.partner_type} />

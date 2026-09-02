@@ -51,6 +51,13 @@ export function NotificationDropdown() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+
   const handleMarkAllRead = () => {
     markAllRead.mutate(undefined, {
       onSuccess: () => refreshNotifications(),
@@ -74,12 +81,14 @@ export function NotificationDropdown() {
         onClick={() => setOpen(!open)}
         className="relative text-muted hover:text-ink"
         aria-label="Notifications"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-terra px-1 text-[10px] font-bold text-white">
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-terraText px-1 text-[10px] font-bold text-white">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -92,7 +101,7 @@ export function NotificationDropdown() {
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
-                className="text-xs text-terra hover:underline"
+                className="text-xs text-terraText hover:underline"
               >
                 Mark all read
               </button>
@@ -119,7 +128,7 @@ export function NotificationDropdown() {
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
-              className="text-xs font-medium text-terra hover:underline"
+              className="text-xs font-medium text-terraText hover:underline"
             >
               View all notifications
             </Link>

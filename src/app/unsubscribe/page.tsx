@@ -22,7 +22,7 @@ function UnsubscribeInner() {
         <>
           <h1 className="font-display text-2xl font-bold text-ink">You&apos;re unsubscribed</h1>
           <p className="mt-2 text-muted">You won&apos;t receive non-essential emails from Custom Canvas. You can re-enable categories anytime in your account.</p>
-          <Link href="/account" className="mt-6 inline-block rounded-full bg-terra px-5 py-2.5 text-sm font-medium text-white hover:bg-terraDark">Email preferences</Link>
+          <Link href="/account" className="mt-6 inline-block rounded-full bg-terraText px-5 py-2.5 text-sm font-medium text-white hover:bg-terraTextDark">Email preferences</Link>
         </>
       )}
       {state === 'error' && <p className="text-muted">This unsubscribe link is invalid or expired.</p>}

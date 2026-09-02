@@ -68,7 +68,7 @@ export function ContextBanner({ contextType, contextId }: ContextBannerProps) {
           <div className="h-10 w-10 rounded-lg bg-line" />
         )
       ) : (
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-terraSoft text-terraDark">✦</div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-terraSoft text-terraText">✦</div>
       )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-ink">{ctx.title}</p>

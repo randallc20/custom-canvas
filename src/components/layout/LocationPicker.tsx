@@ -56,7 +56,7 @@ export function LocationPicker({ variant = 'pill' }: { variant?: 'pill' | 'hero'
         onClick={() => setOpen(true)}
         className={
           variant === 'hero'
-            ? 'press rounded-full bg-terra px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-terraDark'
+            ? 'press rounded-full bg-terraText px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-terraTextDark'
             : 'flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-sand/50'
         }
         aria-label="Choose your location"

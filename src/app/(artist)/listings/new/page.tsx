@@ -8,6 +8,8 @@ import { useCreateListing } from '@/hooks/useListings';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Select } from '@/components/ui/Select';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { numberOrNull } from '@/utils/formNumber';
@@ -97,30 +99,24 @@ export default function NewListingPage() {
       <h1 className="mb-6 text-2xl font-bold text-ink">Create Listing</h1>
       <form onSubmit={handleSubmit((d) => onSubmit(d, false))} className="space-y-4">
         <Input label="Title" {...register('title')} error={errors.title?.message} />
-        <div>
-          <label className="mb-1 block text-sm font-medium text-ink">Description</label>
-          <textarea {...register('description')} rows={4} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
-        </div>
+        <Textarea label="Description" rows={4} {...register('description')} error={errors.description?.message} />
         <Input label="Medium" {...register('medium')} error={errors.medium?.message} />
         <DimensionsFieldset unit={unit} onSwitch={switchUnit} register={register} />
-        <Input label="Year Created" type="number" {...register('year_created', { setValueAs: numberOrNull })} />
+        <Input label="Year Created" type="number" {...register('year_created', { setValueAs: numberOrNull })} error={errors.year_created?.message} />
         {seriesOptions.length > 0 && (
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">Series (optional)</label>
-            <select {...register('series_id')} className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm">
-              <option value="">No series</option>
-              {seriesOptions.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
+          <Select label="Series (optional)" {...register('series_id')}>
+            <option value="">No series</option>
+            {seriesOptions.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </Select>
         )}
 
         <TagPicker value={selectedTags} onChange={(tags) => setValue('tags', tags, { shouldDirty: true })} />
 
         <fieldset className="space-y-4 rounded-xl border border-line p-4">
           <legend className="px-1 text-sm font-semibold text-ink">Pricing</legend>
-          <Input label="Price ($)" type="number" step="0.01" {...register('price_dollars', { valueAsNumber: true })} error={errors.price_dollars?.message} />
+          <Input label="Price ($)" type="number" step="0.01" {...register('price_dollars', { setValueAs: numberOrNull })} error={errors.price_dollars?.message} />
           <label className="flex items-center gap-2">
             <input type="checkbox" {...register('price_visible')} className="rounded border-line" />
             <span className="text-sm text-ink">Show price publicly</span>

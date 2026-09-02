@@ -72,7 +72,7 @@ export function PayoutsSection() {
               plus your full shipping charge. Payouts arrive about 14 days after each
               sale — the delay protects you and your buyers if a payment is disputed.
               The full terms are in your{' '}
-              <a href="/artist-agreement" className="font-medium text-terra underline">Artist Agreement</a>.
+              <a href="/artist-agreement" className="font-medium text-terraText underline">Artist Agreement</a>.
             </p>
             <p className="mt-2 text-sm text-muted">
               To view your payout schedule, balance, and bank account details, visit your Stripe dashboard.

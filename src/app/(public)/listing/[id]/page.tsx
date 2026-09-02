@@ -81,7 +81,7 @@ export default async function ListingPage({ params }: Props) {
           <div className="mb-4">
             <h1 className="font-display text-3xl font-bold leading-tight text-ink">{processedListing.title}</h1>
             {artist && (
-              <Link href={`/artist/${artist.slug}`} className="mt-1 inline-block text-sm font-medium text-terra hover:underline">
+              <Link href={`/artist/${artist.slug}`} className="mt-1 inline-block text-sm font-medium text-terraText hover:underline">
                 {artist.display_name}
               </Link>
             )}

@@ -88,7 +88,7 @@ export default function GalleryOnboardingPage() {
           <p className="mt-1 text-sm text-muted">
             In the meantime, you can browse and discover local artists.
           </p>
-          <Link href="/" className="mt-6 inline-block rounded-lg bg-terra px-5 py-2.5 text-sm font-medium text-white hover:bg-[#d4603f]">
+          <Link href="/" className="mt-6 inline-block rounded-lg bg-terraText px-5 py-2.5 text-sm font-medium text-white hover:bg-terraTextDark">
             Explore Art
           </Link>
         </div>

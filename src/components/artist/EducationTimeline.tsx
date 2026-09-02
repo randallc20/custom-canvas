@@ -23,7 +23,7 @@ export function EducationTimeline({ education }: EducationTimelineProps) {
             <span className="absolute -left-[1.85rem] top-1.5 h-2.5 w-2.5 rounded-full bg-terra" />
             <p className="flex items-center gap-1.5 font-medium text-ink">
               {entry.partner?.is_verified ? (
-                <Link href={`/gallery/${entry.partner.slug}`} className="hover:text-terraDark hover:underline">
+                <Link href={`/gallery/${entry.partner.slug}`} className="hover:text-terraTextDark hover:underline">
                   {entry.institution}
                 </Link>
               ) : (

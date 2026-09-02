@@ -57,7 +57,7 @@ export function PhotoTipsPanel() {
           ))}
           <li className="pt-1 text-xs text-muted">
             Want professional shots? Check{' '}
-            <a href="/studio/services" className="font-medium text-terra underline">
+            <a href="/studio/services" className="font-medium text-terraText underline">
               Artist Services
             </a>{' '}
             for local photographers.
