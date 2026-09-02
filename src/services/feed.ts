@@ -16,6 +16,15 @@ export function prefixOrQuery(search: string): string | null {
 }
 export type Availability = 'available' | 'commission';
 
+/** Every listing column a feed card reads (FeedCard, listingPriceLabel) —
+ *  `listings.*` shipped the tsvector and the full description to every
+ *  browser for every row (02 appendix). description and search_vector are
+ *  therefore absent on feed rows; only the listing page renders either. */
+const FEED_CARD_COLS =
+  'id, artist_id, title, medium, width_cm, height_cm, depth_cm, year_created, price_cents, ' +
+  'shipping_rate_cents, ai_involvement, ai_disclosure, price_visible, sold_price_cents, ' +
+  'show_sold_price, series_id, status, is_featured, view_count, save_count, created_at, updated_at';
+
 export interface FeedParams {
   page?: number;
   limit?: number;
@@ -57,7 +66,7 @@ async function runFeedQuery(params: FeedParams, searchMode: 'strict' | 'fallback
   // surface the artist on each card.
   let query = supabase
     .from('listings')
-    .select('*, images:listing_images(*), tags:listing_tags(tag:tags(*)), artist:artist_profiles!inner(slug, display_name, neighborhood, school, commissions_open)')
+    .select(`${FEED_CARD_COLS}, images:listing_images(*), tags:listing_tags(tag:tags(*)), artist:artist_profiles!inner(slug, display_name, neighborhood, school, commissions_open)`)
     // Only live (approved) artists' work is public. RLS enforces this for
     // anon reads; the explicit filter also keeps a draft artist's own pieces
     // (owner-bypass rows) out of their feed view for consistency.

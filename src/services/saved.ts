@@ -41,14 +41,13 @@ export async function unsaveListing(profileId: string, listingId: string): Promi
   if (!data?.length) throw new Error('Could not remove the save — please refresh and try again.');
 }
 
-export async function isListingSaved(profileId: string, listingId: string): Promise<boolean> {
+/** Just the ids, for the shared saved-state set the feed cards read. */
+export async function getSavedListingIds(profileId: string): Promise<string[]> {
   const { data, error } = await supabase
     .from('saved_listings')
-    .select('profile_id')
-    .eq('profile_id', profileId)
-    .eq('listing_id', listingId)
-    .maybeSingle();
+    .select('listing_id')
+    .eq('profile_id', profileId);
 
   if (error) throw error;
-  return !!data;
+  return (data ?? []).map((row) => row.listing_id as string);
 }

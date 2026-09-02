@@ -1,20 +1,27 @@
 import { supabase } from '@/lib/supabase';
 import type { AnalyticsEventType, ArtistAnalytics } from '@/types/analytics';
 
+/** Records a view. Goes through /api/analytics (rate-limited per IP, inserts
+ *  with the service role) instead of a direct anon-key insert into
+ *  analytics_events, which no limiter ever saw (01-P2 / R7). viewer_id is
+ *  taken from the server session, so it is deliberately not a parameter. */
 export async function trackEvent(params: {
   artistId: string;
   eventType: AnalyticsEventType;
   listingId?: string;
-  viewerId?: string;
 }): Promise<void> {
-  const { error } = await supabase.from('analytics_events').insert({
-    artist_id: params.artistId,
-    event_type: params.eventType,
-    listing_id: params.listingId ?? null,
-    viewer_id: params.viewerId ?? null,
+  const res = await fetch('/api/analytics', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      artist_id: params.artistId,
+      event_type: params.eventType,
+      listing_id: params.listingId ?? null,
+    }),
+    // Let the ping outlive a navigation away from the page it counts.
+    keepalive: true,
   });
-
-  if (error) throw error;
+  if (!res.ok) throw new Error(`analytics: ${res.status}`);
 }
 
 export async function getArtistAnalytics(artistId: string): Promise<ArtistAnalytics> {

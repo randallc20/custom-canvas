@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useConversations, useConversation } from '@/hooks/useConversations';
@@ -35,8 +35,7 @@ function ConversationContent() {
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const { data: conversations, isLoading } = useConversations(user?.id ?? '');
   const { data: activeConv } = useConversation(conversationId);
-  const conversationIds = useMemo(() => conversations?.map((c) => c.id) ?? [], [conversations]);
-  const { data: unreadCounts } = useUnreadCounts(user?.id ?? '', conversationIds);
+  const { data: unreadCounts } = useUnreadCounts(user?.id ?? '');
   const { data: blockedIds } = useBlockedIds(user?.id ?? '');
   const { data: mutedIds } = useMutedConversationIds(user?.id ?? '');
 

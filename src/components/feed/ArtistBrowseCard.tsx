@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
-import { useIsFollowing, useToggleFollow } from '@/hooks/useFollows';
+import { useFollowedIds, useToggleFollow } from '@/hooks/useFollows';
 import type { ArtistProfile } from '@/types/artist';
 
 interface ArtistBrowseCardProps {
@@ -14,7 +14,8 @@ interface ArtistBrowseCardProps {
 
 export function ArtistBrowseCard({ artist }: ArtistBrowseCardProps) {
   const { user } = useAuth();
-  const { data: isFollowing } = useIsFollowing(user?.id ?? '', artist.id);
+  const { data: followedIds } = useFollowedIds(user?.id ?? '');
+  const isFollowing = followedIds?.has(artist.id) ?? false;
   const toggleFollow = useToggleFollow();
 
   const isOwn = user?.id === artist.profile_id;
@@ -22,7 +23,7 @@ export function ArtistBrowseCard({ artist }: ArtistBrowseCardProps) {
   const handleFollow = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!user) return;
-    toggleFollow.mutate({ profileId: user.id, artistId: artist.id, isCurrentlyFollowing: !!isFollowing });
+    toggleFollow.mutate({ profileId: user.id, artistId: artist.id, isCurrentlyFollowing: isFollowing });
   };
 
   return (

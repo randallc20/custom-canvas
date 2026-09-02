@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo } from 'react';
+import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useConversations } from '@/hooks/useConversations';
@@ -30,8 +30,7 @@ function MessagesContent() {
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab') === 'commissions' ? 'commissions' : 'all';
   const { data: conversations, isLoading } = useConversations(user?.id ?? '');
-  const conversationIds = useMemo(() => conversations?.map((c) => c.id) ?? [], [conversations]);
-  const { data: unreadCounts } = useUnreadCounts(user?.id ?? '', conversationIds);
+  const { data: unreadCounts } = useUnreadCounts(user?.id ?? '');
   const { data: blockedIds } = useBlockedIds(user?.id ?? '');
   const { data: mutedIds } = useMutedConversationIds(user?.id ?? '');
 

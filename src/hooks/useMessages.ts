@@ -78,11 +78,11 @@ export function useSendMessage() {
   });
 }
 
-export function useUnreadCounts(userId: string, conversationIds: string[]) {
+export function useUnreadCounts(userId: string) {
   return useQuery({
-    queryKey: ['unread-counts', userId, conversationIds],
-    queryFn: () => getUnreadCounts(userId, conversationIds),
-    enabled: !!userId && conversationIds.length > 0,
+    queryKey: ['unread-counts', userId],
+    queryFn: getUnreadCounts,
+    enabled: !!userId,
     refetchInterval: 30000,
   });
 }

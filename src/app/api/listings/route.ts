@@ -4,18 +4,8 @@ import { listingWriteSchema } from '@/schemas/listingSchema';
 import { fanOutNewListingEmails } from '@/lib/listingAlerts';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
-export async function GET() {
-  const supabase = createServerSupabaseClient();
-
-  const { data, error } = await supabase
-    .from('listings')
-    .select('*, images:listing_images(*)')
-    .eq('status', 'available')
-    .order('created_at', { ascending: false });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
-}
+// No GET: the public, unbounded catalog dump this file used to serve had no
+// caller in the app (02-P2, R7). Reads go through supabase-js under RLS.
 
 export async function POST(request: NextRequest) {
   const supabase = createServerSupabaseClient();

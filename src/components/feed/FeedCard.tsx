@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { ListingWithImages } from '@/types/listing';
 import { listingPriceLabel } from '@/utils/formatPrice';
 import { useAuth } from '@/context/AuthContext';
-import { useIsSaved, useToggleSave } from '@/hooks/useSaved';
+import { useSavedIds, useToggleSave } from '@/hooks/useSaved';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 interface FeedCardProps {
@@ -18,7 +18,8 @@ interface FeedCardProps {
 
 export function FeedCard({ listing, revealDelayMs = 0, natural = false }: FeedCardProps) {
   const { user } = useAuth();
-  const { data: isSaved } = useIsSaved(user?.id ?? '', listing.id);
+  const { data: savedIds } = useSavedIds(user?.id ?? '');
+  const isSaved = savedIds?.has(listing.id) ?? false;
   const toggleSave = useToggleSave();
   const revealRef = useScrollReveal<HTMLDivElement>();
   const primaryImage = listing.images.find((img) => img.is_primary) ?? listing.images[0];
@@ -30,7 +31,7 @@ export function FeedCard({ listing, revealDelayMs = 0, natural = false }: FeedCa
     toggleSave.mutate({
       profileId: user.id,
       listingId: listing.id,
-      isSaved: !!isSaved,
+      isSaved,
     });
   };
 

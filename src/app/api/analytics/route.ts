@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
 export async function GET(request: NextRequest) {
   const supabase = createServerSupabaseClient();
@@ -59,28 +61,34 @@ export async function GET(request: NextRequest) {
   });
 }
 
-const ALLOWED_EVENTS = ['profile_view', 'listing_view', 'listing_save'];
+// The only events the browser may record. listing_share/follow exist in the
+// type but nothing emits them; keep the server list tight.
+const trackSchema = z.object({
+  event_type: z.enum(['profile_view', 'listing_view', 'listing_save']),
+  artist_id: z.string().uuid(),
+  listing_id: z.string().uuid().nullish(),
+});
 
+/** The one write path for analytics_events (01-P2 / R7). The browser used
+ *  to insert straight into the table with the anon key, which no rate
+ *  limiter ever saw; now every view lands here (middleware: 60/min per IP)
+ *  and is written with the service role. R8 drops the client INSERT policy. */
 export async function POST(request: NextRequest) {
-  const supabase = createServerSupabaseClient();
-  const body = await request.json();
-  const { artist_id, event_type, listing_id } = body;
-
-  if (!artist_id || !event_type) {
-    return NextResponse.json({ error: 'artist_id and event_type are required' }, { status: 400 });
-  }
-  if (!ALLOWED_EVENTS.includes(event_type)) {
-    return NextResponse.json({ error: 'invalid event_type' }, { status: 400 });
+  const body = await request.json().catch(() => null);
+  const parsed = trackSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid event', details: parsed.error.flatten() }, { status: 400 });
   }
 
   // viewer_id is derived from the session, never the client — prevents
   // attributing a view to an arbitrary user (guests record as null).
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await createServerSupabaseClient().auth.getUser();
 
-  const { error } = await supabase.from('analytics_events').insert({
-    artist_id,
-    event_type,
-    listing_id: listing_id ?? null,
+  const admin = createAdminSupabaseClient();
+  const { error } = await admin.from('analytics_events').insert({
+    artist_id: parsed.data.artist_id,
+    event_type: parsed.data.event_type,
+    listing_id: parsed.data.listing_id ?? null,
     viewer_id: user?.id ?? null,
   });
 

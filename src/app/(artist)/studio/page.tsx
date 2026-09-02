@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useArtistListings } from '@/hooks/useArtist';
-import { useArtistOrders } from '@/hooks/useOrders';
+import { useArtistOrders, useArtistSalesTotals } from '@/hooks/useOrders';
+import { summarizeSales } from '@/utils/salesTotals';
 import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 import { Spinner } from '@/components/ui/Spinner';
 import { Button } from '@/components/ui/Button';
@@ -22,7 +23,10 @@ export default function StudioHomePage() {
   const { artist, loading } = useOwnArtistProfile();
   const [showTrends, setShowTrends] = useState(false);
   const { data: listings } = useArtistListings(artist?.id ?? '');
+  // The bounded list feeds WeekStrip (last 7 days); the headline totals are
+  // summed in the database so they never depend on how many rows came back.
   const { data: orders } = useArtistOrders(artist?.id ?? '');
+  const { data: totals } = useArtistSalesTotals(artist?.id ?? '');
 
   // /analytics redirects here with ?trends=open — land with the charts out.
   useEffect(() => {
@@ -34,8 +38,7 @@ export default function StudioHomePage() {
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
   const listingCount = listings?.length ?? 0;
-  const totalSales = orders?.filter((o) => o.status !== 'refunded').length ?? 0;
-  const totalRevenue = orders?.filter((o) => o.status !== 'refunded').reduce((sum, o) => sum + o.artist_payout_cents, 0) ?? 0;
+  const { salesCount: totalSales, earningsCents: totalRevenue } = summarizeSales(totals);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
