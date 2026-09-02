@@ -10,7 +10,10 @@ export const galleryProfileSchema = z.object({
   address: z.string().max(500).optional().or(z.literal('')),
   neighborhood: z.string().max(100).optional().or(z.literal('')),
   city: z.string().min(2, 'City is required').max(100),
-  website_url: z.string().url().optional().or(z.literal('')),
+  // The scheme rule mirrors the DB CHECK (00052) so the user sees this
+  // message instead of a constraint error. Empty is "no website" (saved as NULL).
+  website_url: z.string().url().regex(/^https?:\/\//i, 'Website must start with http:// or https://')
+    .optional().or(z.literal('')),
 });
 
 export type GalleryProfileFormData = z.infer<typeof galleryProfileSchema>;

@@ -7,7 +7,13 @@ interface GalleryHeroProps {
   gallery: GalleryProfile;
 }
 
+// Mirrors the DB CHECK (00052): anything that is not http(s) is not a link
+// we will put under our domain, even if a row somehow carries it.
+const HTTP_URL = /^https?:\/\//i;
+
 export function GalleryHero({ gallery }: GalleryHeroProps) {
+  const websiteUrl =
+    gallery.website_url && HTTP_URL.test(gallery.website_url) ? gallery.website_url : null;
   return (
     <div>
       <div className="relative h-48 w-full bg-sand md:h-64">
@@ -32,14 +38,14 @@ export function GalleryHero({ gallery }: GalleryHeroProps) {
           {gallery.is_verified && <PartnerBadge partnerType={gallery.partner_type} />}
         </div>
         {gallery.address && <p className="mt-1 text-sm text-muted">{gallery.address}</p>}
-        {gallery.website_url && (
+        {websiteUrl && (
           <a
-            href={gallery.website_url}
+            href={websiteUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-1 inline-block text-sm text-terraText hover:underline"
           >
-            {gallery.website_url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+            {websiteUrl.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '')}
           </a>
         )}
         {gallery.bio && <p className="mt-3 text-muted">{gallery.bio}</p>}

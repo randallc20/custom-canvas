@@ -3,6 +3,18 @@
 Deliberate choices with lasting consequences, recorded so they read as
 choices — not oversights. Newest first.
 
+## 2026-09-02 — Public profile visibility: full_name stays anon-readable, email_preferences and the follow graph do not (ruling D3, default applied)
+
+Review 01-P2 found the anon key could read every user's `full_name`, role,
+signup date and `email_preferences`, and every row of `follows`. R8 applied
+the plan's default: `full_name`/`avatar_url`/`role`/timestamps stay
+anon-readable because artist pages, reviews and chat headers render buyers by
+name; `email_preferences` is revoked from `anon` (only the signed-in account
+page reads it); `follows` is back to own-row SELECT with the public number
+served by `follower_count()` (SECURITY DEFINER, count only). Whether buyer
+names should require sign-in is still open for a later ruling; nothing in
+the launch surface needs it either way. Migration 00052.
+
 ## 2026-09-02 — Seller protection requirement 3: artist attestation of delivery accepted at launch (ruling D1)
 
 Requirement 3 of Seller Protection is met at launch by the artist clicking

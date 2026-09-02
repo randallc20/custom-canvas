@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +15,13 @@ export default function ForgotPasswordPage() {
   const { resetPassword } = useAuth();
   const [captcha, setCaptcha] = useState('');
   const [captchaReset, setCaptchaReset] = useState(0);
+  // /auth/reset-callback lands here with ?expired=1 when an admin-sent reset
+  // link was already used or is past its hour.
+  const [expired, setExpired] = useState(false);
+
+  useEffect(() => {
+    setExpired(new URLSearchParams(window.location.search).get('expired') === '1');
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +64,11 @@ export default function ForgotPasswordPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <h1 className="mb-2 text-2xl font-bold text-ink">Forgot Password?</h1>
+        {expired && (
+          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            That reset link has expired or was already used. Enter your email to get a new one.
+          </p>
+        )}
         <p className="mb-6 text-sm text-muted">
           Enter your email and we&apos;ll send you a link to reset your password.
         </p>

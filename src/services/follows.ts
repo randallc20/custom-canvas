@@ -60,12 +60,11 @@ export async function isFollowing(profileId: string, artistId: string): Promise<
   return !!data;
 }
 
+// follows is own-rows-only since 00052; the public number comes from the
+// SECURITY DEFINER follower_count(), which returns the count and nothing else.
 export async function getFollowerCount(artistId: string): Promise<number> {
-  const { count, error } = await supabase
-    .from('follows')
-    .select('*', { count: 'exact', head: true })
-    .eq('artist_id', artistId);
+  const { data, error } = await supabase.rpc('follower_count', { p_artist_id: artistId });
 
   if (error) throw error;
-  return count ?? 0;
+  return Number(data ?? 0);
 }

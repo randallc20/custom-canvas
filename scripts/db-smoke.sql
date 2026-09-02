@@ -36,6 +36,7 @@ SELECT * FROM neighborhood_listing_counts('Houston');
 SELECT * FROM neighborhood_listing_counts(NULL);
 SELECT * FROM my_unread_counts();
 SELECT * FROM artist_sales_totals('00000000-0000-0000-0000-000000000001'::uuid);
+SELECT follower_count('00000000-0000-0000-0000-000000000001'::uuid);
 ROLLBACK;
 
 BEGIN;
@@ -50,6 +51,7 @@ INSERT INTO expected_functions VALUES
   ('is_privileged'), ('blocked_by'), ('sender_is_blocked'),
   ('link_education_partners'), ('refresh_completeness_score'),
   ('neighborhood_listing_counts'), ('my_unread_counts'), ('artist_sales_totals'),
+  ('follower_count'),
   -- trigger functions (exercised via their tables' writes)
   ('artist_search_update'), ('enforce_featured_cap'), ('enforce_partner_picks_cap'),
   ('guard_artist_profiles_insert'), ('guard_artist_profiles_update'),
@@ -88,7 +90,6 @@ END $$;
 -- ---------------------------------------------------------------------------
 CREATE TEMP TABLE expected_policies(tbl text, cmd text, pol text) ON COMMIT DROP;
 INSERT INTO expected_policies VALUES
-  ('analytics_events','a','Insert analytics events'),
   ('analytics_events','r','Artists can see own analytics'),
   ('analytics_events','r','Viewers can read their own events'),
   ('artist_education','a','Artists can manage own education'),
@@ -121,7 +122,7 @@ INSERT INTO expected_policies VALUES
   ('featured_listings','w','Admins reorder featured listings'),
   ('follows','a','Users can follow'),
   ('follows','d','Users can unfollow'),
-  ('follows','r','Follow counts visible to all'),
+  ('follows','r','Users can see own follows'),
   ('gallery_artists','a','Gallery owners can manage their artists'),
   ('gallery_artists','d','Gallery owners can remove artists'),
   ('gallery_artists','r','Gallery artists are publicly visible'),
@@ -222,12 +223,15 @@ END $$;
 --    00033 artist_profiles). Two directions:
 --    (a) the exact granted column set is pinned (privacy drift is a diff);
 --    (b) service-role-only columns must NOT be granted.
+--    Per role since 00052 (D3): email_preferences is authenticated-only.
 -- ---------------------------------------------------------------------------
-CREATE TEMP TABLE expected_grants(tbl text, col text) ON COMMIT DROP;
+CREATE TEMP TABLE expected_grants(tbl text, col text, roles text[]) ON COMMIT DROP;
 INSERT INTO expected_grants
   SELECT 'profiles', unnest(ARRAY[
-    'id','full_name','avatar_url','role','created_at','updated_at',
-    'email_preferences'])
+    'id','full_name','avatar_url','role','created_at','updated_at']),
+    ARRAY['anon','authenticated']
+  UNION ALL
+  SELECT 'profiles', 'email_preferences', ARRAY['authenticated']
   UNION ALL
   SELECT 'artist_profiles', unnest(ARRAY[
     'id','profile_id','slug','display_name','bio','artist_statement',
@@ -240,7 +244,8 @@ INSERT INTO expected_grants
     'away_message','away_until','commissions_open_before_away',
     'last_listing_alert_at','application_status',
     -- granted but not in ARTIST_PUBLIC_COLS (harmless payload):
-    'agreement_accepted_at','agreement_version','search_vector']);
+    'agreement_accepted_at','agreement_version','search_vector']),
+    ARRAY['anon','authenticated'];
 
 DO $$
 DECLARE diff text; role_name text;
@@ -253,12 +258,14 @@ BEGIN
         WHERE table_schema = 'public' AND grantee = role_name
           AND table_name IN ('profiles','artist_profiles')
           AND privilege_type = 'SELECT'
-          AND (table_name, column_name) NOT IN (SELECT tbl, col FROM expected_grants)
+          AND (table_name, column_name) NOT IN
+              (SELECT tbl, col FROM expected_grants WHERE role_name = ANY(roles))
       UNION ALL
       SELECT 'MISSING grant (selects will 42501):',
              e.tbl || '.' || e.col || ' -> ' || role_name
         FROM expected_grants e
-        WHERE (e.tbl, e.col) NOT IN (
+        WHERE role_name = ANY(e.roles)
+          AND (e.tbl, e.col) NOT IN (
           SELECT table_name, column_name
             FROM information_schema.column_privileges
             WHERE table_schema = 'public' AND grantee = role_name
@@ -267,6 +274,62 @@ BEGIN
     ) d;
     IF diff IS NOT NULL THEN
       RAISE EXCEPTION E'column-grant drift for role %:\n%', role_name, diff;
+    END IF;
+  END LOOP;
+END $$;
+
+-- UPDATE grants (00052, 01-P2). profiles is column-level: authenticated may
+-- write exactly the three columns the browser edits, anon none — a column
+-- added to profiles is not client-writable until it is granted here AND in
+-- a migration. artist_profiles keeps its table-level UPDATE (the 00009/00037
+-- guard freezes the platform-owned columns), so every column shows up here:
+-- a new artist_profiles column is a diff to acknowledge, not a silent grant.
+CREATE TEMP TABLE expected_update_grants(tbl text, col text, roles text[]) ON COMMIT DROP;
+INSERT INTO expected_update_grants
+  SELECT 'profiles', unnest(ARRAY['full_name','avatar_url','email_preferences']),
+    ARRAY['authenticated']
+  UNION ALL
+  SELECT 'artist_profiles', unnest(ARRAY[
+    'id','profile_id','slug','display_name','bio','artist_statement',
+    'influences','school','graduation_year','status','neighborhood','city',
+    'website_url','fulfillment_pref','commissions_open','commission_desc',
+    'commission_min_cents','commission_turnaround','accent_color',
+    'banner_image_url','bio_layout','is_houston_verified','is_featured',
+    'completeness_score','is_live','stripe_onboarded','stripe_account_id',
+    'created_at','updated_at','pinned_listing_ids','story','primary_mediums',
+    'away_mode','away_message','away_until','commissions_open_before_away',
+    'last_listing_alert_at','application_status','rejection_reason',
+    'reviewed_by','reviewed_at','agreement_accepted_at','agreement_version',
+    'search_vector']),
+    ARRAY['anon','authenticated'];
+
+DO $$
+DECLARE diff text; role_name text;
+BEGIN
+  FOREACH role_name IN ARRAY ARRAY['anon','authenticated'] LOOP
+    SELECT string_agg(marker || ' ' || row, E'\n' ORDER BY marker, row) INTO diff FROM (
+      SELECT 'UNEXPECTED UPDATE grant (client-writable column?):' AS marker,
+             table_name || '.' || column_name || ' -> ' || role_name AS row
+        FROM information_schema.column_privileges
+        WHERE table_schema = 'public' AND grantee = role_name
+          AND table_name IN ('profiles','artist_profiles')
+          AND privilege_type = 'UPDATE'
+          AND (table_name, column_name) NOT IN
+              (SELECT tbl, col FROM expected_update_grants WHERE role_name = ANY(roles))
+      UNION ALL
+      SELECT 'MISSING UPDATE grant (client writes will 42501):',
+             e.tbl || '.' || e.col || ' -> ' || role_name
+        FROM expected_update_grants e
+        WHERE role_name = ANY(e.roles)
+          AND (e.tbl, e.col) NOT IN (
+          SELECT table_name, column_name
+            FROM information_schema.column_privileges
+            WHERE table_schema = 'public' AND grantee = role_name
+              AND table_name IN ('profiles','artist_profiles')
+              AND privilege_type = 'UPDATE')
+    ) d;
+    IF diff IS NOT NULL THEN
+      RAISE EXCEPTION E'UPDATE-grant drift for role %:\n%', role_name, diff;
     END IF;
   END LOOP;
 END $$;
@@ -517,5 +580,203 @@ BEGIN
   END IF;
 END $$;
 ROLLBACK;
+
+-- ---------------------------------------------------------------------------
+-- 6. Access matrix (00052, R8). Everything below runs under SET ROLE with
+--    request.jwt.claims set the way PostgREST would, so RLS and column grants
+--    are exercised as the anon/authenticated roles see them — not as the
+--    table owner. Each sub-block rolls back.
+-- ---------------------------------------------------------------------------
+BEGIN;
+DO $$
+DECLARE
+  non_admin uuid;
+  admin_id uuid;
+BEGIN
+  SELECT id INTO non_admin FROM profiles WHERE role <> 'admin' LIMIT 1;
+  SELECT id INTO admin_id FROM profiles WHERE role = 'admin' LIMIT 1;
+  IF non_admin IS NULL THEN
+    RAISE EXCEPTION 'access matrix: no non-admin profiles row to act as the caller';
+  END IF;
+
+  -- is_privileged(): true only for no-request / service_role / admin.
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF NOT is_privileged() THEN
+    RAISE EXCEPTION 'is_privileged: must be TRUE with no request claims (psql, GoTrue, cron)';
+  END IF;
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  IF NOT is_privileged() THEN
+    RAISE EXCEPTION 'is_privileged: must be TRUE for the service role';
+  END IF;
+  PERFORM set_config('request.jwt.claims', '{"role":"anon"}', true);
+  IF is_privileged() THEN
+    RAISE EXCEPTION 'is_privileged: must be FALSE for the anon key (01-P3)';
+  END IF;
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', non_admin, 'role', 'authenticated')::text, true);
+  IF is_privileged() THEN
+    RAISE EXCEPTION 'is_privileged: must be FALSE for a signed-in non-admin';
+  END IF;
+  IF admin_id IS NOT NULL THEN
+    PERFORM set_config('request.jwt.claims',
+                       json_build_object('sub', admin_id, 'role', 'authenticated')::text, true);
+    IF NOT is_privileged() THEN
+      RAISE EXCEPTION 'is_privileged: must be TRUE for an admin session';
+    END IF;
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+END $$;
+ROLLBACK;
+
+-- profiles.email: the owner cannot move it (01-P2). (a) as the authenticated
+-- role the column has no UPDATE grant -> 42501; (b) even with the grant, the
+-- guard copies OLD over NEW.
+BEGIN;
+DO $$
+DECLARE
+  who uuid;
+  before_email text;
+  before_token uuid;
+  after_email text;
+  after_token uuid;
+  denied boolean := false;
+BEGIN
+  SELECT id, email, unsubscribe_token INTO who, before_email, before_token
+    FROM profiles WHERE role <> 'admin' LIMIT 1;
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', who, 'role', 'authenticated')::text, true);
+
+  PERFORM set_config('role', 'authenticated', true);
+  BEGIN
+    UPDATE profiles SET email = 'smoke-hijack@example.invalid' WHERE id = who;
+  EXCEPTION WHEN insufficient_privilege THEN denied := true;
+  END;
+  PERFORM set_config('role', 'none', true);
+  IF NOT denied THEN
+    RAISE EXCEPTION 'profiles.email: UPDATE as authenticated was NOT denied (grant widened?)';
+  END IF;
+
+  -- Owner-path write (RLS bypassed, grant bypassed): the guard alone.
+  UPDATE profiles SET email = 'smoke-hijack@example.invalid',
+                      unsubscribe_token = gen_random_uuid()
+    WHERE id = who;
+  SELECT email, unsubscribe_token INTO after_email, after_token FROM profiles WHERE id = who;
+  IF after_email IS DISTINCT FROM before_email THEN
+    RAISE EXCEPTION 'profiles.email: guard let a non-privileged caller change it';
+  END IF;
+  IF after_token IS DISTINCT FROM before_token THEN
+    RAISE EXCEPTION 'profiles.unsubscribe_token: guard let a non-privileged caller change it';
+  END IF;
+
+  -- The three granted columns still save for the owner.
+  PERFORM set_config('role', 'authenticated', true);
+  UPDATE profiles SET full_name = full_name WHERE id = who;
+  PERFORM set_config('role', 'none', true);
+  PERFORM set_config('request.jwt.claims', '', true);
+END $$;
+ROLLBACK;
+
+-- follows: anon sees no rows, a user sees only their own, and the public
+-- count comes through follower_count() (01-P2, D3).
+BEGIN;
+DO $$
+DECLARE
+  total bigint;
+  seen bigint;
+  a_follower uuid;
+  an_artist uuid;
+  own bigint;
+  fn_count bigint;
+BEGIN
+  SELECT count(*) INTO total FROM follows;
+  IF total = 0 THEN
+    RAISE NOTICE 'follows matrix: no follows rows on this database; visibility checks are vacuous';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '{"role":"anon"}', true);
+  PERFORM set_config('role', 'anon', true);
+  SELECT count(*) INTO seen FROM follows;
+  IF seen <> 0 THEN
+    RAISE EXCEPTION 'follows: anon can read % rows of the follow graph', seen;
+  END IF;
+  PERFORM set_config('role', 'none', true);
+
+  IF total > 0 THEN
+    SELECT follower_id, artist_id INTO a_follower, an_artist FROM follows LIMIT 1;
+    SELECT count(*) INTO own FROM follows WHERE follower_id = a_follower;
+    PERFORM set_config('request.jwt.claims',
+                       json_build_object('sub', a_follower, 'role', 'authenticated')::text, true);
+    PERFORM set_config('role', 'authenticated', true);
+    SELECT count(*) INTO seen FROM follows;
+    PERFORM set_config('role', 'none', true);
+    IF seen <> own THEN
+      RAISE EXCEPTION 'follows: a user sees % rows, expected their own % rows', seen, own;
+    END IF;
+
+    SELECT count(*) INTO total FROM follows WHERE artist_id = an_artist;
+    PERFORM set_config('request.jwt.claims', '{"role":"anon"}', true);
+    PERFORM set_config('role', 'anon', true);
+    SELECT follower_count(an_artist) INTO fn_count;
+    PERFORM set_config('role', 'none', true);
+    IF fn_count <> total THEN
+      RAISE EXCEPTION 'follower_count: returned % for anon, expected the public number %', fn_count, total;
+    END IF;
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+END $$;
+ROLLBACK;
+
+-- website_url: only http(s) survives the CHECK on both profile tables.
+BEGIN;
+DO $$
+DECLARE
+  tbl text;
+  has_rows boolean;
+  rejected boolean;
+BEGIN
+  FOREACH tbl IN ARRAY ARRAY['gallery_profiles', 'artist_profiles'] LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname = tbl || '_website_url_scheme' AND conrelid = ('public.' || tbl)::regclass
+    ) THEN
+      RAISE EXCEPTION '%: website_url scheme CHECK is missing', tbl;
+    END IF;
+    EXECUTE format('SELECT EXISTS (SELECT 1 FROM %I)', tbl) INTO has_rows;
+    IF NOT has_rows THEN
+      RAISE NOTICE '%: no rows; CHECK exists but the reject path was not exercised', tbl;
+      CONTINUE;
+    END IF;
+    rejected := false;
+    BEGIN
+      EXECUTE format('UPDATE %I SET website_url = $1 WHERE id = (SELECT id FROM %I LIMIT 1)', tbl, tbl)
+        USING 'javascript:alert(document.cookie)';
+    EXCEPTION WHEN check_violation THEN rejected := true;
+    END;
+    IF NOT rejected THEN
+      RAISE EXCEPTION '%: a javascript: website_url was ACCEPTED', tbl;
+    END IF;
+  END LOOP;
+END $$;
+ROLLBACK;
+
+-- verification_requests / reports: the INSERT policies pin the review
+-- columns (01 appendix).
+DO $$
+DECLARE expr text;
+BEGIN
+  SELECT pg_get_expr(p.polwithcheck, p.polrelid) INTO expr
+    FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid
+    WHERE c.relname = 'verification_requests' AND p.polname = 'Artists create own verification requests';
+  IF expr IS NULL OR expr NOT LIKE '%status = ''pending''%' THEN
+    RAISE EXCEPTION 'verification_requests INSERT policy does not pin status = pending: %', expr;
+  END IF;
+  SELECT pg_get_expr(p.polwithcheck, p.polrelid) INTO expr
+    FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid
+    WHERE c.relname = 'reports' AND p.polname = 'Users can create reports';
+  IF expr IS NULL OR expr NOT LIKE '%status = ''pending''%'
+     OR expr NOT LIKE '%admin_notes IS NULL%' OR expr NOT LIKE '%resolved_by IS NULL%' THEN
+    RAISE EXCEPTION 'reports INSERT policy does not pin status/admin_notes/resolved_by: %', expr;
+  END IF;
+END $$;
 
 \echo 'db-smoke: all checks passed'

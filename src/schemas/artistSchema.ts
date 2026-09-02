@@ -12,7 +12,10 @@ export const artistProfileSchema = z.object({
   status: z.enum(['student', 'recent_grad', 'working_artist']).optional().nullable(),
   neighborhood: z.string().max(100).optional().or(z.literal('')),
   city: z.string().min(2, 'Your city helps local buyers find you').max(100),
-  website_url: z.string().url().optional().or(z.literal('')),
+  // The scheme rule mirrors the DB CHECK (00052) so the user sees this
+  // message instead of a constraint error. Empty is "no website" (saved as NULL).
+  website_url: z.string().url().regex(/^https?:\/\//i, 'Website must start with http:// or https://')
+    .optional().or(z.literal('')),
   fulfillment_pref: z.enum(['ships_national', 'ships_local', 'pickup_only', 'artist_delivered']).optional().nullable(),
   commissions_open: z.boolean(),
   commission_desc: z.string().max(2000).optional().or(z.literal('')),

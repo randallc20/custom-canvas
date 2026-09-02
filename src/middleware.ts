@@ -8,7 +8,6 @@ const LIMITS: Record<string, number> = {
   '/api/messages': 120, // chat can burst
   '/api/listings': 30, // catalog cleanup sessions burst above 10
   '/api/commissions': 5,
-  '/api/reports': 5,
   '/api/reviews': 5,
   // Each first call can mint a real Stripe connected account, so it gets a
   // tighter bucket than the rest of /api/payments. Longest-prefix wins below.

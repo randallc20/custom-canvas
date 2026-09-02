@@ -180,6 +180,8 @@ export function ArtistProfileEdit() {
         id: artist.id,
         data: {
           ...rest,
+          // '' is "no website"; the column's CHECK (00052) accepts NULL or http(s).
+          website_url: rest.website_url || null,
           commission_min_cents:
             commission_min_dollars != null ? Math.round(commission_min_dollars * 100) : null,
         },

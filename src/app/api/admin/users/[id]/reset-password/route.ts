@@ -10,6 +10,13 @@ import { sendAdminPasswordResetEmail } from '@/services/email';
 // under the service role, so the captcha gate on the public recover endpoint
 // doesn't apply; we email the link ourselves. The admin never sees a password
 // or a token — the link goes only to the account's own address.
+//
+// The link goes to OUR /auth/reset-callback with the hashed token, not to
+// GoTrue's action_link (01-P1): a server-minted recovery token has no PKCE
+// challenge, so GoTrue's /verify answered with an implicit-flow
+// #access_token= fragment that the PKCE browser client refuses. The callback
+// verifies the token with the cookie server client and lands the user
+// signed in on /reset-password in any browser.
 export async function POST(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -32,15 +39,17 @@ export async function POST(
   const { data: link, error: linkError } = await admin.auth.admin.generateLink({
     type: 'recovery',
     email: target.email,
-    options: { redirectTo: `${appUrl}/reset-password` },
   });
-  if (linkError || !link?.properties?.action_link) {
-    Sentry.captureException(linkError ?? new Error('generateLink returned no action_link'));
+  if (linkError || !link?.properties?.hashed_token) {
+    Sentry.captureException(linkError ?? new Error('generateLink returned no hashed_token'));
     return NextResponse.json({ error: 'Could not create a reset link' }, { status: 500 });
   }
+  const callback = new URL('/auth/reset-callback', appUrl);
+  callback.searchParams.set('token_hash', link.properties.hashed_token);
+  callback.searchParams.set('type', 'recovery');
 
   try {
-    await sendAdminPasswordResetEmail(target.email, target.full_name, link.properties.action_link);
+    await sendAdminPasswordResetEmail(target.email, target.full_name, callback.toString());
   } catch (e) {
     // The link was minted but never delivered — surface that honestly instead
     // of a success toast over a silent failure.
