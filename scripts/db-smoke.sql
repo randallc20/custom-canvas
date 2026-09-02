@@ -30,6 +30,12 @@ SELECT blocked_by('00000000-0000-0000-0000-000000000001'::uuid);
 SELECT sender_is_blocked('00000000-0000-0000-0000-000000000001'::uuid);
 SELECT link_education_partners('00000000-0000-0000-0000-000000000001'::uuid);
 SELECT refresh_completeness_score('00000000-0000-0000-0000-000000000001'::uuid);
+-- R7 read RPCs (00051). Run as postgres auth.uid() is NULL, so the two
+-- caller-scoped ones return no rows — this proves they parse and execute.
+SELECT * FROM neighborhood_listing_counts('Houston');
+SELECT * FROM neighborhood_listing_counts(NULL);
+SELECT * FROM my_unread_counts();
+SELECT * FROM artist_sales_totals('00000000-0000-0000-0000-000000000001'::uuid);
 ROLLBACK;
 
 BEGIN;
@@ -43,6 +49,7 @@ INSERT INTO expected_functions VALUES
   -- callable (smoked above)
   ('is_privileged'), ('blocked_by'), ('sender_is_blocked'),
   ('link_education_partners'), ('refresh_completeness_score'),
+  ('neighborhood_listing_counts'), ('my_unread_counts'), ('artist_sales_totals'),
   -- trigger functions (exercised via their tables' writes)
   ('artist_search_update'), ('enforce_featured_cap'), ('enforce_partner_picks_cap'),
   ('guard_artist_profiles_insert'), ('guard_artist_profiles_update'),
@@ -320,10 +327,64 @@ BEGIN
   END IF;
 END $$;
 
+-- ---------------------------------------------------------------------------
+-- 5. Physical layer (00051, R7 / 02-P2). The hot-path indexes must exist —
+--    a dropped index is a silent slowdown, not an error — and the two
+--    caller-scoped RPCs must not be callable by anon (Supabase's default
+--    privileges would otherwise hand them out).
+-- ---------------------------------------------------------------------------
+CREATE TEMP TABLE expected_indexes(tbl text, idx text) ON COMMIT DROP;
+INSERT INTO expected_indexes VALUES
+  ('listing_images',   'listing_images_listing_idx'),
+  ('listings',         'listings_status_created_idx'),
+  ('listings',         'listings_artist_created_idx'),
+  ('orders',           'orders_buyer_created_idx'),
+  ('orders',           'orders_artist_created_idx'),
+  ('conversations',    'conversations_participant_one_idx'),
+  ('conversations',    'conversations_participant_two_idx'),
+  ('commissions',      'commissions_conversation_idx'),
+  ('commissions',      'commissions_artist_idx'),
+  ('commissions',      'commissions_requester_idx'),
+  ('follows',          'follows_artist_idx'),
+  ('saved_listings',   'saved_listings_listing_idx'),
+  ('messages',         'messages_unread_idx'),
+  ('analytics_events', 'analytics_events_viewer_listing_idx');
+
+DO $$
+DECLARE missing text;
+BEGIN
+  SELECT string_agg(e.tbl || '.' || e.idx, E'\n' ORDER BY e.tbl, e.idx) INTO missing
+    FROM expected_indexes e
+    WHERE NOT EXISTS (
+      SELECT 1 FROM pg_indexes i
+      WHERE i.schemaname = 'public' AND i.tablename = e.tbl AND i.indexname = e.idx);
+  IF missing IS NOT NULL THEN
+    RAISE EXCEPTION E'MISSING index (00051):\n%', missing;
+  END IF;
+END $$;
+
+DO $$
+DECLARE bad text;
+BEGIN
+  SELECT string_agg(fn, ', ') INTO bad FROM (
+    SELECT 'my_unread_counts()' AS fn WHERE has_function_privilege('anon', 'my_unread_counts()', 'EXECUTE')
+    UNION ALL
+    SELECT 'artist_sales_totals(uuid)' WHERE has_function_privilege('anon', 'artist_sales_totals(uuid)', 'EXECUTE')
+  ) f;
+  IF bad IS NOT NULL THEN
+    RAISE EXCEPTION 'caller-scoped RPC executable by anon: %', bad;
+  END IF;
+  IF NOT has_function_privilege('anon', 'neighborhood_listing_counts(text)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'my_unread_counts()', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'artist_sales_totals(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'R7 RPC grant missing (anon spotlight / authenticated unread+totals)';
+  END IF;
+END $$;
+
 ROLLBACK;
 
 -- ---------------------------------------------------------------------------
--- 4. Order transition matrix (00050). guard_orders_update must check the
+-- 6. Order transition matrix (00050). guard_orders_update must check the
 --    TRANSITION, not the target state: an artist may only move paid -> shipped,
 --    and every platform-owned stamp is frozen for them. The artist is
 --    simulated by setting request.jwt.claims — that is all auth.uid() reads,
