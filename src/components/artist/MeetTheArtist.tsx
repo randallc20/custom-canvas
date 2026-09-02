@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { Modal } from '@/components/ui/Modal';
 import type { ArtistPersonalPhoto, } from '@/types/artist';
 
 interface MeetTheArtistProps {
@@ -62,27 +63,24 @@ export function MeetTheArtist({ displayName, photos }: MeetTheArtistProps) {
         </div>
       )}
 
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-ink/80 p-4"
-          onClick={() => setLightbox(null)}
-        >
-          <figure className="max-h-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+      <Modal
+        isOpen={!!lightbox}
+        onClose={() => setLightbox(null)}
+        ariaLabel={lightbox?.caption ?? `${displayName} — photo`}
+        containerClassName="fixed inset-0 z-50 flex items-center justify-center p-4"
+        overlayClassName="fixed inset-0 animate-fade-in bg-ink/80"
+        panelClassName="relative z-10 max-h-full max-w-3xl"
+        floatingClose
+      >
+        {lightbox && (
+          <figure className="max-h-full">
             {/* eslint-disable-next-line @next/next/no-img-element -- lightbox shows the original at natural size */}
             <img src={lightbox.image_url} alt={lightbox.caption ?? ''} className="max-h-[80vh] w-auto rounded-xl" />
             {lightbox.caption && <figcaption className="mt-2 text-center text-sm text-cream">{lightbox.caption}</figcaption>}
           </figure>
-          <button
-            onClick={() => setLightbox(null)}
-            className="absolute right-4 top-4 text-cream/80 transition-colors hover:text-cream"
-            aria-label="Close"
-          >
-            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
+        )}
+      </Modal>
+
     </div>
   );
 }
