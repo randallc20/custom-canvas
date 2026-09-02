@@ -1,0 +1,83 @@
+You are reviewing the Custom Canvas codebase — a Houston art marketplace: Next.js 14 App Router, Supabase (Postgres + RLS + storage + auth), Stripe Connect, React Query, Tailwind. ~327 TS/TSX files, ~24k LOC in src/, 48 SQL migrations, Playwright e2e. It is live on production but payments are still gated off pending Stripe activation.
+
+Your job this session is one pass: Frontend quality. Read only the scope below, and produce a written report. Nothing else.
+
+## Scope
+
+Files: src/components/** (18 directories), src/app/(public)/**, src/app/(artist)/**, src/app/(user)/**, src/context/**. Start with the largest: ArtistProfileEdit.tsx, CommissionPanel.tsx, SalesSection.tsx, GalleryDashboard.tsx, ArtFeed.tsx, PartnerPicksManager.tsx, SetupChecklist.tsx.
+
+Answer these:
+
+- States: for every surface that fetches data, does it have a loading state, an empty state, and an error state? List the ones that render nothing, spin forever, or go blank when the fetch fails.
+- Forms: double-submit protection, disabled-while-pending, validation errors the user can actually see and locate, and destructive actions without confirmation.
+- Accessibility: keyboard reachability of every interactive element, focus management and escape handling in modals and drawers, form labels, image alt text, visible focus rings, and text contrast against the brand palette.
+- Mobile at 375px: anything that overflows horizontally, gets clipped, or ends up untappable.
+- Images: next/image usage, missing `sizes`, and layout shift on the feed and gallery.
+- 126 files carry 'use client'. Which are client-side for no reason, and does any of them ship logic or data to the browser that belongs on the server?
+- Consistency: the same interaction implemented two different ways in two places.
+
+## Ground rules
+
+**Report only.** The one file you may write is `docs/reviews/03-frontend.md`. Do not fix anything, do not refactor, do not run a codemod. If a fix is one obvious line, describe it in the finding — do not apply it.
+
+**Read before you claim.** A finding is real only if you have read the code that would break *and its callers*. "This doesn't validate X" is not a finding when the caller validates X. Reading a file's imports is not reading the file.
+
+**Try to disprove each finding before you write it.** For every candidate, make one honest attempt at arguing it is NOT a bug — a guard elsewhere, an RLS policy, a type that makes the input impossible, a caller that already handles it. Drop the ones you cannot defend after that attempt. Six findings that are all real beat thirty where I have to work out which six.
+
+**Every finding needs a concrete failure path.** Not "this could be a problem." Say who does what and what goes wrong: "an artist opens another artist's listing edit URL; the fetch filters on id but not owner, so the page renders their listing; the save then returns zero rows at RLS and the UI shows a success toast." If you cannot write that sentence, it is not a finding — it is a nit, and nits go in the appendix.
+
+**Uncertainty is fine; faking certainty is not.** If you suspect something but cannot confirm it without running the app or seeing production data, mark it UNVERIFIED and say exactly what would settle it.
+
+## Already settled — do not raise these
+
+Decisions, not oversights. Flagging them wastes the pass:
+
+- Destination charges with the platform as merchant of record. Not direct charges.
+- Stripe Express connected accounts, Stripe-hosted onboarding. Not embedded components.
+- The buyer covers Stripe's processing fee as a "Service fee" line. Platform commission is 15% of the artwork price only, never shipping. The artist is paid price − commission + shipping.
+- Payments are deliberately gated behind NEXT_PUBLIC_PAYMENTS_ENABLED until live activation. That flag being false is not a bug.
+- npm, never pnpm (a stray pnpm-lock.yaml flips Vercel's package manager). Prod deploys are manual and pinned.
+- Next.js 14 App Router + Supabase + React Query + Tailwind. Do not propose migrating the framework, the data layer, the state library, or the CSS approach.
+- `docs/CONVENTIONS.md` is the house standard, earned from a real defect sweep. Code that follows it is correct by definition. Code that VIOLATES it is a finding worth raising — check for that specifically.
+
+Also out of scope: formatting and naming taste, "add a comment here", dependency bumps, test-file style, and anything you would phrase as "consider extracting".
+
+## Context to read first
+
+`docs/CONVENTIONS.md`, `README.md`, `DECISIONS.md`. Then know this history: a full-platform adversarial review ran 2026-08-25 and all 15 of its defects are fixed; a six-phase hardening arc shipped after it; two rounds of live tester feedback are closed; a real staging purchase plus dispute and payout reversal were verified end to end. Assume the obvious surface bugs are gone. Look where those passes did not.
+
+## Severity
+
+- **P0** — loses money, exposes another user's data, or corrupts state. Launch-blocking.
+- **P1** — a real user hits it in a normal flow and the product is visibly broken.
+- **P2** — breaks under growth or under an unusual-but-real input; fine at today's volume.
+- **P3** — maintainability: the next change in this code is likely to introduce a bug.
+
+Cap the report at 12 findings, ranked, P0 first. More than that and the strongest 12 get full write-ups while the rest get one line each in the appendix. A pass that honestly finds two P0s and nothing else is a good pass. Do not pad to fill the cap.
+
+## Report format
+
+Write `docs/reviews/03-frontend.md` in this shape:
+
+# Frontend quality — review <date>
+
+**Files read:** every file you actually opened. If you skipped part of the scope, say which part and why.
+**Verdict:** two sentences on the health of this slice.
+
+Then one section per finding:
+
+### P<n> — <one-line claim>
+**Where:** `path/to/file.ts:120-134`
+**What happens:** the concrete failure path.
+**Why it's real:** what you read that rules out the innocent explanation.
+**Fix direction:** two sentences. Not a patch.
+
+Then close with two sections:
+
+## Appendix: minor
+One line each.
+
+## Not findings
+Things you looked at hard and concluded were fine, one line each. This is how I know what you actually covered.
+
+Start by listing the files in scope and giving me your reading plan. Then read. Then report.
