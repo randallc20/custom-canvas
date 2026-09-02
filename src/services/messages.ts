@@ -89,21 +89,17 @@ export async function markMessagesAsRead(conversationId: string, userId: string)
   if (error) throw error;
 }
 
-export async function getUnreadCounts(userId: string, conversationIds: string[]): Promise<Record<string, number>> {
-  if (conversationIds.length === 0) return {};
-
-  const { data, error } = await supabase
-    .from('messages')
-    .select('conversation_id')
-    .in('conversation_id', conversationIds)
-    .neq('sender_id', userId)
-    .eq('is_read', false);
-
+/** Unread count per conversation for the signed-in user, counted in the
+ *  database (my_unread_counts, 00051). The previous shape put every
+ *  conversation id in the query string and downloaded one row per unread
+ *  message to count them client-side. */
+export async function getUnreadCounts(): Promise<Record<string, number>> {
+  const { data, error } = await supabase.rpc('my_unread_counts');
   if (error) throw error;
 
   const counts: Record<string, number> = {};
-  for (const row of data) {
-    counts[row.conversation_id] = (counts[row.conversation_id] ?? 0) + 1;
+  for (const row of (data ?? []) as { conversation_id: string; unread: number }[]) {
+    counts[row.conversation_id] = Number(row.unread);
   }
   return counts;
 }

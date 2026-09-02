@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getOrdersByBuyer, getOrdersByArtist, updateOrderStatus, getOrderById } from '@/services/orders';
+import { getOrdersByBuyer, getOrdersByArtist, getArtistSalesTotals, updateOrderStatus, getOrderById } from '@/services/orders';
 
 export function useOrder(id: string) {
   return useQuery({
@@ -21,6 +21,16 @@ export function useArtistOrders(artistId: string) {
   return useQuery({
     queryKey: ['orders', 'artist', artistId],
     queryFn: () => getOrdersByArtist(artistId),
+    enabled: !!artistId,
+  });
+}
+
+/** Server-summed money totals for Studio. Keyed under ['orders'] so the
+ *  existing status-change invalidations refresh it too. */
+export function useArtistSalesTotals(artistId: string) {
+  return useQuery({
+    queryKey: ['orders', 'artist', artistId, 'totals'],
+    queryFn: () => getArtistSalesTotals(artistId),
     enabled: !!artistId,
   });
 }

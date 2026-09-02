@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { createStripeConnectLink } from '@/services/payments';
-import { useArtistOrders } from '@/hooks/useOrders';
+import { useArtistSalesTotals } from '@/hooks/useOrders';
+import { summarizeSales } from '@/utils/salesTotals';
 import { formatPrice } from '@/utils/formatPrice';
 import { useState } from 'react';
 import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
@@ -15,7 +16,7 @@ export function PayoutsSection() {
   const { user } = useAuth();
   const { artist, loading } = useOwnArtistProfile();
   const [connecting, setConnecting] = useState(false);
-  const { data: orders } = useArtistOrders(artist?.id ?? '');
+  const { data: totals } = useArtistSalesTotals(artist?.id ?? '');
   const searchParams = useSearchParams();
   const justSetup = searchParams.get('setup') === 'complete';
 
@@ -31,9 +32,9 @@ export function PayoutsSection() {
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
-  const totalEarnings = orders?.filter((o) => o.status !== 'refunded').reduce((sum, o) => sum + o.artist_payout_cents, 0) ?? 0;
-  const totalSales = orders?.filter((o) => o.status !== 'refunded').length ?? 0;
-  const pendingShipment = orders?.filter((o) => o.status === 'paid').length ?? 0;
+  // Summed in the database — the old client-side reduce over every order
+  // was silently capped by PostgREST past 1,000 rows.
+  const { earningsCents: totalEarnings, salesCount: totalSales, awaitingShipment: pendingShipment } = summarizeSales(totals);
 
   return (
     <div>

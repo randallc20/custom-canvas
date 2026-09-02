@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { ListingWithImages } from '@/types/listing';
 import { getFeedListings } from '@/services/feed';
-import { cityMatchPattern } from '@/lib/location';
 
 export const FEATURED_SHELF_CAP = 10;
 
@@ -32,22 +31,15 @@ export async function getNeighborhoodSpotlight(
   weekSeed?: number,
   city?: string
 ): Promise<NeighborhoodSpotlight | null> {
-  let countsQuery = supabase
-    .from('listings')
-    .select('artist:artist_profiles!inner(neighborhood)')
-    .eq('status', 'available');
-  if (city) countsQuery = countsQuery.ilike('artist_profiles.city', cityMatchPattern(city));
-  const { data, error } = await countsQuery;
+  // One row per neighborhood, counted in the database (00051). The old
+  // version downloaded every available listing to tally them in the browser,
+  // and under PostgREST's row cap the eligible set shifted between requests.
+  const { data, error } = await supabase.rpc('neighborhood_listing_counts', { p_city: city ?? null });
   if (error) return null;
 
-  const counts = new Map<string, number>();
-  for (const row of data ?? []) {
-    const hood = (row.artist as unknown as { neighborhood: string | null })?.neighborhood;
-    if (hood) counts.set(hood, (counts.get(hood) ?? 0) + 1);
-  }
-  const eligible = Array.from(counts.entries())
-    .filter(([, count]) => count >= SPOTLIGHT_MIN_LISTINGS)
-    .map(([hood]) => hood)
+  const eligible = ((data ?? []) as { neighborhood: string; listing_count: number }[])
+    .filter((row) => row.listing_count >= SPOTLIGHT_MIN_LISTINGS)
+    .map((row) => row.neighborhood)
     .sort();
   if (!eligible.length) return null;
 
