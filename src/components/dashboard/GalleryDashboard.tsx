@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { QueryError } from '@/components/ui/QueryError';
 import { supabase } from '@/lib/supabase';
 import { PARTNER_TYPE_LABELS, type GalleryProfile } from '@/types/gallery';
 import { PartnerBadge } from '@/components/gallery/PartnerBadge';
@@ -32,6 +33,7 @@ export function GalleryDashboard() {
   const [gallery, setGallery] = useState<GalleryProfile | null>(null);
   const [artists, setArtists] = useState<(ArtistProfile & RosterExtras)[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ArtistProfile[]>([]);
@@ -44,6 +46,8 @@ export function GalleryDashboard() {
 
   const loadGalleryData = async () => {
     if (!user) return;
+    setLoading(true);
+    setLoadFailed(false);
     const { data: g, error: gErr } = await supabase
       .from('gallery_profiles')
       .select('*')
@@ -55,19 +59,33 @@ export function GalleryDashboard() {
     // the post-signup screen's "Continue to setup" link. Anyone who confirmed
     // their email in a new tab arrived here instead and saw a "Pending Review"
     // badge for an organisation that had never been created. Send them to the
-    // form. On a query error, fall through rather than redirect — a transient
-    // blip must not push an established partner back into onboarding.
+    // form. On a query error, show the error rather than redirect — a
+    // transient blip must not push an established partner back into
+    // onboarding, and it must not render a dashboard for a gallery we never
+    // loaded (a "Pending Review" badge and an Add Artist button that does
+    // nothing).
     if (!g && !gErr) {
       router.replace('/onboarding/gallery');
       return;
     }
-    if (!g) { setLoading(false); return; }
+    if (!g) {
+      captureException(gErr, { where: 'GalleryDashboard.loadGallery' });
+      setLoadFailed(true);
+      setLoading(false);
+      return;
+    }
     setGallery(g);
 
-    const { data: ga } = await supabase
+    const { data: ga, error: gaErr } = await supabase
       .from('gallery_artists')
       .select(`role, artist:artist_profiles(${ARTIST_PUBLIC_COLS}, ${ARTIST_PROFILE_EMBED})`)
       .eq('gallery_id', g.id);
+    if (gaErr) {
+      captureException(gaErr, { where: 'GalleryDashboard.loadRoster' });
+      setLoadFailed(true);
+      setLoading(false);
+      return;
+    }
 
     const mapped = (ga ?? []).map((row: Record<string, unknown>) => ({
       ...(row.artist as ArtistProfile & RosterExtras),
@@ -134,6 +152,15 @@ export function GalleryDashboard() {
   };
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
+
+  if (loadFailed || !gallery) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <h1 className="mb-6 text-2xl font-bold text-ink">Partner Dashboard</h1>
+        <QueryError message="We couldn't load your organization." onRetry={loadGalleryData} />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">

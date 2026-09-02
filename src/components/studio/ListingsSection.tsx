@@ -10,12 +10,13 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { QueryError } from '@/components/ui/QueryError';
 import { Modal } from '@/components/ui/Modal';
 import { formatPrice } from '@/utils/formatPrice';
 
 export function ListingsSection() {
   const { artistId, loading: loadingArtist } = useArtistProfileId();
-  const { data: listings, isLoading } = useArtistListings(artistId);
+  const { data: listings, isLoading, isError, refetch, isFetching } = useArtistListings(artistId);
   const deleteListing = useDeleteListing();
   const updateListing = useUpdateListing();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
@@ -30,7 +31,9 @@ export function ListingsSection() {
 
   return (
     <div>
-      {!listings || listings.length === 0 ? (
+      {isError ? (
+        <QueryError message="We couldn't load your listings." onRetry={() => refetch()} retrying={isFetching} />
+      ) : !listings || listings.length === 0 ? (
         <EmptyState title="No listings yet" description="Create your first listing to start sharing your art." action={<Link href="/listings/new"><Button>Create Listing</Button></Link>} />
       ) : (
         <div className="space-y-3">

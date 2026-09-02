@@ -6,17 +6,20 @@ import { useFollowedArtists } from '@/hooks/useFollows';
 import { Avatar } from '@/components/ui/Avatar';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { QueryError } from '@/components/ui/QueryError';
 
 export default function FollowingPage() {
   const { user } = useAuth();
-  const { data: artists, isLoading } = useFollowedArtists(user?.id ?? '');
+  const { data: artists, isLoading, isError, refetch, isFetching } = useFollowedArtists(user?.id ?? '');
 
   if (isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="mb-6 text-2xl font-bold text-ink">Following</h1>
-      {!artists || artists.length === 0 ? (
+      {isError ? (
+        <QueryError message="We couldn't load the artists you follow." onRetry={() => refetch()} retrying={isFetching} />
+      ) : !artists || artists.length === 0 ? (
         <EmptyState title="Not following anyone" description="Follow artists to see their work here." />
       ) : (
         <div className="space-y-3">
