@@ -32,6 +32,11 @@ export interface Order {
   protection_status: 'pending' | 'protected' | 'ineligible' | 'waived';
   dispute_id: string | null;
   dispute_outcome: 'won' | 'lost' | 'accepted' | null;
+  /** Status the order held when a chargeback froze it (00050); the closed
+   *  handler restores to it. Null outside an open dispute. */
+  pre_dispute_status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'refunded' | null;
+  /** Once-only stamp for the buyer's shipped email (00050). */
+  shipped_email_sent_at: string | null;
   delivered_at: string | null;
   is_pickup: boolean;
   pickup_confirmed_by_buyer_at: string | null;
