@@ -35,7 +35,7 @@ export async function sendArtistApprovedEmail(to: string, name: string): Promise
     to,
     subject: 'You\'re approved — your Custom Canvas shop is live',
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">Welcome to Custom Canvas, ${escapeHtml(name)}!</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">Your application has been approved. Your profile and listings are now live and visible to buyers in your community.</p>
         <a href="${APP_URL}/studio" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Go to your Studio</a>
@@ -51,7 +51,7 @@ export async function sendArtistRejectedEmail(to: string, name: string, reason: 
     to,
     subject: 'A note about your Custom Canvas application',
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">Thanks for applying, ${escapeHtml(name)}</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">We took a look at your application and it needs a few changes before we can approve it:</p>
         <p style="color:#111;font-size:16px;line-height:1.5;padding:12px 16px;background:#faf3ef;border-radius:6px">${escapeHtml(reason)}</p>
@@ -77,7 +77,7 @@ export async function sendAdminPasswordResetEmail(
     to,
     subject: 'Reset your Custom Canvas password',
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">Password reset${name ? ` for ${escapeHtml(name)}` : ''}</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">A Custom Canvas administrator started a password reset for your account. Click the button below to choose a new password. The link expires after one hour.</p>
         <a href="${actionLink}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Choose a new password</a>
@@ -99,7 +99,7 @@ export async function sendNewMessageEmail(
     to,
     subject: `New message from ${plain(senderName)}`,
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">New message from ${escapeHtml(senderName)}</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">&ldquo;${escapeHtml(preview)}&rdquo;</p>
         <a href="${conversationUrl}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View Conversation</a>
@@ -119,7 +119,7 @@ export async function sendCommissionRequestEmail(
     to,
     subject: `New commission request: ${plain(title)}`,
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">New Commission Request</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(artistName)}, you have a new commission request: <strong>${escapeHtml(title)}</strong></p>
         <a href="${APP_URL}/commissions" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View Request</a>
@@ -142,7 +142,7 @@ export async function sendOrderConfirmationEmail(
     to,
     subject: `Order confirmed: ${plain(listingTitle)}`,
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">Order Confirmed</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, your purchase has been confirmed!</p>
         <div style="background:#f9f9f9;padding:16px;border-radius:8px;margin:16px 0">
@@ -171,7 +171,7 @@ export async function sendNewSaleEmail(
     to,
     subject: `You made a sale: ${plain(listingTitle)}`,
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">You made a sale!</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">Congratulations ${escapeHtml(artistName)}, someone just purchased your work!</p>
         <div style="background:#FFF7ED;padding:16px;border-radius:8px;margin:16px 0;border:1px solid #E8704A33">
@@ -205,7 +205,7 @@ export async function sendShippingUpdateEmail(
     to,
     subject: `Your order has shipped: ${plain(listingTitle)}`,
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">Your order has shipped!</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, great news — <strong>${escapeHtml(listingTitle)}</strong> is on its way to you!</p>
         ${trackingBlock}
@@ -230,7 +230,7 @@ export async function sendReviewReceivedEmail(
     to,
     subject: `New ${rating}-star review from ${plain(reviewerName)}`,
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">You received a review!</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(artistName)}, ${escapeHtml(reviewerName)} left you a review.</p>
         <div style="background:#FFF7ED;padding:16px;border-radius:8px;margin:16px 0;border:1px solid #E8704A33">
@@ -257,7 +257,7 @@ export async function sendCommissionUpdateEmail(
     to,
     subject: `${plain(artistName)} posted an update on your commission`,
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">New commission update</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, <strong>${escapeHtml(artistName)}</strong> shared progress on your commission:</p>
         <blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #E8704A;color:#444">${escapeHtml(note)}</blockquote>
@@ -280,7 +280,7 @@ export async function sendCommissionNudgeEmail(
     to,
     subject: `Buyers love progress updates — post one for ${plain(buyerName)}?`,
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">Keep ${escapeHtml(buyerName)} in the loop</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(artistName)}, it's been a couple of weeks since the last update on <strong>${escapeHtml(commissionTitle)}</strong>. A quick note or WIP photo goes a long way.</p>
         <a href="${APP_URL}/commissions/${commissionId}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Post an update</a>
@@ -301,7 +301,7 @@ export async function sendReviewRequestEmail(
     to,
     subject: `How was ${plain(listingTitle)}?`,
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">Share your experience</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, we'd love to hear how <strong>${escapeHtml(listingTitle)}</strong> turned out. A quick review helps the artist and other collectors.</p>
         <a href="${APP_URL}/orders?review=${orderId}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Leave a review</a>
@@ -321,14 +321,14 @@ export async function sendArtistDripEmail(to: string, name: string, stage: strin
   const c = content[stage] ?? content.artist_day1;
   await getResend().emails.send({
     from: FROM_EMAIL, replyTo: SUPPORT_EMAIL, to, subject: c.subject,
-    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" /><h2 style="color:#111">${c.heading}</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, ${c.body}</p><a href="${APP_URL}/dashboard" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Finish my profile</a></div>`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" /><h2 style="color:#111">${c.heading}</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, ${c.body}</p><a href="${APP_URL}/dashboard" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Finish my profile</a></div>`,
   });
 }
 
 export async function sendBuyerDripEmail(to: string, name: string): Promise<void> {
   await getResend().emails.send({
     from: FROM_EMAIL, replyTo: SUPPORT_EMAIL, to, subject: 'Meet the artists near you',
-    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" /><h2 style="color:#111">Discover local art</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, there's a whole community of local artists to explore on Custom Canvas. Find a piece — or an artist — you love.</p><a href="${APP_URL}/" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Explore art</a></div>`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" /><h2 style="color:#111">Discover local art</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, there's a whole community of local artists to explore on Custom Canvas. Find a piece — or an artist — you love.</p><a href="${APP_URL}/" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Explore art</a></div>`,
   });
 }
 
@@ -373,7 +373,7 @@ export function buildNewListingEmail(
     subject: `${plain(artistName)} just listed new work`,
     headers: bulkHeaders(unsub),
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">New work from ${artist}</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, ${artist} — an artist you follow — just listed <strong>${title}</strong>.</p>
         <a href="${APP_URL}/listing/${listingId}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">See the piece</a>
@@ -399,7 +399,7 @@ export function buildPriceDropEmail(
     subject: `Price drop: ${plain(listingTitle)}`,
     headers: bulkHeaders(unsub),
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="44" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
         <h2 style="color:#111">A piece you saved dropped in price</h2>
         <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, <strong>${title}</strong> is now ${newPrice} (was ${oldPrice}).</p>
         <a href="${APP_URL}/listing/${listingId}" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">See the piece</a>

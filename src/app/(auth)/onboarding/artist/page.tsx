@@ -18,8 +18,7 @@ import { slugify } from '@/utils/slugify';
 // One structure drives the progress bar, per-step validation on Next, and the
 // submit-time "which step is wrong" message — they can no longer drift apart.
 const STEP_DEFS: { name: string; fields: (keyof ArtistProfileFormData)[] }[] = [
-  { name: 'Basics', fields: ['display_name', 'bio', 'school'] },
-  { name: 'About', fields: ['artist_statement', 'influences'] },
+  { name: 'Basics', fields: ['display_name', 'story', 'school'] },
   { name: 'Preferences', fields: ['city', 'neighborhood', 'fulfillment_pref', 'commissions_open', 'accent_color', 'bio_layout'] },
   { name: 'Agreement', fields: [] },
 ];
@@ -166,23 +165,18 @@ export default function ArtistOnboardingPage() {
               <Input label="Display Name" id="display_name" {...register('display_name')} error={errors.display_name?.message} />
               <div>
                 <label className="mb-1 block text-sm font-medium text-ink">
-                  What drew you to art? Tell visitors about yourself.
+                  What drew you to art? Tell your story.
                 </label>
-                <textarea {...register('bio')} rows={4} placeholder="What were you making before you knew it was called art?" className="w-full rounded-lg border border-line px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
+                <textarea {...register('story')} rows={5} placeholder="What were you making before you knew it was called art?" className="w-full rounded-lg border border-line px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
+                <p className="mt-1 text-xs text-muted">
+                  Shown as &ldquo;My Story&rdquo; at the top of your profile — you can edit it, and
+                  add an artist statement and influences, from your Studio anytime.
+                </p>
               </div>
               <Input label="School / University" id="school" {...register('school')} />
             </>
           )}
           {step === 1 && (
-            <>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-ink">Artist Statement</label>
-                <textarea {...register('artist_statement')} rows={5} className="w-full rounded-lg border border-line px-3 py-2 text-sm focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20" />
-              </div>
-              <Input label="Influences" id="influences" {...register('influences')} />
-            </>
-          )}
-          {step === 2 && (
             <>
               <Input label="City" id="city" {...register('city')} error={errors.city?.message} />
               <Input label="Neighborhood" id="neighborhood" {...register('neighborhood')} />
@@ -203,7 +197,7 @@ export default function ArtistOnboardingPage() {
             </>
           )}
 
-          {step === 3 && (
+          {step === 2 && (
             <div className="space-y-4">
               <p className="text-sm font-semibold text-ink">The Artist Agreement — the short version</p>
               <ul className="space-y-2 rounded-xl border border-line bg-sand/40 p-4">

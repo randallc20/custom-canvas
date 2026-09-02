@@ -89,8 +89,10 @@ test.describe.serial('tester round 1 journey', () => {
   test('onboarding wizard completes into the Studio', async () => {
     const page = artistPage;
     await page.getByLabel('Display Name').fill(displayName);
-    await page.getByRole('button', { name: 'Next' }).click();
-    await expect(page.getByText('Artist Statement')).toBeVisible();
+    // The wizard's big textarea is Your Story (round 2: the old bio field's
+    // text was invisible everywhere the tester looked — "it deleted my story").
+    // Keep it under 100 chars so the checklist's story row stays unticked.
+    await page.locator('textarea').fill('Wizard story draft — replaced on the profile page.');
     await page.getByRole('button', { name: 'Next' }).click();
     await page.getByLabel('City').fill('Houston');
     await page.locator('select').selectOption('ships_national');
@@ -106,6 +108,9 @@ test.describe.serial('tester round 1 journey', () => {
     await page.goto('/studio/page');
     const storyBox = page.locator('fieldset', { hasText: 'Your Story' }).locator('textarea');
     await storyBox.waitFor({ state: 'visible', timeout: 15_000 });
+    // The story written in the signup wizard must arrive here — this is the
+    // round-2 defect (wizard text landed in the invisible bio column).
+    await expect(storyBox).toHaveValue(/Wizard story draft/);
     await storyBox.fill(
       'I paint the bayous at dusk — slow water, sodium light, herons that refuse to be hurried. This shop exists so the e2e suite can walk the whole tester journey for real.'
     );

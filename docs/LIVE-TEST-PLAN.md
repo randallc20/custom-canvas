@@ -336,7 +336,7 @@ work for the first time.
 ### 4.2 — Finish setting up your artist profile
 
 - **Expect:** The site takes you to the setup wizard **on its own** — a progress
-  bar and four steps: **Basics**, **About**, **Preferences**, **Agreement**.
+  bar and three steps: **Basics**, **Preferences**, **Agreement**.
   However you arrive (straight after confirming your email, or by signing in
   later), an artist who hasn't finished setup should always land here.
 - **Report:** If you ever see a bare Studio page with empty numbers and no
@@ -344,17 +344,23 @@ work for the first time.
 
 ### 4.3 — Step one: Basics
 
-- **Expect:** Boxes for **Display Name**, a larger box asking "What were you
-  making before you knew it was called art?", and **School / University**.
+- **Expect:** Boxes for **Display Name**, a larger box headed **"What drew you
+  to art? Tell your story."** with a note that it appears as "My Story" on your
+  profile, and **School / University**.
 - **Do:** Fill them in. Use a made-up artist name you'll recognise later — say
-  **Nora Bellweather**. Click **Next**.
+  **Nora Bellweather** — and write a couple of real sentences of story. Click
+  **Next**.
+- **Check later (in 4.9):** the story you write HERE must already be waiting
+  for you in the Public Page editor. If it's gone, that's a finding.
 
-### 4.4 — Step two: About
+### 4.4 — (removed)
 
-- **Expect:** **Artist Statement** and **Influences**.
-- **Do:** Write a couple of real sentences in each. Click **Next**.
+*Removed 2026-09-02 after round-2 feedback: the separate "About" step
+(Artist Statement + Influences) was redundant with the story box and its text
+went somewhere the tester never saw. Statement and influences now live only in
+the Public Page editor (4.9).*
 
-### 4.5 — Step three: Preferences
+### 4.5 — Step two: Preferences
 
 - **Expect:** **City**, **Neighborhood**, a dropdown to choose how work reaches
   buyers (**Ships Nationally / Ships Locally / Pickup Only / Artist Delivered**),
@@ -362,7 +368,7 @@ work for the first time.
 - **Do:** City `Houston`, Neighborhood `Montrose`, choose **Ships Nationally**,
   and **tick Open to commissions** — you'll need it in Part 11. Click **Next**.
 
-### 4.6 — Step four: the Agreement
+### 4.6 — Step three: the Agreement
 
 - **Expect:** A short plain-English summary of the Artist Agreement in a box, a
   link to read the full version, and a tick-box that says you agree to it

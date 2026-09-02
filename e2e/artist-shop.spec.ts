@@ -94,8 +94,6 @@ test.describe.serial('artist shop building, reject → resubmit → approve, goi
     const page = artistPage;
     await page.getByLabel('Display Name').fill(displayName);
     await page.getByRole('button', { name: 'Next' }).click();
-    await expect(page.getByText('Artist Statement')).toBeVisible();
-    await page.getByRole('button', { name: 'Next' }).click();
     await page.getByLabel('City').fill('Houston');
     await page.locator('select').selectOption('ships_national');
     await page.getByRole('button', { name: 'Next' }).click();

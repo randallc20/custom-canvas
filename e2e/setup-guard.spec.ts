@@ -61,7 +61,6 @@ test.describe('artist setup guard', () => {
 
     await page.getByLabel('Display Name').fill('Guard Wizard Walk');
     await page.getByRole('button', { name: 'Next' }).click();
-    await page.getByRole('button', { name: 'Next' }).click();
     await page.getByLabel('City').fill('Houston');
     // Deliberately NOT choosing a fulfillment preference: the empty option used
     // to fail whole-schema validation on submit, and because the offending field

@@ -215,6 +215,44 @@ capture; a deliberately-broken call in dev shows up in the Sentry stream.
   listings out of the public staging feed; commissions prep got the
   standard reload-recovery.
 
+## Execution notes — round-2 tester feedback, 2026-09-02
+
+Four items from the tester's second pass; triage and outcomes:
+
+1. **Auth emails unbranded (real defect, plan step 1.6).** Confirm/reset/etc.
+   are sent by Supabase Auth over the Resend SMTP bridge — their bodies are
+   project CONFIG, not code, which is why they never matched
+   `src/services/email.ts`. Now source-controlled:
+   `scripts/apply-auth-email-templates.mjs` PATCHes the Management API
+   (needs `SUPABASE_ACCESS_TOKEN`; `--prod` for prod) and verifies the
+   write. Applied to DEV + prod 2026-09-02. Recovery subject aligned to
+   "Reset your Custom Canvas password" (same as the admin-started path).
+   **Bonus defect the tester implied but didn't name:** `email-logo.png` was
+   a cropped export — every branded email said "Custom Canv" (visible in the
+   tester's own approval-email screenshot). Regenerated from
+   `public/brand/logo-horizontal.svg` (720×129, true 5.6:1 aspect); all 16
+   `email.ts` templates + the auth templates now use 180×32.
+2. **"Tell visitors about yourself" then "Artist Statement" redundant (real
+   UX defect)** and 3. **"my story deleted at signup" (real defect, same
+   root):** the wizard's big textarea wrote to `bio`, which renders NOWHERE
+   the artist, a visitor, or the reviewing admin looks (it's only the SEO
+   meta description) — while the profile's "Your Story" (`story`, required
+   100+ chars for review) asks a near-identical question. Nothing was
+   deleted; it was invisible. Fix: the wizard textarea is now **Your Story**
+   (writes `story`, prefills the Public Page editor, counts toward the
+   checklist), and the About step (statement + influences) was dropped from
+   the wizard — both remain editable in the Public Page editor. Wizard is
+   three steps. `bio` stays as a profile-editor-only SEO field. Test plan
+   4.2–4.6 updated (4.4 tombstoned to keep step numbers stable);
+   tester-journey now asserts the wizard story arrives in the profile
+   editor; artist-shop + setup-guard wizard walks shortened.
+3. (folded into 2 above)
+4. **Homepage "Join as an Artist" while signed in as an artist:** feature
+   request (signed-in-aware homepage), NOT built — proposed to Chris per the
+   round's ground rules; tester themself marked it "can be a later tweak".
+
+No migrations (config + code only), so no db-smoke run was required.
+
 ---
 
 ## P5 — Finish the notification pipeline
