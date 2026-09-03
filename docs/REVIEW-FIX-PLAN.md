@@ -500,3 +500,69 @@ re-review runs.
 
 *(dated notes from the implementing sessions: rulings received, findings that
 did not survive contact with the code, new items from R12)*
+
+### 2026-09-02 — execution notes (R0–R11 merged the same day)
+
+**Rulings.** No rulings arrived during the arc, so every default applied: D1
+(artist attestation accepted, `delivered_at` now server-stamped and frozen),
+D2 (billing-address sourcing kept, open counsel question), D3 (`full_name`
+stays anon-readable, `email_preferences` grant dropped, follows own-row),
+D4 (`terraText` `#A84928` for text; `#B5502E` failed on `terraSoft`/`sand`),
+D5 (admin resolve + requester withdraw routes, `/admin/commissions`).
+
+**Deviations that changed the plan on contact with the code.**
+- R1 also set `orders.listing_id` and `orders.commission_id` to
+  `ON DELETE SET NULL`: an artist's listings cascade away with their profile,
+  so a surviving order would otherwise block `deleteUser` on the FK.
+- R2 also handles `charge.dispute.updated`: an inquiry that escalates keeps
+  its dispute id and never fires `created` again. **The Stripe endpoint must
+  be subscribed to that event** (dashboard, both test and live).
+- R2 reuses the `order_disputed` notification type for the artist's outcome
+  message; no new CHECK value.
+- R3 narrowed the non-privileged transition to `paid|shipped → shipped` only;
+  `delivered` is reached solely through `/api/orders/[id]/mark-delivered`.
+- R4 could not expand `latest_charge.dispute` under the pinned Stripe API
+  version; the cron lists disputes per disputed charge instead. Its admin
+  alert reuses the `refund_approved` type.
+- R5 does **not** delete a freshly created Stripe Connect account when the
+  row write fails: with the idempotency key, the retry adopts the same
+  account, which is the outcome the finding wanted. The email wrapper
+  returns a boolean and reports once to Sentry rather than throwing.
+- R7's analytics policy drop moved to R8 so policy-changing migrations
+  landed after Tier 1. R7 grants the read RPCs explicitly (Supabase's default
+  gave `anon` EXECUTE). `/sitemap.xml` is now an index route over
+  `/sitemap/N.xml`; the sitemap uses a cookie-free anon client because
+  `generateSitemaps` runs at build time (found by R10's `next build`).
+- R8 made `profiles` UPDATE column-level (`full_name, avatar_url,
+  email_preferences`) in addition to the guard freeze. `is_privileged()`
+  treats "no JWT claims at all" as privileged so GoTrue's cascade updates and
+  psql keep working; only `anon`/`authenticated` claims are unprivileged.
+  No CSP was added (R0 showed the `javascript:` href is inert in Chromium and
+  WebKit; a real CSP needs nonces through middleware).
+- R9 darkened the primary button background, not only its label: no label
+  colour passes on both `terra` and `terraDark`.
+- R10: `no-floating-promises` needs `checkThenables: true` to see a
+  PostgrestBuilder; plain configuration would have caught none of the five.
+  `ArtistSetupGuard` now redirects only on a settled, error-free empty read.
+- R11 found the TS/SQL completeness score disagreeing on empty-string image
+  URLs; fixed in migration 00054 (SQL now length/trim-checks both columns).
+
+**Verification notes.** The Tier 1 e2e run against staging failed 9 of 11
+specs on the shared login helper while four implementing agents were also
+signing in against DEV (the auth throttling `e2e/README.md` documents); the
+post-merge run is the one that counts. Firefox was not tested for the
+`javascript:` href (Playwright has no Firefox binary here).
+
+**Left for follow-up (not in scope of any phase).**
+- `ImageCarousel`'s lightbox still does not move focus (the one dialog
+  outside `Modal`).
+- `muted` on `sand` is 4.41:1, pre-existing and outside D4.
+- The `pickup-handoff` and `unsubscribe` e2e specs have never run in a
+  browser; run them solo against staging before trusting the nightly.
+- The `purchase-refund` "buyer reviews" step does not yet assert the artist's
+  `review_received` notification row.
+- `reviews.artist_id` still cascades on artist deletion (the order survives;
+  the review does not).
+- A lost dispute after a dashboard-initiated refund that already reversed
+  the transfer will hit a Stripe error on the second reversal and 500 (Stripe
+  retries); the reconcile cron will report it. Rare; not handled.
