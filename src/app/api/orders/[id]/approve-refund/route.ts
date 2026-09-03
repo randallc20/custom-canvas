@@ -92,22 +92,28 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!updated) return NextResponse.json({ error: 'Refund already approved.' }, { status: 409 });
 
-  // Authorise the return in the same breath: the buyer learns the address,
-  // the seven-day clock and the instructions now, not after chasing us.
-  // Skipped entirely on an unshipped order — see needsReturn above.
-  if (needsReturn && address.success) {
-    const authorized = await authorizeReturn(admin, {
-      orderId: params.id,
-      reason: 'change_of_mind',
-      authorizedBy: user.id,
-      returnAddress: address.data,
-      instructions: typeof body?.instructions === 'string' ? body.instructions : undefined,
-    });
-    if (!authorized.ok) {
-      // The approval IS recorded — do not fail it over the return record, or
-      // a retry would hit "already approved" and lose both. Loud instead.
-      Sentry.captureException(new Error(`Return authorisation failed after approval on ${params.id}: ${authorized.error}`));
-    }
+  // ALWAYS write the return record, even when no return is owed.
+  //
+  // The decision made here — including the artist's "the buyer never
+  // collected this piece" — used to be read and thrown away, so the settle
+  // door re-derived possession from the row and reached the opposite
+  // conclusion: for an unconfirmed pickup it decided a return WAS owed,
+  // refused to settle, and the only unblock was authorising a return for a
+  // piece the buyer never had, emailing them an address and a seven-day
+  // clock. Recording `required: false` is what makes the two doors agree
+  // (r10 money / r8 auth, P1).
+  const authorized = await authorizeReturn(admin, {
+    orderId: params.id,
+    reason: 'change_of_mind',
+    authorizedBy: user.id,
+    returnAddress: address.success ? address.data : undefined,
+    instructions: typeof body?.instructions === 'string' ? body.instructions : undefined,
+    required: needsReturn,
+  });
+  if (!authorized.ok) {
+    // The approval IS recorded — do not fail it over the return record, or
+    // a retry would hit "already approved" and lose both. Loud instead.
+    Sentry.captureException(new Error(`Return authorisation failed after approval on ${params.id}: ${authorized.error}`));
   }
 
   // Every admin gets the settle-payment task in their bell.

@@ -358,7 +358,12 @@ export async function PATCH(request: NextRequest) {
         .select('id', { count: 'exact', head: true })
         .eq('listing_id', notice.listing_id)
         .eq('kind', 'notice')
-        .in('status', ['received', 'material_removed'])
+        // counter_received is LIVE: a notice under an open counter-notice is
+        // still standing, and restoring a different claim on top of it
+        // republishes their material inside their own §512(g) window. The
+        // sibling guard on the withdraw path has all three; this one was
+        // copied with one dropped (r8 auth pass, P1).
+        .in('status', ['received', 'material_removed', 'counter_received'])
         .neq('id', id);
       if (othersError) {
         return NextResponse.json({ error: othersError.message }, { status: 500 });

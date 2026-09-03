@@ -434,10 +434,12 @@ function OrdersContent() {
                 if (!o) return;
                 await handleReturn(
                   o,
-                  // `required` is deliberately NOT forced: the route computes it from who
-                  // actually has the piece, so this control cannot re-open the
-                  // unshipped-return deadlock on a different door (r9 money pass, P2).
-                  { action: 'authorize', reason: authorizeReason, return_address: authorizeAddress },
+                  // The admin is explicitly requiring the piece back, so say so — three
+                  // fault reasons default to NOT required and could otherwise never
+                  // have a return demanded at all (r10 money pass, P1). authorizeReturn
+                  // still refuses if the piece is provably with the artist, which is
+                  // what keeps this from re-opening the unshipped deadlock.
+                  { action: 'authorize', reason: authorizeReason, required: true, return_address: authorizeAddress },
                   'Require a return',
                   'The buyer is told where to send the piece and has 7 calendar days to ship it. The refund will not settle until it arrives and is inspected, or you waive it.',
                 );

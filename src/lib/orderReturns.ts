@@ -10,7 +10,7 @@ import {
   type ReturnAddress,
   type ReturnRecord,
 } from '@/utils/orderReturns';
-import { buyerTookPossession, pickupPossessionUnknown } from '@/utils/fulfillment';
+import { buyerTookPossession, pickupPossessionUnknown, pieceIsWithArtist } from '@/utils/fulfillment';
 import type { RefundReason } from '@/utils/refundSplit';
 
 type AdminClient = ReturnType<typeof createAdminSupabaseClient>;
@@ -33,7 +33,8 @@ export async function authorizeReturn(
     orderId: string;
     reason: RefundReason;
     authorizedBy: string;
-    returnAddress: ReturnAddress;
+    /** Only needed when a return is actually required. */
+    returnAddress?: ReturnAddress;
     instructions?: string;
     /** Overrides the reason's default, for a return we require or waive by
      *  judgement (a damaged piece worth inspecting, or one too unsafe to
@@ -54,12 +55,17 @@ export async function authorizeReturn(
   // Possession is the fact that decides whether the buyer has anything to
   // send back — not the reason, not the caller's optimism, and not shipped_at
   // alone (a collected pickup piece has no shipped_at).
-  const required =
+  // A caller may ASK for a return (the admin's "Require a return…"), but not
+  // for a piece that is provably still in the artist's hands — that was the
+  // unshipped-return deadlock, and an explicit `required: true` must not be
+  // able to re-open it on another door (r9 money pass, P2).
+  const requested =
     opts.required ??
     returnRequiredByDefault(
       opts.reason,
       buyerTookPossession(order) || pickupPossessionUnknown(order),
     );
+  const required = requested && !pieceIsWithArtist(order);
   const now = new Date();
   // Seven CALENDAR days, per §5.
   const shipBy = new Date(now.getTime() + RETURN_SHIP_BY_DAYS * 86_400_000);
@@ -85,7 +91,7 @@ export async function authorizeReturn(
         reason: opts.reason,
         authorized_at: now.toISOString(),
         authorized_by: opts.authorizedBy,
-        return_address: opts.returnAddress,
+        return_address: opts.returnAddress ?? null,
         ship_by: required ? shipBy.toISOString() : null,
         instructions,
       },
@@ -103,7 +109,7 @@ export async function authorizeReturn(
   const shipByText = shipBy.toLocaleDateString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
   });
-  const addressText = formatAddress(opts.returnAddress);
+  const addressText = opts.returnAddress ? formatAddress(opts.returnAddress) : '';
 
   if (required && order.buyer_id && artist?.profile_id) {
     await postOrderSystemMessage(admin, {

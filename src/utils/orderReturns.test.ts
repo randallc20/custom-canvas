@@ -257,3 +257,33 @@ describe('the three states of possession', () => {
     expect(pieceIsWithArtist({ shipped_at: '2026-09-01T12:00:00Z' })).toBe(false);
   });
 });
+
+/**
+ * r10 money / r8 auth, P1. The artist answers "the buyer never collected this
+ * piece" at the approval door; the settle door used to re-derive possession
+ * from the row and reach the opposite conclusion, so an uncollected pickup
+ * refund could never settle and the only unblock emailed the buyer a return
+ * address for a piece they never had. The answer is now recorded as a return
+ * record with required=false, and these are the two states the gate must read
+ * the same way the approval did.
+ */
+describe('a recorded decision beats a re-derivation (r10 P1)', () => {
+  const recorded = (required: boolean): ReturnRecord => ({
+    ...base,
+    required,
+    authorized_at: '2026-09-03T12:00:00Z',
+  });
+
+  it('a recorded "no return needed" lets the settle through', () => {
+    expect(returnBlocksSettlement(recorded(false), true)).toBeNull();
+  });
+
+  it('a recorded "return needed" still blocks until it comes back', () => {
+    expect(returnBlocksSettlement(recorded(true), false)).toMatch(/conditioned on the artwork being returned/i);
+  });
+
+  it('only an ABSENT record falls back to the reason default', () => {
+    expect(returnBlocksSettlement(null, true)).toMatch(/should be conditioned/i);
+    expect(returnBlocksSettlement(null, false)).toBeNull();
+  });
+});
