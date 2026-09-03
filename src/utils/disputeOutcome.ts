@@ -15,6 +15,12 @@ export interface DisputeOpenOrder {
   status: string;
   stripe_refund_id: string | null;
   dispute_id: string | null;
+  /** The last Stripe status the webhook recorded for dispute_id (00057):
+   *  what "we have this id" MEANT — an inquiry, a chargeback after a
+   *  refund, a frozen chargeback. Null on rows recorded before 00057. */
+  dispute_status: string | null;
+  /** Non-null once dispute_id is over: won, lost, accepted. */
+  dispute_outcome: string | null;
 }
 
 export interface DisputeRef {
@@ -28,9 +34,19 @@ export type DisputeOpenAction =
   /** Inquiry: record the id and notify, never change status or assess. */
   | 'inquiry'
   /** A chargeback on a payment already refunded (admin settle or dashboard).
-   *  The money already went back; record the id, tell admins, leave the
-   *  refunded status alone so it can't be flipped back to paid later. */
+   *  A refund exists on this payment; record the id and status, tell admins,
+   *  leave the refunded status alone so it can't be flipped back to paid
+   *  later. Also the answer when the same id comes back with a DIFFERENT
+   *  open status than the one recorded — a duplicate admin ping is cheap
+   *  next to a swallowed one. */
   | 'post_refund'
+  /** The inquiry we recorded on this (since refunded) payment has escalated
+   *  to a chargeback: same dispute id, recorded status `warning_*` (or null
+   *  on a pre-00057 row), incoming status open and not an inquiry. Stripe:
+   *  "inquiries on partially refunded charges can still escalate to a
+   *  chargeback". Keying the redelivery check on the id alone dropped this
+   *  as a duplicate, nobody was told, and the deadline passed. */
+  | 'post_refund_escalated'
   /** A real chargeback on a live order: freeze it as disputed. */
   | 'chargeback';
 
@@ -47,12 +63,20 @@ export function isClosedDisputeStatus(status: string): boolean {
 
 export function selectDisputeOpenAction(order: DisputeOpenOrder, dispute: DisputeRef): DisputeOpenAction {
   if (isClosedDisputeStatus(dispute.status)) return 'already_recorded';
+  // An open event's payload never changes (Stripe: "the contents of `data`
+  // never change"), so a `created` resent after the dispute closed still
+  // carries needs_response. The row knows the dispute is over — the closed
+  // handler wrote its outcome — and that outranks the payload.
+  if (order.dispute_id === dispute.id && order.dispute_outcome !== null) return 'already_recorded';
   if (isInquiryDispute(dispute.status)) {
     return order.dispute_id === dispute.id ? 'already_recorded' : 'inquiry';
   }
   if (order.status === 'disputed') return 'already_recorded';
   if (order.stripe_refund_id || order.status === 'refunded') {
-    return order.dispute_id === dispute.id ? 'already_recorded' : 'post_refund';
+    if (order.dispute_id !== dispute.id) return 'post_refund';
+    // Same id, open non-inquiry status. What did we record it as?
+    if (order.dispute_status === null || isInquiryDispute(order.dispute_status)) return 'post_refund_escalated';
+    return order.dispute_status === dispute.status ? 'already_recorded' : 'post_refund';
   }
   return 'chargeback';
 }
@@ -66,19 +90,30 @@ export interface DisputeCloseOrder {
   delivered_at: string | null;
   artist_payout_cents: number;
   protection_status: string;
+  dispute_id: string | null;
   dispute_outcome: string | null;
 }
 
 export interface DisputeCloseInput {
+  id: string;
   status: string;
   /** Disputed amount in cents — a partial chargeback disputes less than the charge. */
   amount: number;
+  /** Cents already reversed on the artist transfer, as Stripe reports it
+   *  (`transfer.amount_reversed`), when the route has retrieved the transfer.
+   *  A second dispute on the same payment after a partial first loss may
+   *  claw back only what is left of the payout; a settled refund already
+   *  reversed all of it. Undefined = not retrieved yet: the route selects
+   *  once to learn whether money could move, retrieves, and selects again. */
+  transferAmountReversed?: number;
 }
 
 export type RestoredStatus = 'pending' | 'paid' | 'shipped' | 'delivered' | 'refunded';
 
 export type DisputeCloseOutcome =
-  /** Already processed as lost (Stripe redelivery). */
+  /** THIS dispute is already processed as lost (Stripe redelivery). A
+   *  different dispute id on a lost row is a second dispute on the same
+   *  payment, never a redelivery. */
   | { kind: 'noop' }
   /** Lost on an order whose protection was never assessed: `closed` arrived
    *  before (or concurrently with) the `created` that would have assessed it.
@@ -91,8 +126,9 @@ export type DisputeCloseOutcome =
       reverseCents: number;
       /** A Protected order: Custom Canvas absorbs the loss, payout untouched. */
       platformAbsorbs: boolean;
-      /** The payout was already reversed (a settled refund) — do not log
-       *  "payout reversed" for something that did not happen here. */
+      /** A reversal already exists on the payout (a settled refund, or an
+       *  earlier lost dispute) — do not log "payout reversed" for something
+       *  that did not happen here. */
       reversalAlreadyExists: boolean;
     }
   | {
@@ -124,8 +160,11 @@ export function restoredStatus(order: DisputeCloseOrder): RestoredStatus {
 
 export function selectDisputeCloseOutcome(order: DisputeCloseOrder, dispute: DisputeCloseInput): DisputeCloseOutcome {
   if (dispute.status === 'lost') {
-    if (order.dispute_outcome === 'lost') return { kind: 'noop' };
-    const reversalAlreadyExists = !!order.stripe_reversal_id;
+    // Keyed on the id, not the outcome column alone: Stripe can deliver
+    // "more than one dispute per payment" (a partial dispute for the frame,
+    // then one for the rest), and the second must run the lost branch.
+    if (order.dispute_outcome === 'lost' && order.dispute_id === dispute.id) return { kind: 'noop' };
+    const reversalAlreadyExists = !!order.stripe_reversal_id || (dispute.transferAmountReversed ?? 0) > 0;
     // 'pending' is the default every order carries until the created handler
     // assesses it. Treating it as "not protected" reversed a compliant
     // artist's payout whenever `closed` outran `created`. With a reversal
@@ -133,10 +172,20 @@ export function selectDisputeCloseOutcome(order: DisputeCloseOrder, dispute: Dis
     // that could take money asks for the assessment.
     if (order.protection_status === 'pending' && !reversalAlreadyExists) return { kind: 'needs_assessment' };
     const platformAbsorbs = order.protection_status === 'protected';
-    const reverseCents =
-      platformAbsorbs || reversalAlreadyExists
-        ? 0
-        : disputeReversalCents(dispute.amount, order.artist_payout_cents);
+    let reverseCents: number;
+    if (platformAbsorbs) {
+      reverseCents = 0;
+    } else if (dispute.transferAmountReversed !== undefined) {
+      // What Stripe says is still with the artist bounds the claw-back: the
+      // disputed amount, never more than the payout minus what an earlier
+      // refund or dispute already took back.
+      reverseCents = disputeReversalCents(dispute.amount, order.artist_payout_cents - dispute.transferAmountReversed);
+    } else {
+      // Transfer not consulted: a recorded reversal is assumed to have taken
+      // the whole payout (the settle route reverses exactly that). The route
+      // re-selects with the transfer's figure before it moves any money.
+      reverseCents = reversalAlreadyExists ? 0 : disputeReversalCents(dispute.amount, order.artist_payout_cents);
+    }
     return { kind: 'lost', status: 'refunded', reverseCents, platformAbsorbs, reversalAlreadyExists };
   }
   // "Not lost" is the restore branch: `won` and `warning_closed` both land
