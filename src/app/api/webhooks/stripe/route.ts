@@ -12,7 +12,7 @@ import {
 } from '@/utils/evaluateProtection';
 import { artistRepliedInTime } from '@/utils/artistRepliedInTime';
 import { selectDisputeOpenAction, selectDisputeCloseOutcome } from '@/utils/disputeOutcome';
-import { sendOrderConfirmationEmail, sendNewSaleEmail } from '@/services/email';
+import { sendOrderConfirmationEmail, sendNewSaleEmail, sendOversoldRefundEmail } from '@/services/email';
 import { formatPrice } from '@/utils/formatPrice';
 
 
@@ -363,11 +363,17 @@ export async function POST(request: NextRequest) {
               { idempotencyKey: `oversell_${paymentIntentId}` }
             );
           } catch (refundErr) {
-            Sentry.captureException(refundErr);
-            // Do NOT ack: Stripe retries the event, the insert 23505s again,
-            // and we re-attempt the refund. Acking here would record a
-            // "refunded" order for money the buyer never got back.
-            return retryLater('Oversell refund failed');
+            // The idempotency key lives 24h. A `checkout.session.completed`
+            // resent later than that (04-r3 appendix) mints a fresh attempt
+            // that Stripe refuses because the money already went back — that
+            // is success, not failure: carry on to the audit row.
+            if ((refundErr as { code?: string }).code !== 'charge_already_refunded') {
+              Sentry.captureException(refundErr);
+              // Do NOT ack: Stripe retries the event, the insert 23505s again,
+              // and we re-attempt the refund. Acking here would record a
+              // "refunded" order for money the buyer never got back.
+              return retryLater('Oversell refund failed');
+            }
           }
           // Record the refunded order for the buyer's history / audit trail.
           // charge.refunded for this refund matches THIS row (409 until it
@@ -382,6 +388,47 @@ export async function POST(request: NextRequest) {
             `Oversell auto-refunded: listing ${listingId}, payment ${paymentIntentId}`,
             'warning'
           );
+          // The buyer landed on "Your purchase was successful!" and, until
+          // now, learned of the refund only from a Refunded row a minute
+          // later (04-r3 P2). Tell them, and tell admins — a Sentry warning
+          // was the only signal that the piece is being resold repeatedly.
+          // Notifications are best-effort: the money is already back.
+          {
+            const oversoldTitle = listing?.title ?? 'the piece';
+            const paidCents = session.amount_total ?? (order.amount_cents + order.buyer_fee_cents + order.shipping_cents);
+            const { data: oversoldBuyer } = await supabase
+              .from('profiles').select('email, full_name').eq('id', order.buyer_id).maybeSingle();
+            if (oversoldBuyer?.email) {
+              sendOversoldRefundEmail(
+                oversoldBuyer.email,
+                oversoldBuyer.full_name ?? 'Collector',
+                oversoldTitle,
+                formatPrice(paidCents)
+              ).catch((e) => Sentry.captureException(e));
+            }
+            const oversoldRows: Array<Record<string, string>> = [
+              {
+                user_id: order.buyer_id,
+                type: 'refund_approved',
+                title: 'Refunded: sold moments before your payment',
+                body: `"${oversoldTitle}" was sold to another collector moments before your payment went through. You have been refunded in full (${formatPrice(paidCents)}); it can take a few days to show on your statement.`,
+                link: '/orders',
+              },
+            ];
+            for (const adminId of await adminIds(supabase)) {
+              oversoldRows.push({
+                user_id: adminId,
+                type: 'refund_approved',
+                title: 'Oversold listing auto-refunded',
+                body: `"${oversoldTitle}" took a second payment while an order already held it; the buyer was refunded in full (${formatPrice(paidCents)}, Stripe keeps its fee). If the listing is still available, check why it went back on sale.`,
+                link: '/admin/orders',
+              });
+            }
+            const { error: oversoldNotifError } = await supabase.from('notifications').insert(oversoldRows);
+            if (oversoldNotifError) {
+              Sentry.captureException(new Error(`Oversell notifications failed for ${paymentIntentId}: ${oversoldNotifError.message}`));
+            }
+          }
           break;
         }
         Sentry.captureException(new Error(`Order insert failed for ${paymentIntentId}: ${insertError.message}`));
@@ -423,15 +470,18 @@ export async function POST(request: NextRequest) {
       const wasShipped = order.status === 'shipped' || order.status === 'delivered';
 
       // A dashboard-initiated full refund may have skipped the artist
-      // transfer reversal (it's a checkbox an admin can forget). Verify and
-      // alert loudly — the platform would otherwise eat the payout silently.
+      // transfer reversal (it's a checkbox an admin can forget), or reversed
+      // only part of it (04-r3 appendix). Verify and alert loudly — the
+      // platform would otherwise eat the remainder silently.
       if (order.artist_payout_cents > 0 && charge.transfer) {
         try {
           const transferId = typeof charge.transfer === 'string' ? charge.transfer : charge.transfer.id;
           const transfer = await getStripe().transfers.retrieve(transferId);
-          if ((transfer.amount_reversed ?? 0) === 0) {
+          const reversed = transfer.amount_reversed ?? 0;
+          if (reversed < order.artist_payout_cents) {
+            const kept = order.artist_payout_cents - reversed;
             Sentry.captureMessage(
-              `Full refund WITHOUT transfer reversal: order ${order.id} — artist keeps ${order.artist_payout_cents}¢. Reverse it in the Stripe dashboard.`,
+              `Full refund with ${reversed === 0 ? 'NO' : 'only a PARTIAL'} transfer reversal: order ${order.id} — artist keeps ${kept}¢ of ${order.artist_payout_cents}¢. Reverse the rest in the Stripe dashboard.`,
               'error'
             );
             for (const adminId of await adminIds(supabase)) {
@@ -439,7 +489,7 @@ export async function POST(request: NextRequest) {
                 user_id: adminId,
                 type: 'refund_approved',
                 title: 'Refund needs attention',
-                body: 'A full refund was issued without reversing the artist payout — check Stripe.',
+                body: `A full refund was issued but ${formatPrice(kept)} of the artist payout was not reversed — check Stripe.`,
                 link: '/admin/orders',
               });
             }
@@ -508,7 +558,7 @@ export async function POST(request: NextRequest) {
       // retry schedule, to land long after the dispute had closed.
       const { data: order, error: orderReadError } = await supabase
         .from('orders')
-        .select('id, status, artist_id, stripe_refund_id, dispute_id, listing:listings(title)')
+        .select('id, status, artist_id, stripe_refund_id, dispute_id, dispute_status, dispute_outcome, listing:listings(title)')
         .eq('stripe_payment_intent_id', paymentIntentId)
         .maybeSingle();
       if (orderReadError) {
@@ -519,10 +569,20 @@ export async function POST(request: NextRequest) {
 
       // Includes an open event whose dispute is already over (won, lost,
       // warning_closed, charge_refunded): late, resent, or emitted alongside
-      // `closed`. The closed handler owns those; re-freezing here would leave
+      // `closed`, and — since the payload of an open event never changes —
+      // a resent `created` for a dispute whose outcome is already on the
+      // row. The closed handler owns those; re-freezing here would leave
       // the order `disputed` with no closing event ever coming.
       const action = selectDisputeOpenAction(order, { id: dispute.id, status: dispute.status });
       if (action === 'already_recorded') break;
+
+      // Every branch below records what this id currently means (00057), so
+      // the next event for it can be told from a duplicate.
+      const disputeRecord = { dispute_id: dispute.id, dispute_status: dispute.status };
+      const dueBy = dispute.evidence_details?.due_by
+        ? new Date(dispute.evidence_details.due_by * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : null;
+      const deadlineLine = dueBy ? ` before ${dueBy}` : " before the bank's deadline";
 
       const title = (order.listing as unknown as { title: string } | null)?.title ?? 'an order';
       // artist_id is NULL once the artist's account is deleted (00049): the
@@ -552,7 +612,7 @@ export async function POST(request: NextRequest) {
         // No funds have moved; the order is not frozen and protection is NOT
         // assessed — the artist can still ship/deliver, and an assessment now
         // would freeze a verdict on an order that may never be disputed.
-        const { error } = await supabase.from('orders').update({ dispute_id: dispute.id }).eq('id', order.id);
+        const { error } = await supabase.from('orders').update(disputeRecord).eq('id', order.id);
         if (error) {
           Sentry.captureException(new Error(`Inquiry ${dispute.id} record failed on order ${order.id}: ${error.message}`));
           return retryLater('Inquiry record failed');
@@ -580,27 +640,73 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      if (action === 'post_refund') {
-        // The buyer already has the money back (admin settle or dashboard
-        // refund) and the payout reversal, if any, is on the row. Freezing a
-        // refunded order as `disputed` is what let a won dispute flip it back
-        // to `paid`. Record the id, tell admins, leave the status alone.
-        const { error } = await supabase.from('orders').update({ dispute_id: dispute.id }).eq('id', order.id);
+      if (action === 'post_refund' || action === 'post_refund_escalated') {
+        // A refund exists on this payment (admin settle or dashboard refund)
+        // and the payout reversal, if any, is on the row. Freezing a
+        // refunded order as `disputed` is what let a won dispute flip it
+        // back to `paid`. Record the id and status, tell admins, leave the
+        // status alone.
+        //
+        // The row does not store the refund amount, and "the money already
+        // went back" was false for a partial refund or an earlier partial
+        // loss (04-r3 P2): say what Stripe says was refunded. Copy only —
+        // a failed read must not stop the notification.
+        let refundedCents: number | null = null;
+        try {
+          const charge = await getStripe().charges.retrieve(dispute.charge as string);
+          refundedCents = charge.amount_refunded;
+        } catch (err) {
+          Sentry.captureException(err);
+        }
+        const refundLine = refundedCents !== null
+          ? `A refund of ${formatPrice(refundedCents)} exists on this payment`
+          : 'A refund exists on this payment';
+
+        const { error } = await supabase.from('orders').update(disputeRecord).eq('id', order.id);
         if (error) {
           Sentry.captureException(new Error(`Post-refund dispute ${dispute.id} record failed on order ${order.id}: ${error.message}`));
           return retryLater('Dispute record failed');
+        }
+        if (action === 'post_refund_escalated') {
+          // The inquiry we recorded on this payment became a chargeback
+          // after we refunded it (04-r3 P1). Unanswered, it is lost by
+          // default and the buyer keeps the refund AND the chargeback.
+          for (const adminId of admins) {
+            rows.push({
+              user_id: adminId,
+              type: 'order_disputed',
+              title: 'Inquiry escalated on a refunded payment',
+              body: `The bank escalated its inquiry on "${title}" to a chargeback — on a payment we already refunded. ${refundLine}: respond in the Stripe dashboard with the refund as evidence${deadlineLine}, or the dispute is lost by default and the buyer keeps both.`,
+              link: '/admin/orders',
+            });
+          }
+          if (artistUserId) {
+            rows.push({
+              user_id: artistUserId,
+              type: 'order_disputed',
+              title: 'Bank inquiry became a chargeback',
+              body: `The bank's inquiry about "${title}" has become a chargeback. This order was already refunded, so nothing further changes on it; Custom Canvas is responding to the bank with the refund as evidence.`,
+              link: '/studio/sales',
+            });
+          }
+          if (rows.length) await supabase.from('notifications').insert(rows);
+          Sentry.captureMessage(
+            `Inquiry ${dispute.id} ESCALATED to ${dispute.status} on already-refunded order ${order.id} (${dispute.reason}) — respond in Stripe${deadlineLine}.`,
+            'error'
+          );
+          break;
         }
         for (const adminId of admins) {
           rows.push({
             user_id: adminId,
             type: 'order_disputed',
             title: 'Dispute on a refunded order',
-            body: `A chargeback was filed on "${title}" after its refund. The money already went back — respond in the Stripe dashboard with the refund as evidence.`,
+            body: `A chargeback (${dispute.status}) is open on "${title}" after its refund. ${refundLine} — respond in the Stripe dashboard with the refund as evidence${deadlineLine}.`,
             link: '/admin/orders',
           });
         }
         if (rows.length) await supabase.from('notifications').insert(rows);
-        Sentry.captureMessage(`Dispute ${dispute.id} opened on already-refunded order ${order.id} (${dispute.reason}).`, 'error');
+        Sentry.captureMessage(`Dispute ${dispute.id} (${dispute.status}) on already-refunded order ${order.id} (${dispute.reason}).`, 'error');
         break;
       }
 
@@ -622,7 +728,7 @@ export async function POST(request: NextRequest) {
         .from('orders')
         .update({
           status: 'disputed',
-          dispute_id: dispute.id,
+          ...disputeRecord,
           protection_status: protectionStatus,
           pre_dispute_status: order.status,
         })
@@ -675,7 +781,7 @@ export async function POST(request: NextRequest) {
       if (!paymentIntentId) break;
 
       const CLOSE_COLUMNS =
-        'id, status, artist_id, artist_payout_cents, shipped_at, delivered_at, stripe_refund_id, stripe_reversal_id, protection_status, pre_dispute_status, dispute_outcome, listing:listings(title)';
+        'id, status, artist_id, artist_payout_cents, shipped_at, delivered_at, stripe_refund_id, stripe_reversal_id, protection_status, pre_dispute_status, dispute_id, dispute_status, dispute_outcome, listing:listings(title)';
       const { data: firstRead, error: orderReadError } = await supabase
         .from('orders')
         .select(CLOSE_COLUMNS)
@@ -688,7 +794,8 @@ export async function POST(request: NextRequest) {
       if (!firstRead) return retryLater(`No order for disputed payment ${paymentIntentId} yet`, 409);
       let order = firstRead;
 
-      let outcome = selectDisputeCloseOutcome(order, { status: dispute.status, amount: dispute.amount });
+      const closeInput = { id: dispute.id, status: dispute.status, amount: dispute.amount };
+      let outcome = selectDisputeCloseOutcome(order, closeInput);
       if (outcome.kind === 'needs_assessment') {
         // Lost, and protection was never assessed: this `closed` arrived
         // before (or concurrently with) the `created` that would have done
@@ -722,10 +829,14 @@ export async function POST(request: NextRequest) {
           `Dispute ${dispute.id} closed as lost before its open event was processed on order ${order.id}; protection assessed late as ${order.protection_status}.`,
           'warning'
         );
-        outcome = selectDisputeCloseOutcome(order, { status: dispute.status, amount: dispute.amount });
+        outcome = selectDisputeCloseOutcome(order, closeInput);
         if (outcome.kind === 'needs_assessment') return retryLater('Protection still unassessed');
       }
-      if (outcome.kind === 'noop') break; // redelivery of a processed loss
+      if (outcome.kind === 'noop') break; // redelivery of THIS processed loss
+
+      // What this id means now (00057). A second dispute on the same payment
+      // carries a new id and overwrites the first's — the row holds one.
+      const closeRecord = { dispute_id: dispute.id, dispute_status: dispute.status };
 
       const title = (order.listing as unknown as { title: string } | null)?.title ?? 'an order';
       let artistTitle: string;
@@ -741,22 +852,29 @@ export async function POST(request: NextRequest) {
         // reversed the payout.
         let reversedCents = 0;
         let transferAlreadyReversed = false;
-        if (outcome.reverseCents > 0) {
+        // Anything to reverse? Absorbed and zero-payout orders never touch
+        // Stripe. Otherwise ask the transfer how much is already reversed
+        // and decide again on that figure: a dashboard refund with "reverse
+        // transfer" ticked leaves no stripe_reversal_id on the row, and a
+        // second dispute after a partial first loss (04-r3 P2) may claw back
+        // only what is left — the row's reversal id alone says neither.
+        if (!outcome.platformAbsorbs && order.artist_payout_cents > 0) {
           try {
             const charge = await getStripe().charges.retrieve(dispute.charge as string);
-            if (charge.transfer) {
-              const transferId = typeof charge.transfer === 'string' ? charge.transfer : charge.transfer.id;
-              // A dashboard refund with "reverse transfer" ticked leaves no
-              // stripe_reversal_id on the row (charge.refunded records none),
-              // so ask the transfer itself, as charge.refunded does: a second
-              // reversal on a fully reversed transfer fails at Stripe forever
-              // and the outcome was never recorded.
+            const transferId = charge.transfer
+              ? (typeof charge.transfer === 'string' ? charge.transfer : charge.transfer.id)
+              : null;
+            if (transferId) {
               const transfer = await getStripe().transfers.retrieve(transferId);
-              transferAlreadyReversed = (transfer.amount_reversed ?? 0) >= transfer.amount;
+              const amountReversed = transfer.amount_reversed ?? 0;
+              transferAlreadyReversed = amountReversed >= transfer.amount;
+              const decided = selectDisputeCloseOutcome(order, { ...closeInput, transferAmountReversed: amountReversed });
+              if (decided.kind !== 'lost') return retryLater('Dispute outcome changed under re-selection');
+              outcome = decided;
             }
-            if (charge.transfer && !transferAlreadyReversed) {
+            if (transferId && !transferAlreadyReversed && outcome.reverseCents > 0) {
               const reversal = await getStripe().transfers.createReversal(
-                typeof charge.transfer === 'string' ? charge.transfer : charge.transfer.id,
+                transferId,
                 { amount: outcome.reverseCents },
                 { idempotencyKey: `dispute_${dispute.id}` }
               );
@@ -781,7 +899,7 @@ export async function POST(request: NextRequest) {
 
         const { error: lostError } = await supabase
           .from('orders')
-          .update({ status: 'refunded', dispute_outcome: 'lost' })
+          .update({ status: 'refunded', dispute_outcome: 'lost', ...closeRecord })
           .eq('id', order.id);
         if (lostError) {
           Sentry.captureException(new Error(`Dispute-lost update failed on order ${order.id}: ${lostError.message}`));
@@ -791,12 +909,12 @@ export async function POST(request: NextRequest) {
         Sentry.captureMessage(
           outcome.platformAbsorbs
             ? `Dispute LOST on PROTECTED order ${order.id} — platform absorbs ${dispute.amount}c, payout NOT reversed.`
-            : outcome.reversalAlreadyExists
-            ? `Dispute LOST on order ${order.id} — payout was already reversed (${order.stripe_reversal_id}, refund settled earlier or prior delivery); nothing reversed now.`
-            : transferAlreadyReversed
-            ? `Dispute LOST on order ${order.id} — the transfer was already fully reversed at Stripe (dashboard refund); nothing reversed now.`
             : reversedCents > 0
-            ? `Dispute LOST on ineligible order ${order.id} — ${reversedCents}c of the ${order.artist_payout_cents}c payout reversed.`
+            ? `Dispute LOST on ineligible order ${order.id} — ${reversedCents}c of the ${order.artist_payout_cents}c payout reversed${outcome.reversalAlreadyExists ? ' (on top of an earlier reversal)' : ''}.`
+            : transferAlreadyReversed
+            ? `Dispute LOST on order ${order.id} — the transfer was already fully reversed at Stripe (settled refund, dashboard refund or an earlier dispute); nothing reversed now.`
+            : outcome.reversalAlreadyExists
+            ? `Dispute LOST on order ${order.id} — payout was already reversed (${order.stripe_reversal_id ?? 'per Stripe'}); nothing reversed now.`
             : `Dispute LOST on order ${order.id} — no payout to reverse.`,
           'error'
         );
@@ -820,6 +938,17 @@ export async function POST(request: NextRequest) {
           Sentry.captureMessage(`Dispute ${dispute.id} won; order ${order.id} is already '${order.status}' — nothing to restore.`, 'info');
           break;
         }
+        // Record the close against the id we hold; a different id on the
+        // row (a later dispute) is left alone — zero rows is fine here.
+        const { error: inquiryCloseError } = await supabase
+          .from('orders')
+          .update({ dispute_status: dispute.status })
+          .eq('id', order.id)
+          .eq('dispute_id', dispute.id);
+        if (inquiryCloseError) {
+          Sentry.captureException(new Error(`Inquiry close ${dispute.id} record failed on order ${order.id}: ${inquiryCloseError.message}`));
+          return retryLater('Inquiry close record failed');
+        }
         artistTitle = 'Bank inquiry closed';
         artistBody = `The bank closed its inquiry about "${title}" without a chargeback. Nothing changes on this order.`;
       } else {
@@ -836,6 +965,7 @@ export async function POST(request: NextRequest) {
             status: outcome.status,
             dispute_outcome: outcome.outcome,
             pre_dispute_status: null,
+            ...closeRecord,
           })
           .eq('id', order.id)
           .eq('status', 'disputed')

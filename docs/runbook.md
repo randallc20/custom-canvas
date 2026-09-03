@@ -17,7 +17,13 @@ Dashboard → Developers → Webhooks shows failed deliveries to
    → **Resend**. Replaying is safe: order creation dedupes on the payment-
    intent id (pre-check + unique index — there is NO event-id table, so don't
    look for one), refund handling is guarded by order status, and the other
-   handlers are harmless re-runs.
+   handlers are harmless re-runs. **One exception:** do not resend a
+   `charge.dispute.created` / `charge.dispute.updated` once that dispute has
+   closed — an open event's payload never changes, so it still says
+   `needs_response`. The handler recognises the dispute by its id and
+   recorded outcome and ignores it, but a row that never saw the close has
+   no outcome to recognise; if the order is wrong after a dispute, resend
+   the `charge.dispute.closed` event instead.
 2. If many are failing: confirm `STRIPE_WEBHOOK_SECRET` in Vercel prod matches
    the live endpoint's signing secret (a key rotation or a new endpoint changes
    it). Mismatch → every event 400s on signature check.
@@ -77,6 +83,17 @@ reverses the artist payout exactly (idempotency-keyed, id persisted) and marks
 the order `refunded`; `won` restores it to delivered/paid. The piece is NOT
 auto-relisted after a chargeback — its whereabouts is unclear, so relist it by
 hand if the artist still has it.
+- **Inquiries** (`warning_*` statuses — Discover, Amex, Visa pre-disputes)
+  arrive through the same event, move no funds and freeze nothing; admins are
+  asked to respond in Stripe. If the inquiry is answered with a refund and the
+  issuer escalates anyway, the escalation lands as "Inquiry escalated on a
+  refunded payment": respond in Stripe with the refund as evidence before the
+  deadline or it is lost by default and the buyer keeps both. The reconcile
+  cron also reports it (`dispute_escalated_on_refunded_order`).
+- **A second dispute on the same payment** (rare; Stripe allows it) runs the
+  lost branch again and reverses only what is left of the payout after the
+  first reversal. The row holds one dispute id — the latest — plus
+  `dispute_status`, the last Stripe status recorded for it.
 
 ## Refund / dispute
 - **Refund** is artist-mediated: buyer requests in chat → artist "Approve refund"
