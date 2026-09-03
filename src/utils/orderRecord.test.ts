@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildOrderRecord } from './orderRecord';
+import { buildOrderRecord, detachParty, partyFromForeignKeyError } from './orderRecord';
 
 function mockSession(overrides: Partial<{
   listing_id: string;
@@ -171,5 +171,76 @@ describe('buildOrderRecord (webhook order-creation math)', () => {
     );
     const buyerTotal = order!.amount_cents + order!.buyer_fee_cents + order!.shipping_cents;
     expect(order!.artist_payout_cents + order!.platform_fee_cents + order!.buyer_fee_cents).toBe(buyerTotal);
+  });
+});
+
+// 01-r2 P2: a party deleted while Checkout was open. The charge and the
+// transfer happened; the order must still be recorded with that party
+// detached (00049 made the columns nullable), money columns intact.
+describe('null-party order records (self-deletion during checkout)', () => {
+  it('detaches the buyer and keeps every money column and the payment intent', () => {
+    const order = buildOrderRecord(mockSession({ artist_payout_cents: '27500', platform_fee_cents: '4500' }, 2764), 'artist-1')!;
+    const detached = detachParty(order, 'buyer_id');
+    expect(detached.buyer_id).toBeNull();
+    expect(detached.listing_id).toBe('listing-1');
+    expect(detached.artist_id).toBe('artist-1');
+    expect(detached.amount_cents).toBe(30000);
+    expect(detached.artist_payout_cents).toBe(27500);
+    expect(detached.platform_fee_cents).toBe(4500);
+    expect(detached.buyer_fee_cents).toBe(1500);
+    expect(detached.shipping_cents).toBe(2000);
+    expect(detached.amount_tax_cents).toBe(2764);
+    expect(detached.stripe_payment_intent_id).toBe('pi_test_123');
+    expect(detached.status).toBe('paid');
+    // The original is not mutated — the retry loop reassigns, never edits.
+    expect(order.buyer_id).toBe('buyer-1');
+  });
+
+  it('detaches the listing independently of the buyer', () => {
+    const order = buildOrderRecord(mockSession(), 'artist-1')!;
+    const detached = detachParty(order, 'listing_id');
+    expect(detached.listing_id).toBeNull();
+    expect(detached.buyer_id).toBe('buyer-1');
+    expect(detached.artist_id).toBe('artist-1');
+  });
+
+  it('builds with a null artist when the artist row is already gone', () => {
+    const order = buildOrderRecord(mockSession(), null);
+    expect(order).not.toBeNull();
+    expect(order!.artist_id).toBeNull();
+    expect(order!.artist_payout_cents).toBe(27500);
+    expect(order!.stripe_payment_intent_id).toBe('pi_test_123');
+  });
+
+  it('can end up with every party detached and the money still whole', () => {
+    let order = buildOrderRecord(mockSession(), null)!;
+    order = detachParty(detachParty(order, 'buyer_id'), 'listing_id');
+    expect(order.buyer_id).toBeNull();
+    expect(order.listing_id).toBeNull();
+    expect(order.artist_id).toBeNull();
+    expect(order.artist_payout_cents + order.platform_fee_cents + order.buyer_fee_cents)
+      .toBe(order.amount_cents + order.buyer_fee_cents + order.shipping_cents);
+  });
+});
+
+describe('partyFromForeignKeyError (which row vanished)', () => {
+  const msg = (con: string) => `insert or update on table "orders" violates foreign key constraint "${con}"`;
+
+  it('maps each orders party FK by constraint name', () => {
+    expect(partyFromForeignKeyError(msg('orders_buyer_id_fkey'))).toBe('buyer_id');
+    expect(partyFromForeignKeyError(msg('orders_listing_id_fkey'))).toBe('listing_id');
+    expect(partyFromForeignKeyError(msg('orders_artist_id_fkey'))).toBe('artist_id');
+  });
+
+  it('falls back to the column named in details', () => {
+    expect(partyFromForeignKeyError('violates a foreign key constraint', 'Key (listing_id)=(abc) is not present in table "listings".'))
+      .toBe('listing_id');
+  });
+
+  it('refuses to guess for any other constraint', () => {
+    expect(partyFromForeignKeyError(msg('orders_commission_id_fkey'))).toBeNull();
+    expect(partyFromForeignKeyError(msg('orders_commission_id_fkey'), 'Key (commission_id)=(x) is not present')).toBeNull();
+    expect(partyFromForeignKeyError(null)).toBeNull();
+    expect(partyFromForeignKeyError(undefined, undefined)).toBeNull();
   });
 });

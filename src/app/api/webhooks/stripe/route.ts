@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/nextjs';
 import type Stripe from 'stripe';
 import { getStripe, STRIPE_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET } from '@/lib/stripe';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
-import { buildOrderRecord } from '@/utils/orderRecord';
+import { buildOrderRecord, detachParty, partyFromForeignKeyError } from '@/utils/orderRecord';
 import {
   pickupHandoffConfirmed,
   evaluateProtection,
@@ -113,48 +113,62 @@ async function adminIds(supabase: AdminClient): Promise<string[]> {
 // died between the insert and these steps (function timeout) used to leave
 // the listing available and nobody emailed, and the retry short-circuited on
 // "already recorded". Returns a response only on a failure Stripe must retry.
+//
+// Any of the order's three parties may be NULL (01-r2 P2): the buyer deleted
+// their account with the Checkout tab still open, or the artist did and the
+// listing cascaded away. The money moved regardless, so the order is
+// recorded and the steps that need the missing party are skipped — and the
+// admins and Sentry are told, because somebody was paid or charged with
+// nobody on the other end to notify.
 async function completeSale(
   supabase: AdminClient,
   args: {
     session: Stripe.Checkout.Session;
-    listingId: string;
     listingTitle: string;
-    artistId: string;
     order: OrderRecord;
     orderId: string;
   }
 ): Promise<NextResponse | null> {
-  const { session, listingId, listingTitle, artistId, order, orderId } = args;
+  const { session, listingTitle, order, orderId } = args;
+  const { listing_id: listingId, buyer_id: buyerId, artist_id: artistId } = order;
 
-  const { error: soldError } = await supabase
-    .from('listings')
-    .update({ status: 'sold', sold_price_cents: order.amount_cents })
-    .eq('id', listingId);
-  if (soldError) {
-    Sentry.captureException(new Error(`Listing ${listingId} sold-update failed for order ${orderId}: ${soldError.message}`));
-    return retryLater('Listing sold-update failed');
+  if (listingId) {
+    const { error: soldError } = await supabase
+      .from('listings')
+      .update({ status: 'sold', sold_price_cents: order.amount_cents })
+      .eq('id', listingId);
+    if (soldError) {
+      Sentry.captureException(new Error(`Listing ${listingId} sold-update failed for order ${orderId}: ${soldError.message}`));
+      return retryLater('Listing sold-update failed');
+    }
   }
 
-  const [{ data: buyer }, { data: artistProf }] = await Promise.all([
-    supabase.from('profiles').select('email, full_name').eq('id', order.buyer_id).single(),
-    supabase.from('artist_profiles').select('display_name, profile_id, profile:profiles!artist_profiles_profile_id_fkey(email)').eq('id', artistId).single(),
-  ]);
+  const buyer = buyerId
+    ? (await supabase.from('profiles').select('email, full_name').eq('id', buyerId).maybeSingle()).data
+    : null;
+  const artistProf = artistId
+    ? (await supabase
+        .from('artist_profiles')
+        .select('display_name, profile_id, profile:profiles!artist_profiles_profile_id_fkey(email)')
+        .eq('id', artistId)
+        .maybeSingle()).data
+    : null;
 
   // Local pickup: open/find the buyer↔artist thread and post a system
-  // note so they can coordinate handoff.
-  if (session.metadata?.pickup === 'true' && artistProf?.profile_id) {
+  // note so they can coordinate handoff. Needs both people.
+  if (session.metadata?.pickup === 'true' && buyerId && artistProf?.profile_id) {
     const artistUserId = artistProf.profile_id as string;
     const { data: existingConv } = await supabase
       .from('conversations')
       .select('id')
-      .or(`and(participant_one.eq.${order.buyer_id},participant_two.eq.${artistUserId}),and(participant_one.eq.${artistUserId},participant_two.eq.${order.buyer_id})`)
+      .or(`and(participant_one.eq.${buyerId},participant_two.eq.${artistUserId}),and(participant_one.eq.${artistUserId},participant_two.eq.${buyerId})`)
       .limit(1)
       .maybeSingle();
     let convId = existingConv?.id;
     if (!convId) {
       const { data: newConv } = await supabase
         .from('conversations')
-        .insert({ participant_one: order.buyer_id, participant_two: artistUserId, context_type: 'listing', context_id: listingId })
+        .insert({ participant_one: buyerId, participant_two: artistUserId, context_type: 'listing', context_id: listingId })
         .select('id')
         .single();
       convId = newConv?.id;
@@ -202,6 +216,33 @@ async function completeSale(
       body: `"${listingTitle}" just sold for ${formatPrice(order.amount_cents)}.`,
       link: '/studio/sales',
     });
+  }
+
+  // A deleted party: the payment is on the books, but the confirmation, the
+  // sale email, or the listing's sold flag had nobody to land on. A deleted
+  // ARTIST is the loud one — the destination transfer to their Connect
+  // account has already happened.
+  const missing = [
+    !buyerId && 'buyer',
+    !listingId && 'listing',
+    !artistId && 'artist',
+  ].filter(Boolean) as string[];
+  if (missing.length) {
+    const tail = artistId
+      ? ''
+      : ' The transfer to the artist\'s Connect account already happened — check the account in Stripe.';
+    Sentry.captureMessage(
+      `Payment ${order.stripe_payment_intent_id} recorded on order ${orderId} for a deleted ${missing.join(' + ')}.${tail}`,
+      'error'
+    );
+    const rows = (await adminIds(supabase)).map((adminId) => ({
+      user_id: adminId,
+      type: 'refund_approved',
+      title: 'Payment for a deleted account',
+      body: `Order ${orderId.slice(0, 8)} was paid after its ${missing.join(' and ')} had been deleted (${formatPrice(order.amount_cents)}).${tail}`,
+      link: '/admin/orders',
+    }));
+    if (rows.length) await supabase.from('notifications').insert(rows);
   }
   return null;
 }
@@ -288,9 +329,7 @@ export async function POST(request: NextRequest) {
         );
         if (!order) return null;
         Sentry.captureMessage(`Resuming post-insert steps for order ${orderId} (${paymentIntentId})`, 'warning');
-        return completeSale(supabase, {
-          session, listingId, listingTitle: listing.title, artistId: artistObj.id, order, orderId,
-        });
+        return completeSale(supabase, { session, listingTitle: listing.title, order, orderId });
       };
 
       const { data: existingOrder } = await supabase
@@ -304,27 +343,40 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      if (!listing) {
-        // The listing row vanished between session creation and webhook
-        // delivery (artist/admin deleted it). The buyer HAS been charged and
-        // the artist transfer HAS been created, so acking 200 here stranded an
-        // orphaned charge with no order, no emails and no alert. Be loud: 500
-        // makes Stripe retry and pages the operator.
-        Sentry.captureException(
-          new Error(`Paid session ${paymentIntentId} for missing listing ${listingId} — orphaned charge`)
+      // The listing row vanished between session creation and webhook
+      // delivery: the artist deleted it, or deleted their account and it
+      // cascaded away (01-r2 P2). The buyer HAS been charged and the artist
+      // transfer HAS been created. Returning 500 here made Stripe retry into
+      // the same missing row for three days and left no order for the
+      // refund, the dispute handlers or the reconcile cron to attach to.
+      // Record the order without the listing; the artist comes from the
+      // session metadata if their row still exists, else the order is
+      // detached from them too and completeSale says so loudly.
+      let artistId: string | null = null;
+      if (listing) {
+        artistId = (listing.artist as unknown as { id: string }).id;
+      } else {
+        const metaArtist = session.metadata?.artist_id;
+        if (metaArtist) {
+          const { data: artistRow } = await supabase
+            .from('artist_profiles').select('id').eq('id', metaArtist).maybeSingle();
+          artistId = (artistRow?.id as string | undefined) ?? null;
+        }
+        Sentry.captureMessage(
+          `Paid session ${paymentIntentId} for missing listing ${listingId} — recording the order without it`,
+          'error'
         );
-        return retryLater('Listing missing for paid session');
       }
+      const listingTitle: string = listing?.title ?? 'an artwork (listing since removed)';
 
-      const artistObj = listing.artist as unknown as { id: string };
-      const order = buildOrderRecord(
+      let order = buildOrderRecord(
         {
           payment_intent: paymentIntentId,
           metadata: session.metadata,
           total_details: session.total_details,
           collected_information: session.collected_information,
         },
-        artistObj.id
+        artistId
       );
       if (!order) {
         // Money metadata missing — never fabricate amounts and never ack a
@@ -332,14 +384,31 @@ export async function POST(request: NextRequest) {
         Sentry.captureException(new Error(`Unbuildable order for paid session ${paymentIntentId}`));
         return retryLater('Order metadata missing');
       }
+      if (!listing) order = detachParty(order, 'listing_id');
 
       // Claim the listing with a live order. The partial unique index
       // (one live order per listing) makes a concurrent second sale fail here.
-      const { data: inserted, error: insertError } = await supabase
-        .from('orders')
-        .insert(order)
-        .select('id')
-        .single();
+      //
+      // A 23503 means a party's row is gone — the buyer deleted their
+      // account while their Checkout tab was open (00049 made the columns
+      // nullable for exactly this). Detach the party the constraint names
+      // and insert again; the money columns and the payment intent stay.
+      // Bounded: three parties, so at most three detachments.
+      let inserted: { id: string } | null = null;
+      let insertError: { code?: string; message: string; details?: string | null } | null = null;
+      for (let attempt = 0; attempt <= 3; attempt++) {
+        const result = await supabase.from('orders').insert(order).select('id').single();
+        inserted = result.data;
+        insertError = result.error;
+        if (!insertError || insertError.code !== '23503') break;
+        const party = partyFromForeignKeyError(insertError.message, insertError.details);
+        if (!party || order[party] === null) break; // unknown FK, or already detached — a real retry
+        Sentry.captureMessage(
+          `Order insert for ${paymentIntentId} hit ${party} FK (${order[party]} is gone) — recording the order without it`,
+          'warning'
+        );
+        order = detachParty(order, party);
+      }
 
       if (insertError) {
         if (insertError.code === '23505') {
@@ -390,9 +459,7 @@ export async function POST(request: NextRequest) {
       }
       if (!inserted) break;
 
-      const failed = await completeSale(supabase, {
-        session, listingId, listingTitle: listing.title, artistId: artistObj.id, order, orderId: inserted.id,
-      });
+      const failed = await completeSale(supabase, { session, listingTitle, order, orderId: inserted.id });
       if (failed) return failed;
       break;
     }
@@ -913,15 +980,32 @@ export async function POST(request: NextRequest) {
       const ready =
         account.payouts_enabled === true &&
         account.capabilities?.transfers === 'active';
-      const { data: artistRow } = await supabase
+      // Stripe does not order deliveries: a stale payouts_enabled=false that
+      // arrives after a newer true flipped a ready artist off until their
+      // next account change (01-r2 appendix). Write only when this event is
+      // newer than the last one recorded — the compare is in the WHERE, so
+      // two deliveries racing cannot both win. Zero rows = stale or unknown
+      // account; both are acks.
+      const eventAt = new Date(event.created * 1000).toISOString();
+      const { data: artistRow, error: accountError } = await supabase
         .from('artist_profiles')
-        .update({ stripe_onboarded: ready })
+        .update({ stripe_onboarded: ready, stripe_account_updated_at: eventAt })
         .eq('stripe_account_id', account.id)
+        .or(`stripe_account_updated_at.is.null,stripe_account_updated_at.lt."${eventAt}"`)
         .select('id')
         .maybeSingle();
+      if (accountError) {
+        Sentry.captureException(new Error(`account.updated write failed for ${account.id}: ${accountError.message}`));
+        return retryLater('account.updated write failed');
+      }
       if (artistRow) {
         // Onboarding affects the completeness score — refresh canonically.
         await supabase.rpc('refresh_completeness_score', { p_artist_id: artistRow.id });
+      } else {
+        Sentry.captureMessage(
+          `account.updated ${event.id} for ${account.id} (created ${eventAt}) skipped: no artist row, or a newer event is already recorded`,
+          'info'
+        );
       }
       break;
     }
