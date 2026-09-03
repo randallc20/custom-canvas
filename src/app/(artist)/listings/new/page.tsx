@@ -70,8 +70,6 @@ export default function NewListingPage() {
       sold_price_cents: null,
       show_sold_price: false,
       series_id: data.series_id || null,
-      artist_id: artistId,
-      is_featured: false,
     });
     if (imageUrls.length > 0) {
       await addListingImages(listing.id, imageUrls, 0);

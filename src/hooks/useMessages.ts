@@ -95,5 +95,9 @@ export function useMarkAsRead(conversationId: string, userId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
     },
+    // A toast would be noise (nobody asked to mark this read), but the
+    // failure has to reach someone: a zero-row update leaves the unread badge
+    // stuck in the inbox and navbar with no other signal. CONVENTIONS rule 2.
+    onError: (err) => captureException(err, { where: 'useMarkAsRead' }),
   });
 }

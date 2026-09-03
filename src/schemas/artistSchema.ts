@@ -8,7 +8,12 @@ export const artistProfileSchema = z.object({
   primary_mediums: z.array(z.string()).max(10).optional(),
   influences: z.string().max(1000).optional().or(z.literal('')),
   school: z.string().max(200).optional().or(z.literal('')),
-  graduation_year: z.number().int().min(1900).max(2030).optional().nullable(),
+  // Evaluated per validation, not at module load, and generous enough for a
+  // first-year on a long programme: a literal 2030 would start rejecting real
+  // graduation years, and the form's error toast only names the field.
+  graduation_year: z.number().int().min(1900)
+    .refine((y) => y <= new Date().getFullYear() + 6, 'That graduation year looks too far out')
+    .optional().nullable(),
   status: z.enum(['student', 'recent_grad', 'working_artist']).optional().nullable(),
   neighborhood: z.string().max(100).optional().or(z.literal('')),
   city: z.string().min(2, 'Your city helps local buyers find you').max(100),

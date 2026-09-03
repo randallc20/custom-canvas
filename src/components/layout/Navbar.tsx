@@ -59,7 +59,7 @@ export function Navbar() {
                   aria-expanded={menuOpen}
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-sand text-sm font-medium text-ink transition-colors duration-150 hover:bg-line"
                 >
-                  {user.full_name?.[0]?.toUpperCase() ?? user.email[0].toUpperCase()}
+                  {user.full_name?.[0]?.toUpperCase() ?? user.email?.[0]?.toUpperCase() ?? '?'}
                 </button>
 
                 {menuOpen && (

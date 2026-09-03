@@ -19,6 +19,9 @@ function aiDisclosureRule(
   }
 }
 
+const FUTURE_YEAR_MSG = 'Year created cannot be in the future';
+const notInTheFuture = (y: number) => y <= new Date().getFullYear();
+
 // Forms work in dollars; submit handlers convert to integer cents via
 // Math.round before anything touches the database.
 const listingObject = z.object({
@@ -28,7 +31,10 @@ const listingObject = z.object({
   width_cm: z.number().positive().optional().nullable(),
   height_cm: z.number().positive().optional().nullable(),
   depth_cm: z.number().positive().optional().nullable(),
-  year_created: z.number().int().min(1000).max(new Date().getFullYear()).optional().nullable(),
+  // .refine, not .max(new Date().getFullYear()): a max is evaluated once at
+  // module load, so a bundle built in December (or a server warm across new
+  // year) rejects the new year until the next deploy.
+  year_created: z.number().int().min(1000).refine(notInTheFuture, FUTURE_YEAR_MSG).optional().nullable(),
   // Both listing forms clear an empty price to null via numberOrNull, so the
   // type failure IS the empty field — say that, not "expected number".
   price_dollars: z.number({ error: 'Enter a price of at least $1' }).min(1, 'Price must be at least $1'),
@@ -62,7 +68,7 @@ const listingWriteObject = z.object({
   width_cm: z.number().positive().nullable().optional(),
   height_cm: z.number().positive().nullable().optional(),
   depth_cm: z.number().positive().nullable().optional(),
-  year_created: z.number().int().min(1000).max(new Date().getFullYear()).nullable().optional(),
+  year_created: z.number().int().min(1000).refine(notInTheFuture, FUTURE_YEAR_MSG).nullable().optional(),
   price_cents: z.number().int().min(100, 'Price must be at least $1'),
   shipping_rate_cents: z.number().int().min(0).nullable().optional(),
   ai_involvement: z.enum(['none', 'assisted']).optional(),

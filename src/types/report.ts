@@ -10,7 +10,8 @@ export type ReportStatus = 'pending' | 'reviewed' | 'dismissed' | 'action_taken'
 export interface Report {
   id: string;
   reporter_id: string;
-  listing_id: string;
+  /** NULL for conversation and user reports (00013 dropped the NOT NULL). */
+  listing_id: string | null;
   reason: ReportReason;
   description: string | null;
   status: ReportStatus;
