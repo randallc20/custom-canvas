@@ -348,14 +348,14 @@ export default function OrdersPage() {
                             <>
                               It&apos;s also past the{' '}
                               <span className="font-medium text-ink">{win.shipByText}</span> ship-by
-                              date, so you can cancel it yourself here for a full refund including
-                              the service fee.
+                              date, so you don&apos;t have to wait for us — cancelling here settles
+                              the refund the artist approved straight away.
                             </>
                           ) : (
                             <>
                               If it hasn&apos;t moved by{' '}
                               <span className="font-medium text-ink">{win.shipByText}</span>, you can
-                              cancel it yourself here without waiting for us.
+                              settle it yourself here rather than waiting for us.
                             </>
                           )}
                         </p>
@@ -403,7 +403,12 @@ export default function OrdersPage() {
                             loading={cancelUnshipped === order.id}
                             onClick={() => cancelForRefund(order)}
                           >
-                            Cancel for a full refund
+                            {/* The label has to match the money. On an order
+                                whose refund the artist already approved, this
+                                settles THAT refund — the service fee is
+                                retained on a change of mind — so promising
+                                "a full refund" here would be untrue (r13). */}
+                            {refundApproved ? 'Cancel and refund now' : 'Cancel for a full refund'}
                           </Button>
                         </div>
                       )}

@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { cancelUnshippedOrder } from '@/lib/cancelUnshipped';
 import { fulfillmentWindow } from '@/utils/fulfillmentWindow';
+import { cancelUnshippedReason } from '@/utils/cancelReason';
 
 /** The buyer cancels an order the artist never shipped (L7).
  *
@@ -27,7 +28,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, status, shipped_at, is_pickup, created_at, buyer_id, proposed_ship_by, agreed_ship_by, fulfillment_window_days, refund_approved_at, artist:artist_profiles(profile_id)')
+    .select('id, status, shipped_at, is_pickup, created_at, buyer_id, proposed_ship_by, agreed_ship_by, fulfillment_window_days, refund_approved_at, refund_reason, artist:artist_profiles(profile_id)')
     .eq('id', params.id)
     .single();
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -105,7 +106,18 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
     // The reason is what happened, from the buyer's side either way: the
     // piece was never shipped. artist_cancelled records that the artist chose
     // to stop rather than being held to a window.
-    reason: isBuyer ? 'not_shipped' : 'artist_cancelled',
+    //
+    // UNLESS the artist has already approved a refund. Then this door is not
+    // a new decision, it is the buyer closing out one already made, and the
+    // money follows the approval: `not_shipped` is a FAULT reason, so a buyer
+    // whose change-of-mind refund was approved on day six would otherwise be
+    // handed the service fee and its tax as well — on the one order where the
+    // product had just told the artist not to ship, and with the thread and
+    // the artist's bell both recording a missed shipping promise that never
+    // happened (r13 money pass, P1). The same conversion was already ruled a
+    // defect at the cron and at the artist's own Cancel button; this is the
+    // third door in the class.
+    reason: cancelUnshippedReason(order, isBuyer ? 'buyer' : 'artist'),
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
 

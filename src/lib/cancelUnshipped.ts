@@ -4,7 +4,7 @@ import { settleRefund } from '@/lib/settleRefund';
 import { postOrderSystemMessage } from '@/lib/orderThread';
 import { sendOrderCancelledEmail } from '@/services/email';
 import { formatPrice } from '@/utils/formatPrice';
-import type { RefundReason } from '@/utils/refundSplit';
+import { isFaultRefund, type RefundReason } from '@/utils/refundSplit';
 
 type AdminClient = ReturnType<typeof createAdminSupabaseClient>;
 
@@ -23,9 +23,19 @@ type AdminClient = ReturnType<typeof createAdminSupabaseClient>;
  *  - the PLATFORM, when the artist has been unreachable for five business
  *    days after we asked (Shipping, "If your piece is never shipped").
  *
- * Every one of them is a FAULT refund: the whole charge goes back, service
- * fee included. A buyer who never received a piece does not pay us a fee for
- * the transaction that did not happen.
+ * Ordinarily every one of them is a FAULT refund: the whole charge goes back,
+ * service fee included. A buyer who never received a piece does not pay us a
+ * fee for the transaction that did not happen.
+ *
+ * The exception is an order whose refund the ARTIST has already approved. The
+ * buyer's §3 door stays open there — settling is a manual admin action and
+ * they must not be stuck waiting on a queue — but the money follows the
+ * approval rather than the door. Without that, a buyer whose change-of-mind
+ * refund was approved on day six could press Cancel and be handed the service
+ * fee as well, out of the artist's and the platform's pocket, on the one order
+ * where the product had just told the artist NOT to ship. The same conversion
+ * was ruled a defect at the cron (r8) and at the artist's own button (r10);
+ * this is the third door in that class (r13).
  *
  * The refund itself, the payout reversal and the relist are settleRefund's;
  * this adds the telling — thread, bell and email, to whichever party did not
@@ -36,7 +46,9 @@ export async function cancelUnshippedOrder(
   opts: {
     orderId: string;
     by: 'buyer' | 'artist' | 'platform';
-    reason: Extract<RefundReason, 'not_shipped' | 'artist_cancelled'>;
+    /** `not_shipped` / `artist_cancelled` ordinarily; the reason the artist
+     *  already agreed to when this cancels a refund they approved. */
+    reason: RefundReason;
     note?: string;
   },
 ): Promise<{ ok: true; refundedCents: number } | { ok: false; status: number; error: string }> {
@@ -62,6 +74,12 @@ export async function cancelUnshippedOrder(
   const artist = order.artist as unknown as { profile_id: string; display_name: string } | null;
   const title = (order.listing as unknown as { title: string } | null)?.title ?? 'an order';
   const amountText = formatPrice(result.refundedCents);
+  // "in full, including the service fee" is only true of a fault refund. On a
+  // change-of-mind refund the artist approved, the fee is retained and saying
+  // otherwise misstates the money in the one record both parties can see.
+  const inFull = isFaultRefund(opts.reason);
+  const fullText = inFull ? ' in full' : '';
+  const feeText = inFull ? ', including the service fee' : ', with the service fee retained';
 
   // The thread gets the note either way — it is the record both parties can
   // see, and it is what requirement 6's reply-window read looks at.
@@ -73,10 +91,12 @@ export async function cancelUnshippedOrder(
       listingId: order.listing_id,
       content:
         opts.by === 'buyer'
-          ? `The buyer cancelled this order for "${title}" because it was not shipped within the promised window. It has been refunded in full (${amountText}), including the service fee.`
+          ? inFull
+            ? `The buyer cancelled this order for "${title}" because it was not shipped within the promised window. It has been refunded in full (${amountText}), including the service fee.`
+            : `The buyer closed out the refund the artist had already approved on this order for "${title}". It has been refunded (${amountText})${feeText}.`
           : opts.by === 'artist'
-          ? `The artist cancelled this order for "${title}" before shipping. It has been refunded in full (${amountText}), including the service fee.`
-          : `Custom Canvas cancelled this order for "${title}": it was not shipped within the promised window and we were unable to reach the artist. It has been refunded in full (${amountText}), including the service fee.`,
+          ? `The artist cancelled this order for "${title}" before shipping. It has been refunded${fullText} (${amountText})${feeText}.`
+          : `Custom Canvas cancelled this order for "${title}": it was not shipped within the promised window and we were unable to reach the artist. It has been refunded${fullText} (${amountText})${feeText}.`,
       preview: 'Order cancelled and refunded',
     });
   }
@@ -90,8 +110,12 @@ export async function cancelUnshippedOrder(
   for (const r of recipients) {
     const body =
       r.role === 'buyer'
-        ? `"${title}" has been cancelled and refunded in full (${amountText}), including the service fee.`
-        : `The order for "${title}" was cancelled and refunded in full (${amountText}) because it was not shipped within the promised window. Your payout for it has been reversed.`;
+        ? `"${title}" has been cancelled and refunded${fullText} (${amountText})${feeText}.`
+        : inFull
+          ? `The order for "${title}" was cancelled and refunded in full (${amountText}) because it was not shipped within the promised window. Your payout for it has been reversed.`
+          // Not "you missed a shipping promise": the artist approved this
+          // refund themselves and the product told them not to ship.
+          : `The buyer closed out the refund you approved on "${title}". It has been refunded (${amountText})${feeText} and your payout for it has been reversed.`;
     const { error } = await admin.from('notifications').insert({
       user_id: r.id,
       type: 'order_cancelled',
