@@ -56,12 +56,16 @@ export function SalesSection() {
   const handleShip = async () => {
     if (!shipModal) return;
     try {
-      await updateStatus.mutateAsync({
+      const { notifyShippedError } = await updateStatus.mutateAsync({
         id: shipModal.id,
         status: 'shipped',
         updates: { tracking_number: trackingNumber.trim() || null, carrier: carrier || null },
       });
-      toast('Order marked as shipped!', 'success');
+      if (notifyShippedError) {
+        toast(`Order marked as shipped, but the buyer's shipping email could not be sent (${notifyShippedError}). Let them know directly.`, 'error');
+      } else {
+        toast('Order marked as shipped!', 'success');
+      }
       setShipModal(null);
       setTrackingNumber('');
       setCarrier('');

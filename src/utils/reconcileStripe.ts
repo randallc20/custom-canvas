@@ -126,3 +126,48 @@ export function diffPaymentAgainstOrder(
 
   return out;
 }
+
+// --- which payments to look at (R13 / 04-r2 P2 "reconcile window") ---
+//
+// Refunds and disputes land weeks to months after the payment, so a window on
+// payment_intent.created never contained the events this cron exists to
+// catch. The route now also lists refunds and disputes CREATED in the window
+// and every `orders` row currently `disputed` (whatever its age), and diffs
+// the union. Only the payment window carries the no-order check: an old
+// payment with no row is not a new fact, and the sweep must not page for it
+// every day.
+
+export interface ReconcileTargets {
+  /** Every payment intent to diff: the window first, then the extras, deduped. */
+  all: string[];
+  /** Extras not already in the window — the route must retrieve these. */
+  retrieve: string[];
+  /** The window's ids: only these get the no-order check. */
+  windowIds: Set<string>;
+}
+
+export function reconcileTargets(
+  windowIds: string[],
+  extraIds: Array<string | null | undefined>
+): ReconcileTargets {
+  const window = new Set<string>();
+  for (const id of windowIds) if (id) window.add(id);
+  const all = Array.from(window);
+  const retrieve: string[] = [];
+  const seen = new Set(window);
+  for (const id of extraIds) {
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    all.push(id);
+    retrieve.push(id);
+  }
+  return { all, retrieve, windowIds: window };
+}
+
+/** The payment intent id off a Stripe refund or dispute, which may carry it
+ *  as a string, an expanded object, or nothing (a refund on a bare charge). */
+export function paymentIntentIdOf(obj: { payment_intent: string | { id: string } | null }): string | null {
+  const pi = obj.payment_intent;
+  if (!pi) return null;
+  return typeof pi === 'string' ? pi : pi.id;
+}

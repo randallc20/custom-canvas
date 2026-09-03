@@ -34,7 +34,19 @@ export type DisputeOpenAction =
   /** A real chargeback on a live order: freeze it as disputed. */
   | 'chargeback';
 
+/** Dispute statuses Stripe reports once the dispute is over. An open event
+ *  (created/updated) carrying one of these is late or resent — a retry that
+ *  409'd earlier, an operator's Resend, or an `updated` emitted alongside
+ *  `closed` — and the closed handler owns whatever happened. Re-freezing on it
+ *  would leave the order `disputed` with no closing event ever coming. */
+const CLOSED_DISPUTE_STATUSES = new Set(['won', 'lost', 'warning_closed', 'charge_refunded']);
+
+export function isClosedDisputeStatus(status: string): boolean {
+  return CLOSED_DISPUTE_STATUSES.has(status);
+}
+
 export function selectDisputeOpenAction(order: DisputeOpenOrder, dispute: DisputeRef): DisputeOpenAction {
+  if (isClosedDisputeStatus(dispute.status)) return 'already_recorded';
   if (isInquiryDispute(dispute.status)) {
     return order.dispute_id === dispute.id ? 'already_recorded' : 'inquiry';
   }
@@ -68,6 +80,10 @@ export type RestoredStatus = 'pending' | 'paid' | 'shipped' | 'delivered' | 'ref
 export type DisputeCloseOutcome =
   /** Already processed as lost (Stripe redelivery). */
   | { kind: 'noop' }
+  /** Lost on an order whose protection was never assessed: `closed` arrived
+   *  before (or concurrently with) the `created` that would have assessed it.
+   *  Never a reversal decision — the route assesses, re-reads, re-selects. */
+  | { kind: 'needs_assessment' }
   | {
       kind: 'lost';
       status: 'refunded';
@@ -93,12 +109,15 @@ export function disputeReversalCents(disputeAmount: number, artistPayoutCents: n
   return Math.max(0, Math.min(disputeAmount, artistPayoutCents));
 }
 
-/** Where a non-lost dispute puts the order back. Priority: the status saved
- *  when the dispute froze it; else refunded when the money already went
- *  back; else shipped for a piece still in transit; else the old rule. */
+/** Where a non-lost dispute puts the order back. Priority: refunded when the
+ *  money already went back (a refund settled between the ruling and this
+ *  event's delivery outranks the status saved at freeze time — the buyer has
+ *  the money, whatever the order was before); else the status saved when the
+ *  dispute froze it; else shipped for a piece still in transit; else the old
+ *  rule. */
 export function restoredStatus(order: DisputeCloseOrder): RestoredStatus {
-  if (order.pre_dispute_status) return order.pre_dispute_status as RestoredStatus;
   if (order.stripe_refund_id || order.status === 'refunded') return 'refunded';
+  if (order.pre_dispute_status) return order.pre_dispute_status as RestoredStatus;
   if (order.shipped_at && !order.delivered_at) return 'shipped';
   return order.delivered_at ? 'delivered' : 'paid';
 }
@@ -106,8 +125,14 @@ export function restoredStatus(order: DisputeCloseOrder): RestoredStatus {
 export function selectDisputeCloseOutcome(order: DisputeCloseOrder, dispute: DisputeCloseInput): DisputeCloseOutcome {
   if (dispute.status === 'lost') {
     if (order.dispute_outcome === 'lost') return { kind: 'noop' };
-    const platformAbsorbs = order.protection_status === 'protected';
     const reversalAlreadyExists = !!order.stripe_reversal_id;
+    // 'pending' is the default every order carries until the created handler
+    // assesses it. Treating it as "not protected" reversed a compliant
+    // artist's payout whenever `closed` outran `created`. With a reversal
+    // already on the row nothing would be reversed anyway, so only the case
+    // that could take money asks for the assessment.
+    if (order.protection_status === 'pending' && !reversalAlreadyExists) return { kind: 'needs_assessment' };
+    const platformAbsorbs = order.protection_status === 'protected';
     const reverseCents =
       platformAbsorbs || reversalAlreadyExists
         ? 0

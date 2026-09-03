@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { diffPaymentAgainstOrder, ReconcileCharge, ReconcileOrder } from './reconcileStripe';
+import { diffPaymentAgainstOrder, reconcileTargets, paymentIntentIdOf, ReconcileCharge, ReconcileOrder } from './reconcileStripe';
 
 const pi = { id: 'pi_1', amount: 12000 };
 
@@ -152,5 +152,39 @@ describe('diffPaymentAgainstOrder — mismatches', () => {
     expect(kinds(diffPaymentAgainstOrder(pi, c, order())).sort()).toEqual(
       ['stripe_disputed_order_not_disputed', 'stripe_refunded_order_not_refunded'].sort()
     );
+  });
+});
+
+describe('reconcileTargets — the union the cron diffs', () => {
+  it('window ids come first, extras are appended once each, and only the extras need retrieving', () => {
+    const t = reconcileTargets(['pi_a', 'pi_b'], ['pi_c', 'pi_a', 'pi_d', 'pi_c']);
+    expect(t.all).toEqual(['pi_a', 'pi_b', 'pi_c', 'pi_d']);
+    expect(t.retrieve).toEqual(['pi_c', 'pi_d']);
+    expect(Array.from(t.windowIds)).toEqual(['pi_a', 'pi_b']);
+  });
+
+  it('skips null / undefined / empty ids (a refund on a bare charge, a disputed row with no payment intent)', () => {
+    const t = reconcileTargets(['pi_a', ''], [null, undefined, '', 'pi_b']);
+    expect(t.all).toEqual(['pi_a', 'pi_b']);
+    expect(t.retrieve).toEqual(['pi_b']);
+  });
+
+  it('an old disputed order months outside the window is retrieved', () => {
+    // The whole point: a dispute decided 10 weeks after payment.
+    const t = reconcileTargets([], ['pi_old_disputed']);
+    expect(t.retrieve).toEqual(['pi_old_disputed']);
+    expect(t.windowIds.has('pi_old_disputed')).toBe(false);
+  });
+
+  it('empty in, empty out', () => {
+    expect(reconcileTargets([], [])).toEqual({ all: [], retrieve: [], windowIds: new Set() });
+  });
+});
+
+describe('paymentIntentIdOf', () => {
+  it('reads a string id, an expanded object, or nothing', () => {
+    expect(paymentIntentIdOf({ payment_intent: 'pi_1' })).toBe('pi_1');
+    expect(paymentIntentIdOf({ payment_intent: { id: 'pi_2' } })).toBe('pi_2');
+    expect(paymentIntentIdOf({ payment_intent: null })).toBeNull();
   });
 });
