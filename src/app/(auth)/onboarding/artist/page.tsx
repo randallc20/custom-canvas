@@ -144,7 +144,12 @@ export default function ArtistOnboardingPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    // pb-28 keeps the wizard's primary action clear of the fixed cookie
+    // banner. An artist finishing onboarding is a first-time visitor by
+    // definition, so that banner is essentially always up here — and once the
+    // Seller Protection disclosure (L2) made step 2 taller, "Complete Setup"
+    // landed underneath it and simply could not be clicked.
+    <div className="flex min-h-screen items-center justify-center px-4 pb-28">
       <div className="w-full max-w-lg">
         <div className="mb-8">
           <div className="mb-2 flex justify-between text-sm text-muted">

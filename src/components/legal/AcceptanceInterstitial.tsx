@@ -47,12 +47,19 @@ export function AcceptanceInterstitial() {
   });
 
   const outstanding = data?.outstanding ?? [];
-  const hasOutstanding = outstanding.length > 0;
+  // Only ASK when the outstanding set actually blocks something. A brand-new
+  // buyer who just ticked the registration box has the Terms of Sale
+  // outstanding — by design, they accept those at checkout (Terms of Sale
+  // §1) — and greeting them with a dialog about a document they will meet
+  // two clicks later is both wrong and the thing that broke lover-social 8.1
+  // the first time this shipped. `blocks` is the server's answer to "does
+  // this stop them doing anything", and it is the right trigger.
+  const asking = (data?.blocks ?? false) && outstanding.length > 0;
 
   // Open once, when we first learn there is something outstanding.
   useEffect(() => {
-    if (hasOutstanding && !dismissed) setOpen(true);
-  }, [hasOutstanding, dismissed]);
+    if (asking && !dismissed) setOpen(true);
+  }, [asking, dismissed]);
 
   const accept = useMutation({
     mutationFn: acceptOutstanding,
@@ -66,7 +73,7 @@ export function AcceptanceInterstitial() {
     onError: (err: Error) => toast(err.message, 'error'),
   });
 
-  if (!user || !hasOutstanding) return null;
+  if (!user || !asking) return null;
 
   const titles = outstanding.map((o) => o.title);
   const titleList =

@@ -9,6 +9,13 @@ import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { Modal } from '@/components/ui/Modal';
+import {
+  calculateRefundSplit,
+  isFaultRefund,
+  refundReasonLabel,
+  type RefundReason,
+} from '@/utils/refundSplit';
 import { formatPrice } from '@/utils/formatPrice';
 import { supabase } from '@/lib/supabase';
 import type { OrderStatus } from '@/types/order';
@@ -27,8 +34,25 @@ interface AdminOrder {
    *  requirement 4 applies to this order at all (L5 / D7). */
   signature_required: boolean;
   signature_confirmed: boolean;
+  buyer_fee_cents: number;
+  refund_reason: RefundReason | null;
   buyer: { full_name: string | null } | null;
 }
+
+/** L6: the reason decides the money AND whether the artist had to agree.
+ *  Every reason but change of mind is a fault reason — the whole charge goes
+ *  back, and Custom Canvas settles it whether or not the artist approved
+ *  (Artist Agreement §8's four exceptions, plus our own error and an artist
+ *  cancellation). */
+const REFUND_REASON_OPTIONS: { value: RefundReason; label: string }[] = [
+  { value: 'change_of_mind', label: 'Change of mind — the artist approved a discretionary return' },
+  { value: 'not_shipped', label: 'Never shipped' },
+  { value: 'lost_in_transit', label: 'Lost in transit' },
+  { value: 'damaged', label: 'Arrived damaged' },
+  { value: 'not_as_described', label: 'Materially not as described' },
+  { value: 'platform_error', label: 'Our error (obvious pricing, tax or technical error)' },
+  { value: 'artist_cancelled', label: 'The artist cancelled before shipping' },
+];
 
 const STATUS_VARIANT: Record<OrderStatus, 'default' | 'success' | 'warning' | 'danger'> = {
   pending: 'warning',
@@ -54,6 +78,8 @@ function OrdersContent() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [signing, setSigning] = useState<string | null>(null);
+  const [refundModal, setRefundModal] = useState<AdminOrder | null>(null);
+  const [refundReason, setRefundReason] = useState<RefundReason>('change_of_mind');
   const [settling, setSettling] = useState<string | null>(null);
   const { toast } = useToast();
   const confirm = useConfirm();
@@ -62,7 +88,7 @@ function OrdersContent() {
     void supabase
       .from('orders')
       // email is not client-readable (00031) — full_name only.
-      .select('id, amount_cents, shipping_cents, platform_fee_cents, artist_payout_cents, amount_tax_cents, status, created_at, refund_approved_at, signature_required, signature_confirmed, buyer:profiles!orders_buyer_id_fkey(full_name)')
+      .select('id, amount_cents, shipping_cents, platform_fee_cents, artist_payout_cents, amount_tax_cents, buyer_fee_cents, status, created_at, refund_approved_at, refund_reason, signature_required, signature_confirmed, buyer:profiles!orders_buyer_id_fkey(full_name)')
       .order('created_at', { ascending: false })
       .limit(200)
       .then(({ data }) => {
@@ -71,10 +97,21 @@ function OrdersContent() {
       });
   }, []);
 
-  const handleSettleRefund = async (o: AdminOrder) => {
+  /** L6: settling asks WHY first, because the reason decides the split. The
+   *  old flow refunded price + shipping + their tax for every reason, which
+   *  is the change-of-mind answer applied to orders the documents say we pay
+   *  for in full. */
+  const handleSettleRefund = async () => {
+    const o = refundModal;
+    if (!o) return;
+    const split = calculateRefundSplit(o, refundReason);
     const ok = await confirm({
       title: 'Settle this refund?',
-      message: `The buyer gets ${formatPrice(o.amount_cents + o.shipping_cents)} back plus the tax on those amounts (the service fee and its tax are not refunded). The artist's payout of ${formatPrice(o.artist_payout_cents)} is reversed; the platform returns its commission.`,
+      message: `${refundReasonLabel(refundReason)}. The buyer gets ${formatPrice(split.refundAmount)} back${
+        isFaultRefund(refundReason)
+          ? ' — the entire charge, service fee and tax included'
+          : ` (the ${formatPrice(o.buyer_fee_cents)} service fee and its tax are retained)`
+      }. The artist's payout of ${formatPrice(o.artist_payout_cents)} is reversed; the platform returns its commission.`,
       confirmLabel: 'Refund buyer',
       destructive: true,
     });
@@ -84,11 +121,14 @@ function OrdersContent() {
       const res = await fetch(`/api/admin/orders/${o.id}/refund`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: 'Artist-approved refund' }),
+        body: JSON.stringify({ refund_reason: refundReason, reason: refundReasonLabel(refundReason) }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
       toast('Refund settled.', 'success');
-      setOrders((prev) => prev.map((x) => (x.id === o.id ? { ...x, status: 'refunded' as OrderStatus } : x)));
+      setOrders((prev) =>
+        prev.map((x) => (x.id === o.id ? { ...x, status: 'refunded' as OrderStatus, refund_reason: refundReason } : x))
+      );
+      setRefundModal(null);
     } catch (e) {
       captureException(e, { where: 'admin.orders.refund' });
       toast(e instanceof Error ? e.message : 'Refund failed', 'error');
@@ -196,10 +236,25 @@ function OrdersContent() {
                     <Badge variant={STATUS_VARIANT[o.status]}>{o.status}</Badge>
                     {/* Not on a disputed order: Stripe refuses refunds while a
                         chargeback is open, and the route answers 409. */}
-                    {o.refund_approved_at && o.status !== 'refunded' && o.status !== 'disputed' && (
-                      <Button size="sm" variant="danger" loading={settling === o.id} onClick={() => handleSettleRefund(o)}>
-                        Settle refund
+                    {/* Shown on any live order now, not only artist-approved
+                        ones: a fault refund is settled whether or not the
+                        artist agrees (L6). Still never on a disputed order —
+                        Stripe refuses while a chargeback is open. */}
+                    {o.status !== 'refunded' && o.status !== 'disputed' && o.status !== 'pending' && (
+                      <Button
+                        size="sm"
+                        variant={o.refund_approved_at ? 'danger' : 'outline'}
+                        loading={settling === o.id}
+                        onClick={() => {
+                          setRefundReason(o.refund_approved_at ? 'change_of_mind' : 'not_shipped');
+                          setRefundModal(o);
+                        }}
+                      >
+                        {o.refund_approved_at ? 'Settle refund' : 'Refund…'}
                       </Button>
+                    )}
+                    {o.status === 'refunded' && o.refund_reason && (
+                      <span className="text-xs text-muted">{refundReasonLabel(o.refund_reason)}</span>
                     )}
                     {/* $750+ orders only, and only while it is unrecorded. */}
                     {o.signature_required && !o.signature_confirmed && (
@@ -225,6 +280,88 @@ function OrdersContent() {
           </tbody>
         </table>
       </div>
+
+      <Modal
+        isOpen={!!refundModal}
+        onClose={() => setRefundModal(null)}
+        title="Refund this order"
+      >
+        {refundModal && (() => {
+          const split = calculateRefundSplit(refundModal, refundReason);
+          const fault = isFaultRefund(refundReason);
+          const needsApproval = !fault && !refundModal.refund_approved_at;
+          return (
+            <div className="space-y-4">
+              <p className="text-sm text-muted">
+                Order #{refundModal.id.slice(0, 8)} · {formatPrice(refundModal.amount_cents)}
+                {refundModal.refund_approved_at
+                  ? ' · the artist approved a refund'
+                  : ' · the artist has not approved a refund'}
+              </p>
+
+              <div>
+                <label htmlFor="refund-reason" className="mb-1 block text-sm font-medium text-ink">
+                  Why is this being refunded?
+                </label>
+                <select
+                  id="refund-reason"
+                  className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink"
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value as RefundReason)}
+                >
+                  {REFUND_REASON_OPTIONS.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="rounded-lg border border-line bg-sand/40 p-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted">Buyer receives</span>
+                  <span className="font-medium text-ink">{formatPrice(split.refundAmount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted">Service fee</span>
+                  <span className={fault ? 'text-ink' : 'text-muted'}>
+                    {fault
+                      ? `${formatPrice(refundModal.buyer_fee_cents)} returned`
+                      : `${formatPrice(refundModal.buyer_fee_cents)} retained`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted">Artist payout reversed</span>
+                  <span className="text-ink">{formatPrice(refundModal.artist_payout_cents)}</span>
+                </div>
+                <p className="mt-2 text-xs text-muted">
+                  {fault
+                    ? 'Fault refund: the whole charge goes back, service fee and tax included (Terms of Sale §2, Artist Agreement §8). Custom Canvas settles this whether or not the artist agrees.'
+                    : 'Change of mind: the service fee and the tax on it are retained. This needs the artist to have approved it.'}
+                </p>
+              </div>
+
+              {needsApproval && (
+                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800">
+                  The artist has not approved a change-of-mind refund, so this cannot be settled.
+                  If the fault is ours or the artist&apos;s, pick that reason instead — those settle
+                  without the artist.
+                </p>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setRefundModal(null)}>Cancel</Button>
+                <Button
+                  variant="danger"
+                  disabled={needsApproval}
+                  loading={settling === refundModal.id}
+                  onClick={handleSettleRefund}
+                >
+                  Refund {formatPrice(split.refundAmount)}
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
     </div>
   );
 }

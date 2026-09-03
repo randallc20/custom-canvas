@@ -4,7 +4,12 @@ import Stripe from 'stripe';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe';
-import { calculateRefundSplit } from '@/utils/refundSplit';
+import {
+  calculateRefundSplit,
+  isFaultRefund,
+  REFUND_REASONS,
+  type RefundReason,
+} from '@/utils/refundSplit';
 
 // Admin settles an artist-approved refund. Policy (2026-07-06, tax added
 // 2026-08-18): the buyer gets the artwork price + shipping + THEIR TAX back
@@ -25,20 +30,50 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { reason } = await request.json().catch(() => ({}));
+  const body = await request.json().catch(() => ({}));
   // Stripe caps a metadata value at 500 characters and rejects the whole
   // refund over it — which the catch below reported as "safe to retry",
   // into the same rejection. Truncate here (01-r2 appendix).
-  const adminReason = typeof reason === 'string' ? reason.trim().slice(0, 500) : '';
+  const adminReason = typeof body?.reason === 'string' ? body.reason.trim().slice(0, 500) : '';
+
+  // L6: WHY decides the money. change_of_mind keeps the service fee and its
+  // tax; every fault reason returns the whole charge (Terms of Sale §2,
+  // Artist Agreement §8, Shipping).
+  const refundReason: RefundReason | null =
+    typeof body?.refund_reason === 'string' && REFUND_REASONS.includes(body.refund_reason as RefundReason)
+      ? (body.refund_reason as RefundReason)
+      : null;
+  if (!refundReason) {
+    return NextResponse.json(
+      { error: `A refund reason is required. One of: ${REFUND_REASONS.join(', ')}.` },
+      { status: 400 },
+    );
+  }
 
   const admin = createAdminSupabaseClient();
   const { data: order } = await admin
     .from('orders')
-    .select('id, status, stripe_payment_intent_id, amount_cents, shipping_cents, buyer_fee_cents, amount_tax_cents, artist_payout_cents, listing_id, stripe_refund_id, stripe_reversal_id')
+    .select('id, status, stripe_payment_intent_id, amount_cents, shipping_cents, buyer_fee_cents, amount_tax_cents, artist_payout_cents, listing_id, stripe_refund_id, stripe_reversal_id, refund_approved_at, refund_reason')
     .eq('id', params.id)
     .single();
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (order.status === 'refunded') return NextResponse.json({ error: 'Already refunded' }, { status: 400 });
+
+  // "Approving a refund is your decision, not ours — with four exceptions"
+  // (Artist Agreement §8). A FAULT reason is that exception and may be
+  // settled without the artist: a piece that never arrived is not something
+  // we ask the artist's permission to put right. A change-of-mind refund is
+  // discretionary and needs their approval, or we would be spending their
+  // payout on a decision the agreement gives them.
+  if (!isFaultRefund(refundReason) && !order.refund_approved_at) {
+    return NextResponse.json(
+      {
+        error:
+          'A change-of-mind refund needs the artist to approve it first. If the fault is ours or the artist\'s — never shipped, lost, damaged, not as described, our error — choose that reason instead and this settles without them.',
+      },
+      { status: 409 },
+    );
+  }
   // Stripe refuses refunds while a chargeback is open, and a refund settled
   // between the ruling and the closed event's delivery is exactly what the
   // dispute restore must not overwrite. Wait for the dispute to close.
@@ -55,7 +90,19 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   // charged on three lines (price, shipping, fee) at a uniform rate, so the
   // fee's share is proportional; the fee and its tax stay with the platform.
   // The arithmetic lives in utils/refundSplit.ts so tests can pin it (R11).
-  const { refundTax, refundAmount } = calculateRefundSplit(order);
+  const { refundTax, refundAmount, refundFee } = calculateRefundSplit(order, refundReason);
+
+  // Record the decision BEFORE moving money, so a crash between Stripe and
+  // step 3 leaves a row that says what was being done and at what split. The
+  // columns are frozen for everyone but the service role (00061).
+  await admin
+    .from('orders')
+    .update({
+      refund_reason: refundReason,
+      refund_initiated_by: order.refund_approved_at ? 'artist' : 'platform',
+    })
+    .eq('id', order.id)
+    .is('refund_reason', null);
 
   let refundId = order.stripe_refund_id as string | null;
   let reversalId = order.stripe_reversal_id as string | null;
@@ -68,7 +115,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           payment_intent: order.stripe_payment_intent_id,
           amount: refundAmount,
           reverse_transfer: false,
-          metadata: { policy_refund: 'true', order_id: order.id, ...(adminReason ? { admin_reason: adminReason } : {}) },
+          metadata: {
+            policy_refund: 'true',
+            order_id: order.id,
+            refund_reason: refundReason,
+            fee_refunded: String(refundFee > 0),
+            ...(adminReason ? { admin_reason: adminReason } : {}),
+          },
         },
         { idempotencyKey: `refund_${order.id}` }
       );

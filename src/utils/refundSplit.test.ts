@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { calculateRefundSplit, type RefundSplitInput } from './refundSplit';
+import {
+  calculateRefundSplit,
+  isFaultRefund,
+  refundReasonLabel,
+  REFUND_REASONS,
+  type RefundSplitInput,
+} from './refundSplit';
 
 /**
  * The admin refund's tax proration, returned to real buyers, previously
@@ -119,7 +125,8 @@ describe('calculateRefundSplit — edges that must not pay out more than was cha
       buyer_fee_cents: 0,
       amount_tax_cents: 0,
     });
-    expect(split).toEqual({ taxedBase: 0, feeTax: 0, refundTax: 0, refundAmount: 0 });
+    // refundFee joined the shape in L6.
+    expect(split).toEqual({ taxedBase: 0, feeTax: 0, refundTax: 0, refundFee: 0, refundAmount: 0 });
   });
 
   it('refunds no more than the buyer was charged, across a sweep of rates', () => {
@@ -142,5 +149,89 @@ describe('calculateRefundSplit — edges that must not pay out more than was cha
         }
       }
     }
+  });
+});
+
+/**
+ * L6 — the fault split. Terms of Sale §2, Artist Agreement §8 and the
+ * Shipping policy all say the service fee is kept only on a discretionary
+ * change-of-mind return; when the piece was never shipped, was lost, arrived
+ * damaged, was materially not as described, or the error was ours, the buyer
+ * gets the WHOLE charge back. The code retained the fee on every refund.
+ */
+describe('calculateRefundSplit — fault refunds return the whole charge (L6)', () => {
+  // The plan's worked example: $200 piece + $20 shipping + $7 fee + tax.
+  const order: RefundSplitInput = {
+    amount_cents: 20_000,
+    shipping_cents: 2_000,
+    buyer_fee_cents: 700,
+    amount_tax_cents: 1_872, // 8.25% of $227.00
+  };
+
+  it('returns every cent the buyer paid on a fault refund', () => {
+    const split = calculateRefundSplit(order, 'damaged');
+    expect(split.refundAmount).toBe(buyerTotal(order));
+    expect(split.refundFee).toBe(order.buyer_fee_cents);
+    expect(split.refundTax).toBe(order.amount_tax_cents);
+    // Nothing is retained at all.
+    expect(buyerTotal(order) - split.refundAmount).toBe(0);
+  });
+
+  it.each([
+    'not_shipped',
+    'lost_in_transit',
+    'damaged',
+    'not_as_described',
+    'platform_error',
+    'artist_cancelled',
+  ] as const)('%s returns the full charge', (reason) => {
+    expect(calculateRefundSplit(order, reason).refundAmount).toBe(buyerTotal(order));
+  });
+
+  it('change of mind still keeps the fee and its tax', () => {
+    const split = calculateRefundSplit(order, 'change_of_mind');
+    expect(split.refundFee).toBe(0);
+    expect(buyerTotal(order) - split.refundAmount).toBe(order.buyer_fee_cents + split.feeTax);
+    expect(split.refundAmount).toBeLessThan(buyerTotal(order));
+  });
+
+  it('defaults to the change-of-mind split, which is the pre-L6 behaviour', () => {
+    expect(calculateRefundSplit(order)).toEqual(calculateRefundSplit(order, 'change_of_mind'));
+  });
+
+  it('a fault refund always returns strictly more than a change-of-mind one', () => {
+    // The whole point of the ruling: the buyer is never worse off for a
+    // problem that was not theirs.
+    const fault = calculateRefundSplit(order, 'not_shipped').refundAmount;
+    const mind = calculateRefundSplit(order, 'change_of_mind').refundAmount;
+    expect(fault - mind).toBe(order.buyer_fee_cents + calculateRefundSplit(order).feeTax);
+  });
+
+  it('handles a zero-tax order without inventing a refund', () => {
+    const noTax: RefundSplitInput = { amount_cents: 5_000, shipping_cents: 0, buyer_fee_cents: 175, amount_tax_cents: 0 };
+    expect(calculateRefundSplit(noTax, 'not_shipped').refundAmount).toBe(5_175);
+    expect(calculateRefundSplit(noTax, 'change_of_mind').refundAmount).toBe(5_000);
+  });
+});
+
+describe('isFaultRefund / refundReasonLabel', () => {
+  it('treats every reason but change of mind as fault', () => {
+    expect(isFaultRefund('change_of_mind')).toBe(false);
+    for (const r of REFUND_REASONS.filter((x) => x !== 'change_of_mind')) {
+      expect(isFaultRefund(r)).toBe(true);
+    }
+  });
+
+  it('does not treat a missing reason as fault', () => {
+    // Orders settled before L6 carry no reason; they were priced as change of
+    // mind, and must not be read as full refunds after the fact.
+    expect(isFaultRefund(null)).toBe(false);
+    expect(isFaultRefund(undefined)).toBe(false);
+  });
+
+  it('tells the buyer whether the fee was kept', () => {
+    expect(refundReasonLabel('change_of_mind')).toMatch(/service fee retained/i);
+    expect(refundReasonLabel('not_shipped')).toMatch(/in full/i);
+    expect(refundReasonLabel(null)).toBe('Refunded');
   });
 });
