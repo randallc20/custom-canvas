@@ -1,4 +1,5 @@
 'use client';
+import { useMature } from '@/context/MatureContext';
 
 import { useMemo, useState } from 'react';
 import { GalleryGrid } from '@/components/artist/GalleryGrid';
@@ -18,12 +19,24 @@ export function SeriesTabs({ listings, series, accentColor = '#E8704A' }: Series
   const [activeSeries, setActiveSeries] = useState<string | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('available');
 
+  // Ruling D8: an artist's own page is a browsing surface too. Filtered
+  // client-side because this page is server-rendered and the preference lives
+  // in the viewer's browser — and unlike the feed, the count of what was
+  // hidden is worth saying, so the page does not silently look emptier than
+  // the artist's shop actually is.
+  const { showMature, setShowMature } = useMature();
+  const hiddenMature = useMemo(
+    () => (showMature ? 0 : listings.filter((l) => l.is_mature).length),
+    [listings, showMature]
+  );
+
   const visible = useMemo(() => {
     let result = listings;
+    if (!showMature) result = result.filter((l) => !l.is_mature);
     if (activeSeries !== 'all') result = result.filter((l) => l.series_id === activeSeries);
     if (statusFilter !== 'all') result = result.filter((l) => l.status === statusFilter);
     return result;
-  }, [listings, activeSeries, statusFilter]);
+  }, [listings, activeSeries, statusFilter, showMature]);
 
   const tabs = [{ id: 'all' as const, name: 'All Work' }, ...series.map((s) => ({ id: s.id, name: s.name }))];
   const activeDescription = activeSeries !== 'all' ? series.find((s) => s.id === activeSeries)?.description : null;
@@ -60,6 +73,20 @@ export function SeriesTabs({ listings, series, accentColor = '#E8704A' }: Series
       </div>
 
       <GalleryGrid listings={visible} />
+
+      {hiddenMature > 0 && (
+        <p className="mt-4 text-sm text-muted">
+          {hiddenMature === 1 ? '1 piece is' : `${hiddenMature} pieces are`} hidden because{' '}
+          {hiddenMature === 1 ? 'it contains' : 'they contain'} nudity or mature themes.{' '}
+          <button
+            type="button"
+            onClick={() => setShowMature(true)}
+            className="font-medium text-terraText underline underline-offset-2 hover:text-terraTextDark"
+          >
+            Show mature work
+          </button>
+        </p>
+      )}
     </div>
   );
 }

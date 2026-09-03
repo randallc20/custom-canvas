@@ -1,4 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useMature } from '@/context/MatureContext';
 import {
   getFeedListings,
   getFeedArtists,
@@ -11,10 +12,17 @@ import { ListingWithImages } from '@/types/listing';
 export type FeedFilters = Omit<FeedParams, 'page' | 'limit'>;
 
 export function useFeed(filters: FeedFilters = {}) {
+  // Ruling D8. Read here rather than at every call site so no browsing
+  // surface can forget it, and keyed into the query so flipping the toggle
+  // refetches instead of serving a filtered cache. Before the preference has
+  // been read from localStorage it is false — the safe direction — and the
+  // first paint therefore never leads with mature work.
+  const { showMature } = useMature();
+
   const query = useInfiniteQuery({
-    queryKey: ['feed', filters],
+    queryKey: ['feed', filters, showMature],
     queryFn: ({ pageParam }) =>
-      getFeedListings({ ...filters, page: pageParam as number }),
+      getFeedListings({ ...filters, showMature, page: pageParam as number }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextPage,
   });

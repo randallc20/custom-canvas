@@ -8,6 +8,7 @@ import {
   toggleInList,
   type FeedFilterValues,
 } from './filterTypes';
+import { useMature } from '@/context/MatureContext';
 
 interface FilterControlsProps {
   filters: FeedFilterValues;
@@ -27,6 +28,7 @@ interface FilterControlsProps {
  */
 export function FilterControls({ filters, city, onFilterChange, layout }: FilterControlsProps) {
   const { data: options } = useFilterOptions(city);
+  const { showMature, setShowMature } = useMature();
   const stacked = layout === 'stacked';
   const hideLabel = !stacked;
   const wrapperClass = stacked ? 'w-full' : 'w-auto';
@@ -127,6 +129,19 @@ export function FilterControls({ filters, city, onFilterChange, layout }: Filter
           className="rounded border-line"
         />
         Commissions open
+      </label>
+
+      {/* Ruling D8. Not part of FeedFilterValues: it is a standing preference
+          in this browser, not a filter that belongs in a shareable URL — a
+          link with "show mature" baked into it would opt the recipient in. */}
+      <label className="flex items-center gap-2 text-sm text-ink">
+        <input
+          type="checkbox"
+          checked={showMature}
+          onChange={(e) => setShowMature(e.target.checked)}
+          className="rounded border-line"
+        />
+        Show mature work
       </label>
 
       <Select

@@ -13,8 +13,11 @@ export interface PartnerPicksShelf {
 
 /** Homepage shelf: one verified partner per week (rotating deterministically
  *  among partners with enough live picks). Fails soft to null. */
-export async function getPartnerPicksShelf(weekSeed?: number): Promise<PartnerPicksShelf | null> {
-  const { data, error } = await supabase
+export async function getPartnerPicksShelf(
+  weekSeed?: number,
+  showMature = false
+): Promise<PartnerPicksShelf | null> {
+  let q = supabase
     .from('partner_picks')
     .select(
       'gallery_id, display_order, gallery:gallery_profiles!inner(gallery_name, slug, is_verified), listing:listings!inner(*, images:listing_images(*), artist:artist_profiles(slug, display_name))'
@@ -22,6 +25,9 @@ export async function getPartnerPicksShelf(weekSeed?: number): Promise<PartnerPi
     .eq('gallery_profiles.is_verified', true)
     .eq('listings.status', 'available')
     .order('display_order', { ascending: true });
+  // Ruling D8, same reasoning as the featured shelf.
+  if (!showMature) q = q.eq('listings.is_mature', false);
+  const { data, error } = await q;
   if (error || !data) return null;
 
   const byGallery = new Map<string, { name: string; slug: string; listings: ListingWithImages[] }>();

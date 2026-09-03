@@ -6,12 +6,17 @@ export const FEATURED_SHELF_CAP = 10;
 
 /** Public homepage shelf: curated listings that are still available, in
  *  curator order. Fails soft (empty) so the homepage never breaks on it. */
-export async function getFeaturedShelf(): Promise<ListingWithImages[]> {
-  const { data, error } = await supabase
+export async function getFeaturedShelf(showMature = false): Promise<ListingWithImages[]> {
+  let query = supabase
     .from('featured_listings')
     .select('display_order, listing:listings!inner(*, images:listing_images(*), artist:artist_profiles(slug, display_name))')
     .eq('listings.status', 'available')
     .order('display_order', { ascending: true });
+  // Ruling D8: the home page is the least consenting surface there is. An
+  // admin featuring a mature piece is a deliberate choice, but it is still
+  // not shown to someone who has not opted in.
+  if (!showMature) query = query.eq('listings.is_mature', false);
+  const { data, error } = await query;
   if (error) return [];
   return (data ?? []).map((row) => row.listing) as unknown as ListingWithImages[];
 }
@@ -29,7 +34,8 @@ const SPOTLIGHT_MIN_LISTINGS = 3;
  *  weekSeed is overridable for tests/dev. */
 export async function getNeighborhoodSpotlight(
   weekSeed?: number,
-  city?: string
+  city?: string,
+  showMature = false
 ): Promise<NeighborhoodSpotlight | null> {
   // One row per neighborhood, counted in the database (00051). The old
   // version downloaded every available listing to tally them in the browser,
@@ -46,7 +52,7 @@ export async function getNeighborhoodSpotlight(
   const week = weekSeed ?? Math.floor(Date.now() / WEEK_MS);
   const neighborhood = eligible[week % eligible.length];
 
-  const { listings } = await getFeedListings({ neighborhoods: [neighborhood], city, limit: 8 });
+  const { listings } = await getFeedListings({ neighborhoods: [neighborhood], city, limit: 8, showMature });
   return { neighborhood, listings };
 }
 

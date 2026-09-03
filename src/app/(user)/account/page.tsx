@@ -10,10 +10,12 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Avatar } from '@/components/ui/Avatar';
 import { EmailPreferences } from '@/components/account/EmailPreferences';
+import { useMature } from '@/context/MatureContext';
 import { supabase } from '@/lib/supabase';
 
 export default function AccountPage() {
   const { user, signOut, updatePassword } = useAuth();
+  const { showMature, setShowMature } = useMature();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -127,6 +129,28 @@ export default function AccountPage() {
       </div>
 
       <EmailPreferences />
+
+      {/* Ruling D8. Lives here as well as in the feed filters because this is
+          where someone comes looking to turn it back off. */}
+      <section className="mt-8 rounded-xl border border-line bg-surface p-6 shadow-card">
+        <h2 className="mb-2 text-lg font-semibold text-ink">Browsing</h2>
+        <label className="flex items-start gap-3 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={showMature}
+            onChange={(e) => setShowMature(e.target.checked)}
+            className="mt-0.5 rounded border-line"
+          />
+          <span>
+            Show mature work
+            <span className="mt-0.5 block text-xs text-muted">
+              Artists tag work containing nudity or mature themes. With this off, tagged pieces are
+              kept out of browsing and shown behind a notice if you open one directly. Remembered
+              in this browser only.
+            </span>
+          </span>
+        </label>
+      </section>
 
       {/* Password section */}
       <div className="mb-8 rounded-lg border border-line p-6">

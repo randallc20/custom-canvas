@@ -19,6 +19,7 @@ import { useEffect, useRef } from 'react';
 import { TagPicker } from '@/components/listing/TagPicker';
 import { numberOrNull } from '@/utils/formNumber';
 import { cmToIn } from '@/utils/dimensions';
+import { AboutPieceFieldset } from '@/components/listing/AboutPieceFieldset';
 import { DimensionsFieldset, useDimensionUnit } from '@/components/listing/DimensionsFieldset';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
@@ -70,12 +71,23 @@ export default function EditListingPage() {
       tags: listing.tags?.map((t) => t.name) ?? [],
       ai_involvement: listing.ai_involvement ?? 'none',
       ai_disclosure: listing.ai_disclosure ?? '',
+      // Listing Standards Part one (L4). Rows created before 00059 default to
+      // original/unsigned with no condition notes; the schema requires
+      // condition, so an artist editing an old listing is asked for it once.
+      edition_type: listing.edition_type ?? 'original',
+      edition_size: listing.edition_size ?? null,
+      edition_number: listing.edition_number ?? null,
+      is_signed: listing.is_signed ?? false,
+      condition_notes: listing.condition_notes ?? '',
+      handling_notes: listing.handling_notes ?? '',
+      is_mature: listing.is_mature ?? false,
     });
   }, [listing, reset]);
 
   const priceVisible = watch('price_visible');
   const selectedTags = watch('tags') ?? [];
   const aiInvolvement = watch('ai_involvement');
+  const editionType = watch('edition_type');
   const isSold = listing?.status === 'sold';
 
   if (isLoading || artistLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
@@ -117,6 +129,13 @@ export default function EditListingPage() {
           sold_price_cents: data.sold_price_dollars != null ? toCents(data.sold_price_dollars) : null,
           series_id: data.series_id || null,
           status: data.status,
+          edition_type: data.edition_type,
+          edition_size: data.edition_type === 'limited_edition' ? (data.edition_size ?? null) : null,
+          edition_number: data.edition_type === 'limited_edition' ? (data.edition_number ?? null) : null,
+          is_signed: !!data.is_signed,
+          condition_notes: data.condition_notes,
+          handling_notes: data.handling_notes || null,
+          is_mature: !!data.is_mature,
         },
       });
     } catch {
@@ -143,6 +162,7 @@ export default function EditListingPage() {
         <Textarea label="Description" rows={4} {...register('description')} error={errors.description?.message} />
         <Input label="Medium" {...register('medium')} error={errors.medium?.message} />
         <DimensionsFieldset unit={unit} onSwitch={switchUnit} register={register} />
+        <AboutPieceFieldset register={register} errors={errors} editionType={editionType} />
         <Input label="Year Created" type="number" {...register('year_created', { setValueAs: numberOrNull })} error={errors.year_created?.message} />
 
         {seriesOptions.length > 0 && (

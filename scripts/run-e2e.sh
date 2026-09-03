@@ -64,7 +64,7 @@ eval "$SEED_EXPORTS"
 # regression (the filter drawer, review 03) was invisible (05-P3 "tests").
 SPECS=(smoke visitor visitor:mobile critical-paths tester-journey artist-shop
        approval-flow setup-guard lover-social commissions partner
-       pickup-handoff unsubscribe acceptance admin-safety)
+       pickup-handoff unsubscribe acceptance listing-standards admin-safety)
 if [[ "${E2E_MONEY:-}" == "1" ]]; then SPECS+=(purchase-refund); fi
 
 declare -a RESULTS

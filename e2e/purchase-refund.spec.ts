@@ -69,6 +69,10 @@ test.describe.serial('purchase and refund (Stripe test mode)', () => {
     await page.goto('/listings/new');
     await page.getByLabel('Title').fill(listingTitle);
     await page.getByLabel('Medium').fill('Oil on canvas');
+    // L4: the Listing Standards require every listing to state its
+    // condition. Edition type defaults to Original, which is what these
+    // fixtures are.
+    await page.getByLabel('Condition').fill('New, no damage.');
     await page.getByLabel('Price ($)').fill('20');
     await page.getByLabel('Shipping rate ($)').fill('5');
     // Give it a real image — imageless cards pollute the shared staging feed

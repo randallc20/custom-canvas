@@ -225,6 +225,10 @@ test.describe.serial('marketplace safety journey', () => {
     await expect(artistPage.getByLabel('Title')).toBeVisible({ timeout: 20_000 });
     await artistPage.getByLabel('Title').fill(listingTitle);
     await artistPage.getByLabel('Medium').fill('Ink on paper');
+    // L4: the Listing Standards require every listing to state its
+    // condition. Edition type defaults to Original, which is what these
+    // fixtures are.
+    await artistPage.getByLabel('Condition').fill('New, no damage.');
     await artistPage.getByLabel('Price ($)').fill('25');
     // Images are optional; a bare listing keeps this cheap. It is deleted at
     // the end of this suite (14.7).

@@ -3,6 +3,39 @@
 Deliberate choices with lasting consequences, recorded so they read as
 choices — not oversights. Newest first.
 
+## 2026-09-03 — D8: mature work is hidden by default, with a per-browser opt-in
+
+Listing Standards Part three: "Nudity and mature themes | Permitted as fine
+art; must be tagged so it can be filtered. No pornography." Nothing on the
+product could tag it, so nothing could filter it.
+
+Taken with the plan's default: hide by default rather than blur. A blur still
+puts the work in front of someone who did not ask for it, and "so it can be
+filtered" reads as a real filter. `listings.is_mature` (00059) is excluded
+from the feed, the home shelves, search suggestions and the artist's own grid
+unless the viewer opts in; the listing page itself stays reachable and shows a
+click-through notice over the images, so a link from the artist or a search
+someone typed deliberately still works — they just see it on purpose.
+
+The preference lives in the viewer's browser (`cc_show_mature`), not on the
+profile, for two reasons: it applies to anonymous visitors, who are most of
+the traffic and have no row to store it on; and it is a browsing preference,
+not a fact about a person, so it stays out of a table we would then have to
+disclose in the Privacy Policy and delete on request. Same mechanism as the
+buyer's chosen community. It is also deliberately NOT part of the feed's URL
+filters — a shared link with "show mature" baked in would opt the recipient in
+without asking.
+
+The toggle appears in the feed filters, on the account page (where someone
+comes looking to turn it back off), and in the notice itself. Sitemaps still
+include mature listings: the notice is on the page, and excluding them would
+hide an artist's work from search entirely.
+
+**Flagged for Chris as a product call, not a legal one.** The documents
+require a filter; hide-by-default versus blur-only is a judgement about how a
+first-time visitor should meet this work, and it is reversible in one place
+(`MatureGate` plus the `showMature` default in the feed query).
+
 ## 2026-09-03 — D7: signature confirmation restored as protection requirement 4, recorded by Custom Canvas (supersedes D6)
 
 D6 waived requirement 4 the day before, for a good reason: `signature_confirmed`
