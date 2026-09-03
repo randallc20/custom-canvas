@@ -29,8 +29,8 @@ export function useToggleBlock() {
     mutationFn: ({ blockerId, blockedId, isBlocked }: { blockerId: string; blockedId: string; isBlocked: boolean }) =>
       isBlocked ? unblockUser(blockerId, blockedId) : blockUser(blockerId, blockedId),
     onSuccess: (_d, v) => {
-      qc.invalidateQueries({ queryKey: ['blocked-ids', v.blockerId] });
-      qc.invalidateQueries({ queryKey: ['conversations'] });
+      void qc.invalidateQueries({ queryKey: ['blocked-ids', v.blockerId] });
+      void qc.invalidateQueries({ queryKey: ['conversations'] });
     },
     // Call sites fire-and-forget with .mutate() — surface failures here.
     onError: toastError(toast, 'useToggleBlock'),

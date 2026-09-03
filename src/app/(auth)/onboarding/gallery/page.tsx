@@ -34,7 +34,7 @@ export default function GalleryOnboardingPage() {
   useEffect(() => {
     if (user) return;
     let mounted = true;
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
       if (mounted && !session) setNoSession(true);
     });
     return () => { mounted = false; };

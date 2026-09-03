@@ -50,7 +50,7 @@ function ListingsContent() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    supabase
+    void supabase
       .from('listings')
       .select('id, title, price_cents, status, medium, created_at, artist:artist_profiles(display_name, slug, is_live)')
       .order('created_at', { ascending: false })

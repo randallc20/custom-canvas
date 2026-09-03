@@ -39,7 +39,7 @@ export function GalleryDashboard() {
 
   useEffect(() => {
     if (!user) return;
-    loadGalleryData();
+    void loadGalleryData();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadGalleryData = async () => {
@@ -109,7 +109,7 @@ export function GalleryDashboard() {
     setShowAddModal(false);
     setSearchQuery('');
     setSearchResults([]);
-    loadGalleryData();
+    void loadGalleryData();
   };
 
   const handleRemoveArtist = async (artistId: string) => {

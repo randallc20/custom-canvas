@@ -31,7 +31,7 @@ function GalleriesContent() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    loadGalleries();
+    void loadGalleries();
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadGalleries = async () => {

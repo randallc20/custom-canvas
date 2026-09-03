@@ -19,8 +19,8 @@ export function useCreateListing() {
   return useMutation({
     mutationFn: createListing,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['listings'] });
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      void queryClient.invalidateQueries({ queryKey: ['listings'] });
+      void queryClient.invalidateQueries({ queryKey: ['feed'] });
     },
     onError: toastError(toast, 'useCreateListing'),
   });
@@ -34,11 +34,11 @@ export function useUpdateListing() {
     mutationFn: ({ id, data }: { id: string; data: Partial<Listing> }) =>
       updateListing(id, data),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['listing', id] });
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      void queryClient.invalidateQueries({ queryKey: ['listing', id] });
+      void queryClient.invalidateQueries({ queryKey: ['feed'] });
       // The Studio Work list renders from this key — without it, Publish/edit
       // "succeeds" but the row keeps its old badge until a hard reload.
-      queryClient.invalidateQueries({ queryKey: ['artist-listings'] });
+      void queryClient.invalidateQueries({ queryKey: ['artist-listings'] });
     },
     onError: toastError(toast, 'useUpdateListing'),
   });
@@ -51,10 +51,10 @@ export function useDeleteListing() {
   return useMutation({
     mutationFn: deleteListing,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['listings'] });
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      void queryClient.invalidateQueries({ queryKey: ['listings'] });
+      void queryClient.invalidateQueries({ queryKey: ['feed'] });
       // Same staleness as useUpdateListing: the Work list must drop the row.
-      queryClient.invalidateQueries({ queryKey: ['artist-listings'] });
+      void queryClient.invalidateQueries({ queryKey: ['artist-listings'] });
     },
     onError: toastError(toast, 'useDeleteListing'),
   });

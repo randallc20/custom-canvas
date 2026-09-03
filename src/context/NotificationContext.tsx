@@ -31,7 +31,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    refreshNotifications();
+    void refreshNotifications();
 
     if (!user) return;
 
@@ -50,7 +50,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [user, refreshNotifications]);
 

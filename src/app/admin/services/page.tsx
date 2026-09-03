@@ -48,7 +48,7 @@ function Content() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const load = () => {
-    fetch('/api/admin/services')
+    void fetch('/api/admin/services')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         setServices(Array.isArray(data) ? data : []);

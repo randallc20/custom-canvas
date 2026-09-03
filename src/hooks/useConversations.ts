@@ -34,7 +34,7 @@ export function useFindOrCreateConversation() {
         params.contextId
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      void queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
   });
 }

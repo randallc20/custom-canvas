@@ -34,7 +34,7 @@ export function SetupChecklist({
   // Avatar lives on profiles; one small read.
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    void supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       supabase
         .from('profiles')
@@ -120,7 +120,7 @@ export function SetupChecklist({
     const res = await fetch('/api/artist/submit', { method: 'POST' });
     if (res.ok) {
       toast('Submitted — we\'ll review your shop soon', 'success');
-      queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
+      void queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
     } else {
       const { error } = await res.json().catch(() => ({ error: null }));
       // 409 = already submitted (double click / second tab) — not an error event.
@@ -128,7 +128,7 @@ export function SetupChecklist({
         captureException(new Error(`${error ?? 'submit failed'} (HTTP ${res.status})`), { where: 'SetupChecklist.submit' });
       }
       toast(error ?? 'Could not submit — please try again', 'error');
-      if (res.status === 409) queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
+      if (res.status === 409) void queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
     }
     setSubmitting(false);
   };

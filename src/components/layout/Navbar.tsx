@@ -88,7 +88,7 @@ export function Navbar() {
                     </Link>
                     <hr className="my-1" />
                     <button
-                      onClick={() => { signOut(); setMenuOpen(false); }}
+                      onClick={() => { void signOut(); setMenuOpen(false); }}
                       className="block w-full px-4 py-2 text-left text-sm text-ink hover:bg-sand/50"
                     >
                       Sign Out
@@ -163,7 +163,7 @@ export function Navbar() {
                 <Link href="/orders" className="block rounded-lg px-3 py-2 text-sm text-ink hover:bg-sand/50" onClick={() => setMenuOpen(false)}>
                   Orders
                 </Link>
-                <button onClick={() => { signOut(); setMenuOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-sand/50">
+                <button onClick={() => { void signOut(); setMenuOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-sand/50">
                   Sign Out
                 </button>
               </>

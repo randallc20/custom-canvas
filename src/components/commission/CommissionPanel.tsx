@@ -58,7 +58,7 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
 
   useEffect(() => {
     if (!commission) return;
-    supabase
+    void supabase
       .from('artist_profiles')
       .select('profile_id')
       .eq('id', commission.artist_id)
@@ -83,7 +83,7 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
       }
       const updated = (await res.json()) as Commission;
       queryClient.setQueryData(['commission', conversationId], updated);
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      void queryClient.invalidateQueries({ queryKey: ['conversations'] });
       toast('Commission updated.', 'success');
     } catch (err) {
       captureException(err, { where: `CommissionPanel.performAction:${action}` });
@@ -98,7 +98,7 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
       toast('Please provide a valid price and timeline.', 'error');
       return;
     }
-    performAction('accept', {
+    void performAction('accept', {
       quoted_price_cents: priceCents,
       estimated_completion: estimatedCompletion,
       artist_notes: artistNotes || undefined,
@@ -118,7 +118,7 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
       destructive: true,
     });
     if (!ok) return;
-    performAction('decline');
+    void performAction('decline');
   };
 
   const handleCancelRequest = async () => {
@@ -129,7 +129,7 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
       destructive: true,
     });
     if (!ok) return;
-    performAction('decline');
+    void performAction('decline');
   };
 
   const handleDispute = () => {
@@ -137,7 +137,7 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
       toast('Please describe the issue.', 'error');
       return;
     }
-    performAction('dispute', { reason: disputeReason });
+    void performAction('dispute', { reason: disputeReason });
     setShowDisputeForm(false);
   };
 
@@ -328,7 +328,7 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
               <Button
                 size="sm"
                 onClick={() => {
-                  performAction('decline', declineReason.trim() ? { reason: declineReason.trim() } : undefined);
+                  void performAction('decline', declineReason.trim() ? { reason: declineReason.trim() } : undefined);
                   setShowDeclineForm(false);
                 }}
                 loading={actionLoading}

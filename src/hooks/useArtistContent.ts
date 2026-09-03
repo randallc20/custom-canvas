@@ -46,7 +46,7 @@ export function useInvalidateArtistContent() {
       ? [resource]
       : ['personal-photos', 'series', 'education'];
     for (const key of resources) {
-      queryClient.invalidateQueries({ queryKey: [key, artistId] });
+      void queryClient.invalidateQueries({ queryKey: [key, artistId] });
     }
   };
 }

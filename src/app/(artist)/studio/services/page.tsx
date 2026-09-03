@@ -31,7 +31,7 @@ export default function StudioServicesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
+    void supabase
       .from('artist_services')
       .select('id, name, category, blurb, city, contact_email, contact_phone, website_url')
       .order('display_order', { ascending: true })

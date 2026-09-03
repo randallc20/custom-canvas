@@ -25,10 +25,10 @@ export function useUpdateArtistProfile() {
     mutationFn: ({ id, data }: { id: string; data: Partial<ArtistProfile> }) =>
       updateArtistProfile(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['artist'] });
+      void queryClient.invalidateQueries({ queryKey: ['artist'] });
       // The Studio setup checklist reads this key — rows must check off the
       // moment the artist saves their profile.
-      queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
+      void queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
     },
   });
 }

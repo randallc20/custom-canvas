@@ -95,7 +95,7 @@ export function ImageUpload({
         onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files); }}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); void handleFiles(e.dataTransfer.files); }}
         className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors duration-150
           ${dragging ? 'border-terra bg-terraSoft' : 'border-line bg-surface hover:bg-sand/40'}`}
       >

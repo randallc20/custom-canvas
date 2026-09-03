@@ -86,10 +86,10 @@ export function useToggleFollow() {
       surface(err);
     },
     onSettled: (_data, _err, { profileId, artistId }) => {
-      queryClient.invalidateQueries({ queryKey: ['followed-ids', profileId], exact: true });
-      queryClient.invalidateQueries({ queryKey: ['follows', profileId], exact: true });
-      queryClient.invalidateQueries({ queryKey: ['following', profileId, artistId] });
-      queryClient.invalidateQueries({ queryKey: ['follower-count', artistId] });
+      void queryClient.invalidateQueries({ queryKey: ['followed-ids', profileId], exact: true });
+      void queryClient.invalidateQueries({ queryKey: ['follows', profileId], exact: true });
+      void queryClient.invalidateQueries({ queryKey: ['following', profileId, artistId] });
+      void queryClient.invalidateQueries({ queryKey: ['follower-count', artistId] });
     },
   });
 }

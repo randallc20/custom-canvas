@@ -116,7 +116,7 @@ function WeekStrip({ artistId, orders }: { artistId: string; orders: Order[] | u
   useEffect(() => {
     if (!artistId) return;
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    Promise.all([
+    void Promise.all([
       supabase
         .from('analytics_events')
         .select('*', { count: 'exact', head: true })

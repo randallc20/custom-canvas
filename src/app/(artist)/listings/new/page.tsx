@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/sentry';
 import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 import { numberOrNull } from '@/utils/formNumber';
 import { DimensionsFieldset, useDimensionUnit } from '@/components/listing/DimensionsFieldset';
@@ -79,7 +80,11 @@ export default function NewListingPage() {
       await setListingTags(listing.id, data.tags);
     }
     // First listing is worth 20 completeness points — refresh canonically.
-    supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
+    // An un-awaited PostgREST builder never issues its request at all, so
+    // this has to be awaited; the score is cosmetic, so a failure is logged
+    // rather than shown.
+    const { error: scoreError } = await supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
+    if (scoreError) captureException(scoreError, { where: 'NewListing.refreshScore' });
     router.push('/studio/work');
   };
 

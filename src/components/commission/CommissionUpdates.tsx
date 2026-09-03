@@ -41,7 +41,7 @@ export function CommissionUpdates({ commissionId, isArtist, canPost }: Commissio
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
       setNote(''); setPhotoUrl(null); setProgress('');
       toast('Update posted — the buyer has been notified.', 'success');
-      refetch();
+      void refetch();
     } catch (e) {
       captureException(e, { where: 'CommissionUpdates.post' });
       toast(e instanceof Error ? e.message : 'Failed to post update', 'error');

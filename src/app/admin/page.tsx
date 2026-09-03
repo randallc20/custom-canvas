@@ -67,7 +67,7 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
+    void Promise.all([
       fetch('/api/admin/stats').then((r) => r.json()),
       supabase
         .from('orders')

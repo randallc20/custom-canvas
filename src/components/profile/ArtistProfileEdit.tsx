@@ -138,8 +138,12 @@ export function ArtistProfileEdit() {
     else {
       setAvatarUrl(url);
       toast('Profile photo updated', 'success');
-      supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
-      queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] }); // checklist row
+      // Awaited: an un-awaited PostgREST builder never issues its request,
+      // so the Studio card kept showing a stale score. Cosmetic, so a
+      // failure is logged, not toasted.
+      const { error: scoreError } = await supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
+      if (scoreError) captureException(scoreError, { where: 'ArtistProfileEdit.avatarScore' });
+      void queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] }); // checklist row
     }
   };
 
@@ -149,8 +153,9 @@ export function ArtistProfileEdit() {
     if (error || !updated) { captureException(error ?? new Error('banner save matched zero rows'), { where: 'ArtistProfileEdit.banner' }); toast('Failed to save banner', 'error'); }
     else {
       toast('Banner updated', 'success');
-      supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
-      queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] }); // checklist row
+      const { error: scoreError } = await supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
+      if (scoreError) captureException(scoreError, { where: 'ArtistProfileEdit.bannerScore' });
+      void queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] }); // checklist row
     }
   };
 
@@ -181,7 +186,8 @@ export function ArtistProfileEdit() {
         },
       });
       // Canonical score is computed server-side from actual data.
-      await supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
+      const { error: scoreError } = await supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
+      if (scoreError) captureException(scoreError, { where: 'ArtistProfileEdit.saveScore' });
       toast('Profile updated successfully!', 'success');
     } catch (err) {
       captureException(err, { where: 'ArtistProfileEdit.onSubmit' });

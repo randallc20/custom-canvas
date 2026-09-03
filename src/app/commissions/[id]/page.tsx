@@ -25,7 +25,7 @@ function RedirectToThread() {
 
   useEffect(() => {
     let active = true;
-    (async () => {
+    void (async () => {
       const { data } = await supabase
         .from('commissions')
         .select('conversation_id')

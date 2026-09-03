@@ -92,9 +92,9 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
         toast(action === 'confirm' ? 'Quote accepted' : 'Quote declined', 'success');
         // Reflect the new commission status across the thread, the rail, and
         // the inbox pills.
-        queryClient.invalidateQueries({ queryKey: ['messages'] });
-        queryClient.invalidateQueries({ queryKey: ['commission'] });
-        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        void queryClient.invalidateQueries({ queryKey: ['messages'] });
+        void queryClient.invalidateQueries({ queryKey: ['commission'] });
+        void queryClient.invalidateQueries({ queryKey: ['conversations'] });
         router.refresh();
       } catch (err) {
         captureException(err, { where: 'MessageBubble.quoteAction' });

@@ -36,7 +36,7 @@ function Content() {
   const [acting, setActing] = useState<string | null>(null);
 
   const load = () => {
-    supabase
+    void supabase
       .from('verification_requests')
       .select('id, connection_type, details, links, created_at, artist:artist_profiles(display_name, slug)')
       .eq('status', 'pending')

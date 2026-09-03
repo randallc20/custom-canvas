@@ -64,8 +64,8 @@ export function useToggleSave() {
     },
     // Only the two keys this write can change: the id set and the /saved list.
     onSettled: (_data, _err, { profileId }) => {
-      queryClient.invalidateQueries({ queryKey: ['saved-ids', profileId], exact: true });
-      queryClient.invalidateQueries({ queryKey: ['saved', profileId], exact: true });
+      void queryClient.invalidateQueries({ queryKey: ['saved-ids', profileId], exact: true });
+      void queryClient.invalidateQueries({ queryKey: ['saved', profileId], exact: true });
     },
   });
 }

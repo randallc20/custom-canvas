@@ -48,7 +48,7 @@ export function ChatThread({ conversationId, otherPartnerType }: ChatThreadProps
 
   const handleLoadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
+      void fetchNextPage();
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 

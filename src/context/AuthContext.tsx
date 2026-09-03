@@ -72,9 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        fetchProfile(session.user.id, session.user.email ?? '');
+        void fetchProfile(session.user.id, session.user.email ?? '');
       } else if (isMounted) {
         setLoading(false);
       }
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        fetchProfile(session.user.id, session.user.email ?? '');
+        void fetchProfile(session.user.id, session.user.email ?? '');
       } else if (isMounted) {
         setUser(null);
         setLoading(false);

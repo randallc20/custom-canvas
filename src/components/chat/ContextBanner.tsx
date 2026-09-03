@@ -35,7 +35,7 @@ export function ContextBanner({ contextType, contextId }: ContextBannerProps) {
     setCtx(null); // reset when switching threads so a stale banner never shows
     if (!contextId) return;
     let active = true;
-    (async () => {
+    void (async () => {
       if (contextType === 'listing') {
         const { data } = await supabase
           .from('listings')

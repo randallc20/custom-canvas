@@ -31,7 +31,7 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    refreshUnread();
+    void refreshUnread();
 
     if (!user) return;
 
@@ -50,7 +50,7 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [user, refreshUnread]);
 

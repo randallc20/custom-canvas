@@ -54,7 +54,7 @@ function Content() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = () => {
-    supabase
+    void supabase
       .from('artist_profiles')
       .select('id, display_name, slug, city, story, primary_mediums, created_at, listings(id, images:listing_images(image_url))')
       .eq('application_status', 'pending')
@@ -68,7 +68,7 @@ function Content() {
     // Artists who exist but have NOT submitted. Without this list, an admin
     // sees an empty queue while a draft artist's listings sit invisible —
     // and reasonably concludes the approval flow is broken.
-    supabase
+    void supabase
       .from('artist_profiles')
       .select('id, display_name, slug, city, created_at, application_status, listings(count)')
       .in('application_status', ['draft', 'rejected'])

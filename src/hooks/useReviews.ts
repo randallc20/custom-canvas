@@ -7,7 +7,7 @@ export function useCreateReview() {
   return useMutation({
     mutationFn: createReview,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reviews'] });
+      void queryClient.invalidateQueries({ queryKey: ['reviews'] });
     },
   });
 }

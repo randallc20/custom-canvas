@@ -32,13 +32,13 @@ export function useMessages(conversationId: string) {
           filter: `conversation_id=eq.${conversationId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+          void queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [conversationId, queryClient]);
 
@@ -61,8 +61,8 @@ export function useSendMessage() {
   return useMutation({
     mutationFn: sendMessage,
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['messages', variables.conversation_id] });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      void queryClient.invalidateQueries({ queryKey: ['messages', variables.conversation_id] });
+      void queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
     // The composer clears optimistically — without this, a refused send
     // (blocked user, bad payload) just vanishes with zero feedback.
@@ -93,7 +93,7 @@ export function useMarkAsRead(conversationId: string, userId: string) {
   return useMutation({
     mutationFn: () => markMessagesAsRead(conversationId, userId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+      void queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
     },
   });
 }
