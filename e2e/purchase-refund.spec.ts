@@ -122,7 +122,11 @@ test.describe.serial('purchase and refund (Stripe test mode)', () => {
     await expect(page).toHaveURL(/\/checkout\//, { timeout: 20_000 });
 
     // Part 9.2 — the plan's table, exactly.
-    const row = (label: string) => page.locator('div.flex.justify-between', { hasText: label });
+    // Scoped to the summary card: L1's footer added a "Shipping & Returns"
+    // link, and the footer's own container is a div.flex.justify-between, so
+    // a page-wide locator now matches two elements.
+    const summary = page.locator('div.rounded-xl.border').first();
+    const row = (label: string) => summary.locator('div.flex.justify-between', { hasText: label });
     await expect(row('Price')).toContainText('$20.00');
     await expect(row('Shipping')).toContainText('$5.00');
     await expect(page.getByText('$1.06')).toBeVisible();

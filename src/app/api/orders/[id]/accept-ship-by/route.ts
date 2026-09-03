@@ -27,7 +27,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, status, shipped_at, created_at, buyer_id, listing_id, proposed_ship_by, artist:artist_profiles(profile_id)')
+    .select('id, status, shipped_at, created_at, buyer_id, listing_id, proposed_ship_by, fulfillment_window_days, artist:artist_profiles(profile_id)')
     .eq('id', params.id)
     .single();
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -39,17 +39,22 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ error: 'This order has already shipped.' }, { status: 409 });
   }
 
-  // Business days from the sale to the accepted date, so the same
-  // fulfillment_window_days the cron and the badge read stays in one unit.
-  const created = new Date(order.created_at as string);
   const target = new Date(order.proposed_ship_by as string);
-  const calendarDays = Math.ceil((target.getTime() - created.getTime()) / 86_400_000);
-  const windowDays = Math.max(1, calendarDays);
 
   const admin = createAdminSupabaseClient();
+  // The consent goes in `agreed_ship_by`, NOT in fulfillment_window_days.
+  //
+  // That column is the only input to seller-protection requirement 1, and an
+  // earlier cut of this route widened it to the agreed span — so an artist
+  // who missed the window and got a "yes" had requirement 1 rewritten in
+  // their favour, and Custom Canvas would have absorbed a non-receipt
+  // chargeback the artist should have borne. The artist could buy protection
+  // back by asking for more time, which is exactly what the propose modal,
+  // both order cards and 00062's comment promise cannot happen. Found by the
+  // r5 money review pass.
   const { data: updated, error } = await admin
     .from('orders')
-    .update({ fulfillment_window_days: windowDays, window_missed_at: null, platform_nudged_at: null })
+    .update({ agreed_ship_by: target.toISOString(), window_missed_at: null, platform_nudged_at: null })
     .eq('id', params.id)
     .eq('status', 'paid')
     .is('shipped_at', null)
@@ -78,10 +83,10 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
       user_id: artist.profile_id,
       type: 'order_delayed',
       title: 'New date accepted',
-      body: `The buyer accepted your proposed ship-by date of ${dateText}. Seller protection is still measured against the original 5-business-day window.`,
+      body: `The buyer accepted your proposed ship-by date of ${dateText}. Seller protection is still measured against the original ${order.fulfillment_window_days ?? 5}-business-day window — accepting a later date does not move it.`,
       link: '/studio/sales',
     });
   }
 
-  return NextResponse.json({ ok: true, fulfillment_window_days: windowDays });
+  return NextResponse.json({ ok: true, agreed_ship_by: target.toISOString() });
 }

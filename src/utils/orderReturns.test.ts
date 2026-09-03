@@ -146,3 +146,27 @@ describe('formatAddress', () => {
     expect(formatAddress({ name: 'A', street: 'B', city: 'C', state: 'D', zip: '12345', country: 'CA' })).toMatch(/CA$/);
   });
 });
+
+/**
+ * r5 money pass, P1: a change-of-mind refund approved on an order that had
+ * not shipped authorised a return for a piece still on the artist's wall —
+ * emailing the buyer the artist's street address, starting a seven-day clock,
+ * and then blocking every settle door, because the gate is (correctly) inside
+ * settleRefund. The buyer's money only moved when someone thought to waive it.
+ */
+describe('returnRequiredByDefault — nothing to return before it ships', () => {
+  it('never requires a return when the buyer does not have the piece', () => {
+    for (const r of REFUND_REASONS) {
+      expect(returnRequiredByDefault(r, false)).toBe(false);
+    }
+  });
+
+  it('still requires one for a change of mind once it has shipped', () => {
+    expect(returnRequiredByDefault('change_of_mind', true)).toBe(true);
+    expect(returnRequiredByDefault('change_of_mind', false)).toBe(false);
+  });
+
+  it('defaults to "the buyer has it", so existing callers are unchanged', () => {
+    expect(returnRequiredByDefault('change_of_mind')).toBe(true);
+  });
+});

@@ -37,15 +37,39 @@ COMMENT ON FUNCTION current_terms_version() IS
 -- within the hour; db-smoke §12 had not, because it inserts as a superuser
 -- whose search_path DOES include public, so it now clears the search_path
 -- first to reproduce GoTrue's conditions.
-CREATE OR REPLACE FUNCTION handle_new_user() RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+--
+-- ⚠️ READ 00023 BEFORE TOUCHING THIS FUNCTION. The first cut of this
+-- migration rebuilt the body from 00001's and silently reverted 00023's role
+-- sanitiser, which meant anyone could self-register as `admin` again by
+-- passing `options.data.role` to supabase.auth.signUp — and an admin row
+-- makes is_privileged() true, so every column freeze in the schema falls
+-- open. Found by the r3 auth review pass. `CREATE OR REPLACE` takes the body
+-- it is given: rebuild from the LATEST body, never from the oldest one.
+--
+-- The three things this function must do, all of which have cost something to
+-- learn:
+--   1. sanitise the client-supplied role (00023)
+--   2. schema-qualify everything (this migration)
+--   3. stamp the Terms of Service acceptance the registration checkbox covers
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  requested TEXT := NEW.raw_user_meta_data->>'role';
+  safe_role TEXT;
 BEGIN
-  INSERT INTO public.profiles (id, email, role, full_name, terms_version, terms_accepted_at)
+  -- 00023: only self-selectable roles. Admins are granted manually with the
+  -- service role; anything else falls back to 'user'.
+  safe_role := CASE WHEN requested IN ('artist', 'gallery') THEN requested ELSE 'user' END;
+
+  INSERT INTO public.profiles (
+    id, email, role, full_name, accepted_terms_at, terms_version, terms_accepted_at
+  )
   VALUES (
     NEW.id,
     NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'role', 'user'),
+    safe_role,
     NEW.raw_user_meta_data->>'full_name',
+    now(),
     -- The registration form requires "I am 18 or older and agree to the
     -- Terms of Service and Privacy Policy" before it will submit (D12), so
     -- an account existing IS that acceptance. Deliberately NOT the Terms of

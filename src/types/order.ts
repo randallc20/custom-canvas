@@ -48,6 +48,9 @@ export interface Order {
   proposed_ship_by?: string | null;
   window_missed_at?: string | null;
   platform_nudged_at?: string | null;
+  /** A later ship-by date the BUYER accepted (00066). Moves the prompts and
+   *  the cron; never the seller-protection window. */
+  agreed_ship_by?: string | null;
   protection_status: 'pending' | 'protected' | 'ineligible' | 'waived';
   dispute_id: string | null;
   /** The last Stripe dispute status the webhook recorded for dispute_id

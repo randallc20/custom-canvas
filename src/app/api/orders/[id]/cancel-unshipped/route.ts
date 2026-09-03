@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { cancelUnshippedOrder } from '@/lib/cancelUnshipped';
-import { DEFAULT_FULFILLMENT_WINDOW_DAYS, businessDaysBetween } from '@/utils/evaluateProtection';
+import { fulfillmentWindow } from '@/utils/fulfillmentWindow';
 
 /** The buyer cancels an order the artist never shipped (L7).
  *
@@ -27,7 +27,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, status, shipped_at, created_at, buyer_id, proposed_ship_by, fulfillment_window_days, artist:artist_profiles(profile_id)')
+    .select('id, status, shipped_at, created_at, buyer_id, proposed_ship_by, agreed_ship_by, fulfillment_window_days, artist:artist_profiles(profile_id)')
     .eq('id', params.id)
     .single();
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -45,14 +45,18 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
   }
 
   if (isBuyer) {
-    const windowDays = order.fulfillment_window_days ?? DEFAULT_FULFILLMENT_WINDOW_DAYS;
-    const elapsed = businessDaysBetween(order.created_at as string, new Date().toISOString());
-    // A proposed date is itself an admission the window was missed, so it
-    // opens the right whatever the arithmetic says.
-    if (elapsed <= windowDays && !order.proposed_ship_by) {
+    const win = fulfillmentWindow(order as Parameters<typeof fulfillmentWindow>[0]);
+    // A proposed-but-unanswered date is itself an admission the window was
+    // missed, so it opens the right. A date the buyer ACCEPTED does the
+    // opposite: they consented to the delay, so the right returns when that
+    // date passes rather than immediately (r5 money pass, P2).
+    const openedByProposal = !!order.proposed_ship_by && !order.agreed_ship_by;
+    if (!win.missed && !openedByProposal) {
       return NextResponse.json(
         {
-          error: `The artist still has until ${windowDays} business days after the sale to ship. If you have changed your mind, ask the artist in Messages — "Request a refund" on this order starts that.`,
+          error: win.agreed
+            ? `You accepted a new ship-by date of ${win.shipByText}. If the artist misses that, you can cancel for a full refund here.`
+            : `The artist still has until ${win.shipByText} to ship. If you have changed your mind, ask the artist in Messages — "Request a refund" on this order starts that.`,
         },
         { status: 409 },
       );

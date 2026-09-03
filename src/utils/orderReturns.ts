@@ -33,7 +33,16 @@ export type ReturnAddress = {
  *    exactly what "unsafe" and "unnecessary" are for.
  *  - platform error / artist cancelled: usually pre-shipment. Not required.
  */
-export function returnRequiredByDefault(reason: RefundReason): boolean {
+export function returnRequiredByDefault(reason: RefundReason, hasThePiece = true): boolean {
+  // Nothing to return if it never left the artist. The r5 money pass found
+  // this: a change-of-mind refund approved on an unshipped order authorised a
+  // return for a painting still on the artist's wall, emailed the buyer the
+  // artist's street address, started a seven-day clock — and then blocked
+  // every settle door, because the gate is (correctly) inside settleRefund,
+  // so the admin's settle, the artist's cancel and the cron all 409'd until
+  // someone thought to waive it.
+  if (!hasThePiece) return false;
+
   switch (reason) {
     case 'change_of_mind':
     case 'damaged':

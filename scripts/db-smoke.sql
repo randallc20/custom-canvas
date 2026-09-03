@@ -57,7 +57,7 @@ INSERT INTO expected_functions VALUES
   ('guard_artist_profiles_insert'), ('guard_artist_profiles_update'),
   ('guard_commissions_insert'), ('guard_conversations_update'),
   ('guard_gallery_profile_update'), ('guard_listing_alert_stamps'),
-  ('guard_listings_update'),
+  ('guard_listings_update'), ('guard_listings_delete'),
   ('guard_message_attachments_insert'), ('guard_message_attachments_update'),
   ('guard_messages_insert'), ('guard_messages_update'),
   ('guard_orders_update'), ('guard_profiles_update'), ('handle_new_user'),
@@ -502,6 +502,7 @@ DECLARE
   first_shipped timestamptz;
   first_delivered timestamptz;
   row_after orders%ROWTYPE;
+  orig_window int;
 BEGIN
   SELECT ap.id, ap.profile_id INTO artist_row
     FROM artist_profiles ap JOIN profiles p ON p.id = ap.profile_id
@@ -545,6 +546,10 @@ BEGIN
   IF row_after.tracking_number IS DISTINCT FROM 'SMOKE-FIXED' OR row_after.carrier IS DISTINCT FROM 'ups' THEN
     RAISE EXCEPTION 'transition matrix: tracking/carrier must stay editable on a shipped order';
   END IF;
+
+  -- Captured before the tamper, so this asserts "unchanged" rather than a
+  -- hard-coded fixture value.
+  SELECT fulfillment_window_days INTO orig_window FROM orders WHERE id = o;
 
   -- Frozen stamps: the write is silently discarded, never applied.
   UPDATE orders SET delivered_at = now(), pre_dispute_status = 'paid', shipped_email_sent_at = now(),
@@ -605,6 +610,17 @@ BEGIN
   END IF;
   IF row_after.window_missed_at IS NOT NULL OR row_after.platform_nudged_at IS NOT NULL THEN
     RAISE EXCEPTION 'transition matrix: window_missed_at/platform_nudged_at must be frozen for the artist (00062)';
+  END IF;
+  -- 00066: an artist who could stamp the buyer's consent would grant
+  -- themselves a delay the buyer never agreed to.
+  IF row_after.agreed_ship_by IS NOT NULL THEN
+    RAISE EXCEPTION 'transition matrix: agreed_ship_by must be frozen for the artist (00066)';
+  END IF;
+  -- The single most valuable freeze in this block: fulfillment_window_days IS
+  -- seller-protection requirement 1. An artist who could widen it would grant
+  -- themselves protection on a sale they shipped late.
+  IF row_after.fulfillment_window_days IS DISTINCT FROM orig_window THEN
+    RAISE EXCEPTION 'transition matrix: fulfillment_window_days must be frozen for the artist — requirement 1 is measured against it (was %, now %)', orig_window, row_after.fulfillment_window_days;
   END IF;
 
   -- shipped -> delivered: denied (delivered is server-side only now).
@@ -1365,6 +1381,8 @@ BEGIN;
 DO $$
 DECLARE
   uid uuid := gen_random_uuid();
+  elevated uuid := gen_random_uuid();
+  artist_signup uuid := gen_random_uuid();
   p profiles%ROWTYPE;
 BEGIN
   -- Reproduce GoTrue's conditions, not psql's. This trigger fires as
@@ -1392,6 +1410,40 @@ BEGIN
   END IF;
   IF p.terms_of_sale_version IS NOT NULL OR p.terms_of_sale_accepted_at IS NOT NULL THEN
     RAISE EXCEPTION 'signup acceptance: the Terms of Sale must NOT be stamped at signup (accepted at checkout)';
+  END IF;
+
+  -- 00023's role sanitiser, pinned. Signup metadata is entirely
+  -- client-controlled — supabase.auth.signUp({ options: { data: { role:
+  -- 'admin' } } }) is one line with the public anon key — and an admin row
+  -- makes is_privileged() true, which opens every column freeze and every
+  -- "Admins can see all X" policy in the schema.
+  --
+  -- This has now regressed TWICE from a CREATE OR REPLACE that rebuilt the
+  -- function from an older body. The absence of this assertion is why. Do not
+  -- delete it.
+  PERFORM set_config('search_path', 'pg_catalog', true);
+  INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+    VALUES (elevated, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+            'smoke.elevate.' || elevated || '@customcanvas.dev',
+            '{"full_name":"Smoke Elevator","role":"admin"}'::jsonb);
+  PERFORM set_config('search_path', 'public, extensions', true);
+
+  SELECT * INTO p FROM public.profiles WHERE id = elevated;
+  IF p.role <> 'user' THEN
+    RAISE EXCEPTION 'SIGNUP ROLE ESCALATION: a self-registered account asked for role "admin" and got "%" (00023 sanitiser reverted?)', p.role;
+  END IF;
+
+  -- 'artist' and 'gallery' ARE self-selectable, so the sanitiser must not be
+  -- so blunt that it breaks real registration.
+  PERFORM set_config('search_path', 'pg_catalog', true);
+  INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+    VALUES (artist_signup, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+            'smoke.artistsignup.' || artist_signup || '@customcanvas.dev',
+            '{"full_name":"Smoke Artist","role":"artist"}'::jsonb);
+  PERFORM set_config('search_path', 'public, extensions', true);
+  SELECT * INTO p FROM public.profiles WHERE id = artist_signup;
+  IF p.role <> 'artist' THEN
+    RAISE EXCEPTION 'signup role: an artist registration landed as "%"', p.role;
   END IF;
 END $$;
 ROLLBACK;
@@ -1450,6 +1502,22 @@ BEGIN
     RAISE EXCEPTION 'dmca: the artist cleared dmca_removed_at';
   END IF;
 
+  -- 00067: the removal must survive the artist's Delete button too. The
+  -- 00065 guard is BEFORE UPDATE only, so deleting was the way round it — and
+  -- dmca_notices.listing_id was ON DELETE SET NULL, so the notice detached
+  -- and the record of what was removed left the file the safe harbour rests
+  -- on. The artist re-uploads the same images that afternoon.
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', artist_user, 'role', 'authenticated')::text, true);
+  denied := false;
+  BEGIN
+    DELETE FROM listings WHERE id = l;
+  EXCEPTION WHEN raise_exception THEN denied := true;
+  END;
+  IF NOT denied THEN
+    RAISE EXCEPTION 'dmca: the artist DELETED a listing removed on a copyright notice';
+  END IF;
+
   -- The repeat-infringer count, against the policy's own exclusions:
   -- withdrawn, defective and restored-after-counter-notice do NOT count.
   PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
@@ -1464,6 +1532,11 @@ BEGIN
   SELECT dmca_substantiated_count(subject) INTO n;
   IF n <> 3 THEN
     RAISE EXCEPTION 'dmca: substantiated count is %, expected 3 (withdrawn/defective/restored must not count)', n;
+  END IF;
+
+  -- 00067: even a privileged delete must not orphan the notice.
+  IF (SELECT confdeltype FROM pg_constraint WHERE conname = 'dmca_notices_listing_id_fkey') <> 'r' THEN
+    RAISE EXCEPTION 'dmca: dmca_notices.listing_id must be ON DELETE RESTRICT, so a removal record cannot be orphaned';
   END IF;
 
   -- A notice older than twelve months drops out of the window.
@@ -1585,6 +1658,52 @@ BEGIN
     RAISE EXCEPTION 'returns: the buyer accepted their own inspection';
   END IF;
 
+  PERFORM set_config('request.jwt.claims', '', true);
+END $$;
+ROLLBACK;
+
+-- ---------------------------------------------------------------------------
+-- 15. Artist Agreement acceptance is the SERVER's to write (00067).
+--     The browser used to send agreement_version and agreement_accepted_at in
+--     the artist_profiles INSERT, so one PostgREST call could record — and
+--     backdate — acceptance of an agreement that was never rendered, and
+--     00037's UPDATE freeze then made the forged stamp permanent. Since L2
+--     that value also clears the acceptance gate and the submit-for-review
+--     re-check, so it decides whether someone may list and sell.
+-- ---------------------------------------------------------------------------
+BEGIN;
+DO $$
+DECLARE
+  who uuid;
+  row_after artist_profiles%ROWTYPE;
+BEGIN
+  INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+    VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+            'smoke.agreement.' || gen_random_uuid() || '@customcanvas.dev',
+            '{"full_name":"Smoke Agreement","role":"artist"}'::jsonb);
+  SELECT id INTO who FROM profiles WHERE email LIKE 'smoke.agreement.%' LIMIT 1;
+
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', who, 'role', 'authenticated')::text, true);
+  INSERT INTO artist_profiles (profile_id, slug, display_name, agreement_accepted_at, agreement_version)
+    VALUES (who, 'smoke-agreement-' || substr(who::text, 1, 8), 'Smoke Agreement',
+            '2019-01-01'::timestamptz, '2.0')
+    RETURNING * INTO row_after;
+
+  IF row_after.agreement_version IS NOT NULL OR row_after.agreement_accepted_at IS NOT NULL THEN
+    RAISE EXCEPTION 'artist agreement: the browser stamped its own acceptance at INSERT (version %, at %)',
+      row_after.agreement_version, row_after.agreement_accepted_at;
+  END IF;
+
+  -- The service role (POST /api/account/acceptance) is the writer.
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  UPDATE artist_profiles
+     SET agreement_version = '2.0', agreement_accepted_at = now()
+   WHERE id = row_after.id;
+  SELECT * INTO row_after FROM artist_profiles WHERE id = row_after.id;
+  IF row_after.agreement_version <> '2.0' THEN
+    RAISE EXCEPTION 'artist agreement: the service-role stamp did not land';
+  END IF;
   PERFORM set_config('request.jwt.claims', '', true);
 END $$;
 ROLLBACK;

@@ -131,9 +131,27 @@ export async function PATCH(request: NextRequest) {
         { status: 409 },
       );
     }
+    // Remember what it WAS. Restoring to 'available' unconditionally put a
+    // SOLD piece back on sale — the next buyer pays for a painting that
+    // shipped weeks ago, the order insert trips orders_one_live_per_listing
+    // and the webhook auto-refunds them with the platform eating the
+    // processing fees (r3 auth pass, P1). Same shape as
+    // orders.pre_dispute_status, which exists for exactly this reason.
+    const { data: before } = await admin
+      .from('listings')
+      .select('status, pre_dmca_status')
+      .eq('id', notice.listing_id)
+      .maybeSingle();
+
     const { data: hidden, error: hideError } = await admin
       .from('listings')
-      .update({ status: 'hidden', dmca_removed_at: new Date().toISOString() })
+      .update({
+        status: 'hidden',
+        dmca_removed_at: new Date().toISOString(),
+        // Never overwrite an existing stamp: a second removal must not
+        // record 'hidden' as the state to come back to.
+        pre_dmca_status: before?.pre_dmca_status ?? before?.status ?? null,
+      })
       .eq('id', notice.listing_id)
       .select('id')
       .maybeSingle();
@@ -163,9 +181,32 @@ export async function PATCH(request: NextRequest) {
       );
     }
     if (notice.listing_id) {
+      const { data: listing } = await admin
+        .from('listings')
+        .select('status, pre_dmca_status')
+        .eq('id', notice.listing_id)
+        .maybeSingle();
+
+      // Back to what it was. Falling back to 'hidden' rather than
+      // 'available': the stamp is cleared, so the artist can republish it
+      // themselves, and a guess that puts a sold piece on sale is worse than
+      // one that leaves it hidden.
+      let target = listing?.pre_dmca_status ?? 'hidden';
+
+      // The same live-order check the listing PATCH route runs. A piece with
+      // a live order must not go back to 'available' whatever it was before.
+      if (target === 'available') {
+        const { count } = await admin
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('listing_id', notice.listing_id)
+          .in('status', ['paid', 'shipped', 'delivered', 'disputed']);
+        if ((count ?? 0) > 0) target = 'hidden';
+      }
+
       const { error: restoreError } = await admin
         .from('listings')
-        .update({ dmca_removed_at: null, status: 'available' })
+        .update({ dmca_removed_at: null, pre_dmca_status: null, status: target })
         .eq('id', notice.listing_id);
       if (restoreError) {
         Sentry.captureException(restoreError, { extra: { where: 'admin.dmca.restore', noticeId: id } });

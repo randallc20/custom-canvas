@@ -1,8 +1,4 @@
-import {
-  DEFAULT_FULFILLMENT_WINDOW_DAYS,
-  addBusinessDays,
-  businessDaysBetween,
-} from './evaluateProtection';
+import { DEFAULT_FULFILLMENT_WINDOW_DAYS, addBusinessDays } from './evaluateProtection';
 
 /**
  * The shipping promise, in one place (L7).
@@ -15,15 +11,19 @@ import {
  * arithmetic lives here and nowhere else.
  */
 export type FulfillmentWindow = {
-  /** ISO instant the artist promised to ship by. */
+  /** ISO instant the piece is currently promised by — the original window, or
+   *  a later date the BUYER accepted. */
   shipByIso: string;
   /** "September 10, 2026". */
   shipByText: string;
-  /** True once the window has passed with no shipment. */
+  /** True once the operative date has passed with no shipment. */
   missed: boolean;
-  /** Business days the window allows (extended if the buyer accepted a new
-   *  date; the seller-protection window is NOT extended with it). */
+  /** Business days the ORIGINAL window allowed. Seller-protection requirement
+   *  1 is measured against this and nothing moves it — see `agreed`. */
   windowDays: number;
+  /** True when the buyer consented to a later date. The prompts and the cron
+   *  respect it; protection does not. */
+  agreed: boolean;
 };
 
 export function fulfillmentWindow(
@@ -31,16 +31,36 @@ export function fulfillmentWindow(
     created_at: string;
     shipped_at?: string | null;
     fulfillment_window_days?: number | null;
+    agreed_ship_by?: string | null;
   },
   now: Date = new Date(),
 ): FulfillmentWindow {
+  // The checkout snapshot. Requirement 1 is judged against this, always: an
+  // artist cannot buy protection back by asking the buyer for more time (r5
+  // money pass, P1).
   const windowDays = order.fulfillment_window_days ?? DEFAULT_FULFILLMENT_WINDOW_DAYS;
-  const shipByIso = addBusinessDays(order.created_at, windowDays);
+  const originalIso = addBusinessDays(order.created_at, windowDays);
+
+  // …but the date shown, and the point at which the buyer's cancel right and
+  // the cron wake up, is whatever the buyer last agreed to.
+  const agreed = !!order.agreed_ship_by;
+  const shipByIso = agreed ? (order.agreed_ship_by as string) : originalIso;
+
+  // A ship-by is a DAY, not an instant. The buyer is shown "ships by
+  // September 10", so the promise is not broken until September 10 is over —
+  // comparing instants would mark an order placed at 7pm Houston time as
+  // missed at 7pm on the promised day, hours before the artist's own deadline
+  // as they read it (r5 money pass, P3), and would let the buyer cancel a
+  // sale the artist still had the day to ship.
+  const deadline = new Date(shipByIso);
+  deadline.setUTCHours(23, 59, 59, 999);
+
   return {
     shipByIso,
     shipByText: formatDate(shipByIso),
-    missed: !order.shipped_at && businessDaysBetween(order.created_at, now.toISOString()) > windowDays,
+    missed: !order.shipped_at && now.getTime() > deadline.getTime(),
     windowDays,
+    agreed,
   };
 }
 

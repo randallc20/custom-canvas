@@ -9,6 +9,7 @@ import { artistProfileSchema, ArtistProfileFormData } from '@/schemas/artistSche
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { AGREEMENT_SUMMARY, ARTIST_AGREEMENT_VERSION, SELLER_PROTECTION_VERSION } from '@/lib/agreement';
+import { recordArtistAgreementAcceptance } from '@/services/acceptance';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { supabase } from '@/lib/supabase';
@@ -116,16 +117,27 @@ export default function ArtistOnboardingPage() {
         profile_id: user.id,
         slug,
         ...data,
-        // Click-wrap record: the artist's own act of acceptance, stamped at
-        // creation and frozen thereafter (00037 guard). The submit-for-review
-        // API re-verifies this server-side.
-        agreement_accepted_at: new Date().toISOString(),
-        agreement_version: ARTIST_AGREEMENT_VERSION,
+        // The acceptance is NOT sent from here. It used to be, and the r3 auth
+        // pass showed what that bought: one PostgREST call could record
+        // acceptance of an agreement that was never rendered, at any date the
+        // account chose, and 00037's freeze then made the forged stamp
+        // permanent. 00067 nulls both columns for a non-privileged insert;
+        // recordArtistAgreementAcceptance() below stamps them server-side from
+        // ARTIST_AGREEMENT_VERSION, the same way the Terms of Service half has
+        // always worked.
       });
 
     // An RLS refusal moments after signup is almost always the fresh session
     // cookie not being attached yet, not a real permissions problem.
     const { error: insertError } = await withSessionRetry(insertProfile, (r) => isRlsDenial(r.error));
+
+    if (!insertError) {
+      // The click-wrap record, written by the server from its own constant.
+      // Deliberately after the insert and deliberately awaited: the
+      // submit-for-review gate reads this value, so an artist who reaches
+      // Studio without it would be stopped later with no way to fix it.
+      await recordArtistAgreementAcceptance();
+    }
 
     if (insertError) {
       setError(

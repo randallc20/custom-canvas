@@ -175,7 +175,12 @@ export function SalesSection() {
   const submitApproveRefund = async () => {
     const order = refundOrder;
     if (!order) return;
-    const missing = (['name', 'street', 'city', 'state', 'zip'] as const).filter((k) => !returnAddress[k].trim());
+    // Nothing to send back if it never shipped (r5 money pass, P1): the
+    // route skips the return entirely there, so do not demand an address.
+    const needsReturn = !!order.shipped_at;
+    const missing = needsReturn
+      ? (['name', 'street', 'city', 'state', 'zip'] as const).filter((k) => !returnAddress[k].trim())
+      : [];
     if (missing.length) {
       toast('The full return address is needed — the buyer is sending the piece back to it.', 'error');
       return;
@@ -185,13 +190,19 @@ export function SalesSection() {
       const res = await fetch(`/api/orders/${order.id}/approve-refund`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          return_address: returnAddress,
-          instructions: returnInstructions.trim() || undefined,
-        }),
+        body: JSON.stringify(
+          needsReturn
+            ? { return_address: returnAddress, instructions: returnInstructions.trim() || undefined }
+            : {},
+        ),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
-      toast('Refund approved. The buyer has the return address and has 7 days to ship it back.', 'success');
+      toast(
+        needsReturn
+          ? 'Refund approved. The buyer has the return address and has 7 days to ship it back.'
+          : 'Refund approved — Custom Canvas will settle the payment.',
+        'success',
+      );
       setRefundOrder(null);
       void queryClient.invalidateQueries({ queryKey: ['orders'] });
       void queryClient.invalidateQueries({ queryKey: ['artist-orders'] });
@@ -307,7 +318,14 @@ export function SalesSection() {
                   return (
                     <div className="mt-3 space-y-2">
                       <p className="text-xs leading-relaxed text-muted">
-                        {order.proposed_ship_by ? (
+                        {order.agreed_ship_by ? (
+                          <>
+                            The buyer agreed to{' '}
+                            <span className="font-medium text-ink">{formatDate(order.agreed_ship_by)}</span>.
+                            Seller protection is still measured against the original{' '}
+                            {win.windowDays}-business-day window — it did not move.
+                          </>
+                        ) : order.proposed_ship_by ? (
                           <>
                             You proposed shipping by{' '}
                             <span className="font-medium text-ink">{formatDate(order.proposed_ship_by)}</span>.
@@ -431,6 +449,13 @@ export function SalesSection() {
             is returned. On a change of mind the buyer&apos;s service fee is not refunded, and they
             ordinarily bear return shipping.
           </p>
+          {!refundOrder?.shipped_at && (
+            <p className="rounded-md bg-sand/60 px-3 py-2 text-sm leading-relaxed text-ink">
+              This piece hasn&apos;t shipped, so there is nothing for the buyer to send back — no
+              return address needed.
+            </p>
+          )}
+          {!!refundOrder?.shipped_at && (
           <div>
             <p className="text-sm font-medium text-ink">Where should they send it?</p>
             <p className="mt-0.5 text-xs text-muted">
@@ -467,6 +492,8 @@ export function SalesSection() {
               </div>
             </div>
           </div>
+          )}
+          {!!refundOrder?.shipped_at && (
           <div>
             <label htmlFor="return-instructions" className="mb-1 block text-sm font-medium text-ink">
               Packing or insurance instructions (optional)
@@ -480,6 +507,7 @@ export function SalesSection() {
               className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink"
             />
           </div>
+          )}
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => setRefundOrder(null)}>Cancel</Button>
             <Button
@@ -487,7 +515,7 @@ export function SalesSection() {
               loading={approvingRefund === refundOrder?.id}
               onClick={submitApproveRefund}
             >
-              Approve and authorise the return
+              {refundOrder?.shipped_at ? 'Approve and authorise the return' : 'Approve refund'}
             </Button>
           </div>
         </div>

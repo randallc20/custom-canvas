@@ -311,7 +311,10 @@ export default function OrdersPage() {
                     only action was to ask the artist and hope. */}
                 {order.status === 'paid' && !order.is_pickup && (() => {
                   const win = fulfillmentWindow(order);
-                  const proposed = order.proposed_ship_by;
+                  // Once accepted, the offer is settled: show the agreed
+                  // date, and the cancel right returns only if THAT is missed
+                  // (r5 money pass, P2).
+                  const proposed = order.agreed_ship_by ? null : order.proposed_ship_by;
                   const canCancel = win.missed || !!proposed;
                   return (
                     <div className="mt-3 space-y-2">
@@ -321,6 +324,12 @@ export default function OrdersPage() {
                           <span className="font-medium">{formatDate(proposed)}</span>. It&apos;s your
                           choice: accept the new date, or cancel for a full refund including the
                           service fee.
+                        </p>
+                      ) : win.agreed && !win.missed ? (
+                        <p className="text-xs leading-relaxed text-muted">
+                          You agreed a new ship-by date of{' '}
+                          <span className="font-medium text-ink">{win.shipByText}</span>. If the
+                          artist misses that, you can cancel for a full refund.
                         </p>
                       ) : win.missed ? (
                         <p className="text-xs leading-relaxed text-ink">

@@ -3,7 +3,8 @@ import * as Sentry from '@sentry/nextjs';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { cancelUnshippedOrder } from '@/lib/cancelUnshipped';
 import { postOrderSystemMessage } from '@/lib/orderThread';
-import { DEFAULT_FULFILLMENT_WINDOW_DAYS, businessDaysBetween } from '@/utils/evaluateProtection';
+import { businessDaysBetween } from '@/utils/evaluateProtection';
+import { fulfillmentWindow } from '@/utils/fulfillmentWindow';
 
 /**
  * Daily: the missed-window path nobody is present for (L7).
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
   const { data: orders, error } = await supabase
     .from('orders')
     .select(
-      'id, created_at, buyer_id, listing_id, fulfillment_window_days, proposed_ship_by, window_missed_at, platform_nudged_at, artist:artist_profiles(profile_id, display_name), listing:listings(title)',
+      'id, created_at, shipped_at, buyer_id, listing_id, fulfillment_window_days, proposed_ship_by, agreed_ship_by, window_missed_at, platform_nudged_at, artist:artist_profiles(profile_id, display_name), listing:listings(title)',
     )
     .eq('status', 'paid')
     .is('shipped_at', null)
@@ -65,9 +66,12 @@ export async function GET(request: NextRequest) {
   let waiting = 0;
 
   for (const o of orders ?? []) {
-    const windowDays = (o.fulfillment_window_days as number) ?? DEFAULT_FULFILLMENT_WINDOW_DAYS;
-    const elapsed = businessDaysBetween(o.created_at as string, nowIso);
-    if (elapsed <= windowDays) continue;
+    // One definition of "late", shared with both order cards and the buyer's
+    // cancel right — including the buyer's consent to a later date, which
+    // moves this deadline but NOT the seller-protection window (00066).
+    const win = fulfillmentWindow(o as Parameters<typeof fulfillmentWindow>[0], new Date(nowIso));
+    if (!win.missed) continue;
+    const windowDays = win.windowDays;
 
     const artist = o.artist as unknown as { profile_id: string; display_name: string } | null;
     const title = (o.listing as unknown as { title: string } | null)?.title ?? 'an order';

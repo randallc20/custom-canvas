@@ -25,7 +25,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, status, amount_cents, refund_approved_at, artist:artist_profiles(profile_id, display_name), listing:listings(title)')
+    .select('id, status, shipped_at, amount_cents, refund_approved_at, artist:artist_profiles(profile_id, display_name), listing:listings(title)')
     .eq('id', params.id)
     .single();
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -47,8 +47,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   // certainly present — and never taken from their public profile, which is
   // not an address they agreed to publish by listing a painting.
   const body = await request.json().catch(() => null);
+  // Only ask for an address when there is something to send back. An
+  // unshipped order has nothing to return — demanding one there authorised a
+  // return for a piece still on the artist's wall and deadlocked the refund
+  // (r5 money pass, P1).
+  const needsReturn = !!order.shipped_at;
   const address = returnAddressSchema.safeParse(body?.return_address);
-  if (!address.success) {
+  if (needsReturn && !address.success) {
     return NextResponse.json(
       {
         error:
@@ -80,17 +85,20 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   // Authorise the return in the same breath: the buyer learns the address,
   // the seven-day clock and the instructions now, not after chasing us.
-  const authorized = await authorizeReturn(admin, {
-    orderId: params.id,
-    reason: 'change_of_mind',
-    authorizedBy: user.id,
-    returnAddress: address.data,
-    instructions: typeof body?.instructions === 'string' ? body.instructions : undefined,
-  });
-  if (!authorized.ok) {
-    // The approval IS recorded — do not fail it over the return record, or a
-    // retry would hit "already approved" and lose both. Loud instead.
-    Sentry.captureException(new Error(`Return authorisation failed after approval on ${params.id}: ${authorized.error}`));
+  // Skipped entirely on an unshipped order — see needsReturn above.
+  if (needsReturn && address.success) {
+    const authorized = await authorizeReturn(admin, {
+      orderId: params.id,
+      reason: 'change_of_mind',
+      authorizedBy: user.id,
+      returnAddress: address.data,
+      instructions: typeof body?.instructions === 'string' ? body.instructions : undefined,
+    });
+    if (!authorized.ok) {
+      // The approval IS recorded — do not fail it over the return record, or
+      // a retry would hit "already approved" and lose both. Loud instead.
+      Sentry.captureException(new Error(`Return authorisation failed after approval on ${params.id}: ${authorized.error}`));
+    }
   }
 
   // Every admin gets the settle-payment task in their bell.

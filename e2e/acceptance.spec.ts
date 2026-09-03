@@ -65,8 +65,11 @@ test.describe('acceptance interstitial (L2, D11)', () => {
     await expect(dialog).toBeHidden();
     await expect(page.getByRole('button', { name: /review now/i })).toBeVisible();
 
-    // Browsing genuinely still works.
+    // Browsing genuinely still works — and the dismissal survives a full page
+    // load. It used to be plain React state, so every navigation reopened the
+    // dialog, which is not "browsing stays open" in any useful sense.
     await page.goto('/');
+    await expect(dialog).toHaveCount(0);
     await expect(page.getByRole('button', { name: /review now/i })).toBeVisible({ timeout: 15_000 });
 
     // --- 4. the server refuses a gated write ----------------------------

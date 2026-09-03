@@ -11,6 +11,8 @@ import { acceptOutstanding, fetchAcceptance } from '@/services/acceptance';
 
 export const ACCEPTANCE_QUERY_KEY = ['acceptance'] as const;
 
+const DISMISS_KEY = 'cc_acceptance_dismissed';
+
 /** Ruling D11 — re-acceptance of the counsel set.
  *
  *  Terms of Service v2.0 added an arbitration clause and a class-action
@@ -35,9 +37,25 @@ export function AcceptanceInterstitial() {
   const { toast } = useToast();
   const [checked, setChecked] = useState(false);
   const [open, setOpen] = useState(false);
-  /** Dismissed for this page session only — a reload asks again, because the
-   *  point is to obtain acceptance, not to record that we tried once. */
-  const [dismissed, setDismissed] = useState(false);
+  /** Dismissed for this BROWSER session (sessionStorage, so a new tab or a
+   *  fresh visit asks again).
+   *
+   *  It used to be plain state, which meant every full page load reopened the
+   *  dialog — and "browsing stays open" (D11) is not true if you have to
+   *  dismiss a modal on every navigation. The standing banner is what carries
+   *  the ask after the first dismissal; the 403 in the gated routes is what
+   *  actually enforces it. e2e/acceptance.spec.ts caught this. */
+  const [dismissed, setDismissed] = useState(true);
+
+  useEffect(() => {
+    try {
+      setDismissed(sessionStorage.getItem(DISMISS_KEY) === '1');
+    } catch {
+      // Storage unavailable (private mode): ask once per page load rather
+      // than never.
+      setDismissed(false);
+    }
+  }, []);
 
   const { data } = useQuery({
     queryKey: ACCEPTANCE_QUERY_KEY,
@@ -65,8 +83,15 @@ export function AcceptanceInterstitial() {
     mutationFn: acceptOutstanding,
     onSuccess: async () => {
       setOpen(false);
-      setDismissed(false);
       setChecked(false);
+      // Cleared, not set: the next time something IS outstanding (a new
+      // document version) this must ask again rather than stay dismissed.
+      try {
+        sessionStorage.removeItem(DISMISS_KEY);
+      } catch {
+        /* nothing to clear */
+      }
+      setDismissed(false);
       await queryClient.invalidateQueries({ queryKey: ACCEPTANCE_QUERY_KEY });
       toast('Thank you — your acceptance is recorded.', 'success');
     },
@@ -84,6 +109,11 @@ export function AcceptanceInterstitial() {
   const close = () => {
     setOpen(false);
     setDismissed(true);
+    try {
+      sessionStorage.setItem(DISMISS_KEY, '1');
+    } catch {
+      /* storage unavailable — the banner still carries the ask */
+    }
   };
 
   return (
