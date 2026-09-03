@@ -39,10 +39,36 @@ export function SalesSection() {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrier, setCarrier] = useState('');
   const confirmPickup = useConfirmPickup();
+  const [conceding, setConceding] = useState<string | null>(null);
   const markDelivered = useMarkDelivered();
 
   // Local pickup: your half of the handoff confirmation. Protection for a
   // pickup order attaches only when the buyer confirms too.
+  /** Artist Agreement §4, "Accepting a dispute" (L12). Records a stated
+   *  preference, not an outcome — the confirm text says so, because an artist
+   *  who reads this as "the dispute is over" has been misled. */
+  const handleConcedeDispute = async (order: Order) => {
+    const ok = await confirm({
+      title: "Tell us you don't want to contest this?",
+      message:
+        'We will record that you do not wish to contest this dispute. Custom Canvas may still contest it where that is necessary to prevent fraud, protect the platform, or meet our processor\'s requirements — and the dispute stays part of our and the processor\'s records either way. If the order was not Protected, the amount still comes out of your payout.',
+      confirmLabel: "Don't contest this dispute",
+    });
+    if (!ok) return;
+    setConceding(order.id);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/concede-dispute`, { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      toast('Recorded — support has been told.', 'success');
+      void queryClient.invalidateQueries({ queryKey: ['artist-orders'] });
+    } catch (e) {
+      captureException(e, { where: 'studio.sales.concedeDispute' });
+      toast(e instanceof Error ? e.message : 'Could not record that', 'error');
+    } finally {
+      setConceding(null);
+    }
+  };
+
   const handleConfirmHandoff = (order: Order) => {
     confirmPickup.mutate(order.id, {
       onSuccess: (body) =>
@@ -157,6 +183,52 @@ export function SalesSection() {
                 {/* Seller protection standing, visible before any dispute. */}
                 {['paid', 'shipped', 'delivered', 'disputed', 'refunded'].includes(order.status) && (
                   <ProtectionBadge order={order} />
+                )}
+
+                {/* AA §4, "Accepting a dispute" (L12). */}
+                {order.status === 'disputed' && (
+                  <div className="mt-3 rounded-lg border border-line bg-sand/40 px-3 py-2 text-xs leading-relaxed text-muted">
+                    {order.dispute_conceded_at ? (
+                      <p>
+                        You told us on{' '}
+                        {new Date(order.dispute_conceded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{' '}
+                        that you do not wish to contest this dispute. Support may still contest it
+                        where fraud, platform protection or processor requirements call for it.
+                      </p>
+                    ) : (
+                      <>
+                        <p>
+                          Send any shipping or delivery evidence to support@customcanvas.shop — the
+                          bank sets the deadline. If you would rather not fight it, you can tell us
+                          so; we will not add a platform penalty just for declining (
+                          <a href="/artist-agreement" target="_blank" className="font-medium text-terraText underline underline-offset-2">
+                            Artist Agreement §4
+                          </a>
+                          ).
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-2"
+                          loading={conceding === order.id}
+                          onClick={() => handleConcedeDispute(order)}
+                        >
+                          Don&apos;t contest this dispute
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Shipping policy, "Local pickup": a no-show is a support
+                    process, not something an artist should resolve by
+                    cancelling and relisting a piece the buyer may still
+                    turn up for (L12). */}
+                {order.is_pickup && order.status === 'paid' && !order.pickup_confirmed_by_buyer_at && (
+                  <p className="mt-3 text-xs leading-relaxed text-muted">
+                    Buyer hasn&apos;t collected? Give them 7 days from your ready message, then
+                    contact support@customcanvas.shop before cancelling.
+                  </p>
                 )}
 
                 <div className="mt-3 flex items-center gap-2">

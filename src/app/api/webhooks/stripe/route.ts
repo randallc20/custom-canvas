@@ -812,7 +812,9 @@ export async function POST(request: NextRequest) {
           user_id: artistUserId,
           type: 'order_disputed',
           title: 'Payment disputed',
-          body: `${artistLine} A dispute was opened on "${title}". Send any shipping or delivery evidence to support@customcanvas.shop right away — the bank sets the response deadline.`,
+          // L12 / AA §4: the artist has to be told the option exists, or it
+          // is a control only someone who read the agreement knows about.
+          body: `${artistLine} A dispute was opened on "${title}". Send any shipping or delivery evidence to support@customcanvas.shop right away — the bank sets the response deadline. If you would rather not contest it, you can tell us so from the order in Studio > Sales.`,
           link: '/studio/sales',
         });
       }

@@ -24,9 +24,11 @@ Canvas's chargeback ratio, not theirs.
 >    (at launch the artist confirms this in Studio; carrier confirmation will
 >    replace it — DECISIONS.md 2026-09-02, ruling D1)
 > 4. **Signature confirmation** was obtained, for orders of **$750 or more**
->    (waived at launch: no carrier or admin path records it, so the check is
->    skipped and the ship modal recommends the option instead — DECISIONS.md
->    2026-09-02, ruling D6; re-enable when a confirmation path exists)
+>    (ACTIVE. The artist buys it at the counter; Custom Canvas records it from
+>    the carrier's signature record through
+>    `POST /api/admin/orders/[id]/signature-confirmed`, and recording it on an
+>    already-disputed order re-assesses that order — DECISIONS.md 2026-09-03,
+>    ruling **D7**, which supersedes D6's launch waiver)
 > 5. The listing carried at least three photographs and written condition notes
 > 6. The artist replied to buyer messages within three business days
 >
@@ -50,7 +52,9 @@ Add to `orders` (`tracking_number` and status `disputed` already exist):
 | `shipped_at` | timestamptz | Set when the artist marks shipped |
 | `delivered_at` | timestamptz | From carrier webhook, or artist confirmation |
 | `signature_required` | boolean | Computed at checkout: `amount_cents >= 75000` |
-| `signature_confirmed` | boolean | Proof of signature on delivery — **no writer at launch** (D6) |
+| `signature_confirmed` | boolean | Proof of signature on delivery. Written by the admin signature route only (D7); frozen for everyone else |
+| `signature_confirmed_at` | timestamptz | When it was recorded (00060) |
+| `signature_confirmed_by` | uuid | Which admin read the carrier record (00060, FK SET NULL) |
 | `evidence_photo_count` | int | **Snapshot at checkout** |
 | `evidence_has_condition_notes` | boolean | **Snapshot at checkout** |
 | `fulfillment_window_days` | int | **Snapshot at checkout** |
@@ -119,8 +123,13 @@ Custom Canvas. One careless artist can jeopardise processing for everyone.
 
 - **Studio → Sales**: a protection badge per order, showing what is satisfied and what
   is missing, *before* a dispute exists. "Add tracking to protect this order."
-- **Shipping flow**: when `signature_required`, the tracking form recommends the
-  signature option and says why (a recommendation, not a requirement, while D6 stands).
+- **Shipping flow**: when `signature_required`, the ship modal states that signature
+  confirmation is **required** for protection (Artist Agreement §7) and that Custom
+  Canvas records it from the carrier's record if the order is disputed (D7).
+- **Refunds**: `orders.refund_reason` decides the split (00061 / L6). A change-of-mind
+  refund retains the service fee and its tax and needs the artist's approval; every
+  fault reason returns the whole charge and may be settled without them (Artist
+  Agreement §8's four exceptions).
 - **Artist agreement**: the policy verbatim, plus the payout-delay explanation.
 - **Dispute notification**: state the protection result in the first sentence. An artist
   should never have to work out whether they are covered.

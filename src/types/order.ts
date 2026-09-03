@@ -37,6 +37,12 @@ export interface Order {
   shipped_at: string | null;
   signature_required: boolean;
   signature_confirmed: boolean;
+  /** When Custom Canvas recorded signature confirmation from the carrier's
+   *  record (00060 / D7). */
+  signature_confirmed_at?: string | null;
+  /** When the artist said they do not wish to contest a dispute
+   *  (00060 / L12, Artist Agreement §4). A preference, not an outcome. */
+  dispute_conceded_at?: string | null;
   protection_status: 'pending' | 'protected' | 'ineligible' | 'waived';
   dispute_id: string | null;
   /** The last Stripe dispute status the webhook recorded for dispute_id

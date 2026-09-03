@@ -129,11 +129,17 @@ has been `delivered` for 7+ days. Log which path was taken in `DECISIONS.md`.
 
 ## Task 5 — Disclose the service fee
 
-The fee formula must be stated in `src/app/(public)/terms/page.tsx` and wherever
-checkout explains charges. Required wording points:
+The fee formula lives in the counsel documents (Terms of Sale §2, published from
+`docs/legal/website legal documents/markdown/` since L1 — do not hand-write it into a
+page) and in the notice above the Pay button. Required wording points:
 
 - The service fee covers payment processing.
 - It applies to **every order regardless of payment method**.
+- It is retained on a **change-of-mind** refund and **returned in full** on a fault
+  refund — never shipped, lost in transit, damaged, materially not as described, an
+  obvious pricing/tax error, or an artist cancellation (Terms of Sale §2, Artist
+  Agreement §8; implemented in L6 / migration 00061). Copy that calls the fee flatly
+  "non-refundable" contradicts the counsel documents.
 
 That second point matters legally: a fee applied only to card payments is a surcharge,
 which carries card-network disclosure rules, a rate cap, and outright bans in a few
