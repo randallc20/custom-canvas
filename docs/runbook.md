@@ -35,13 +35,28 @@ Dashboard → Developers → Webhooks shows failed deliveries to
   the refund id visible in Stripe, then retry (it will skip to the reversal).
 
 ### Stripe reconcile cron (the safety net)
-`/api/cron/stripe-reconcile` runs daily at 14:00 UTC (`vercel.json`). It lists
-every succeeded Stripe payment from the last 7 days and diffs it against
-`orders` — read-only, it never writes to `orders` or `listings`. A payment with
-no row, a Stripe refund or dispute the row does not reflect, or a row marked
-`refunded` that Stripe never refunded, produces ONE admin notification
-("Stripe reconcile found mismatches", every admin) and a Sentry error listing
-each payment intent id with the reason. Nothing wrong → no alert.
+`/api/cron/stripe-reconcile` runs daily at 14:00 UTC (`vercel.json`). It diffs
+Stripe's view of a set of payments against `orders` — read-only, it never
+writes to `orders` or `listings`. The set is the union of:
+- every succeeded payment **created** in the last 7 days (the only ones that
+  get the "payment with no row" check — an old payment with no row is not a
+  new fact);
+- the payment behind every Stripe **refund** created in the last 7 days;
+- the payment behind every Stripe **dispute** created in the last 7 days;
+- every `orders` row currently `disputed`, whatever its age (chargebacks are
+  decided two to three months after payment, so a dropped
+  `charge.dispute.closed` is only ever visible this way).
+
+So a dashboard refund on a 3-week-old order, a chargeback on a 2-month-old
+one, or a dispute won/lost while the webhook was failing all surface the next
+day. Not covered: a refund or dispute created more than 7 days ago on an order
+that is NOT `disputed` and whose webhook was dropped that long ago — run it
+with a hand-edited window if an outage lasted longer than a week.
+A payment with no row, a Stripe refund or dispute the row does not reflect,
+or a row marked `refunded` that Stripe never refunded, produces ONE admin
+notification ("Stripe reconcile found mismatches", every admin) and a Sentry
+error listing each payment intent id with the reason. Nothing wrong → no
+alert.
 When it fires:
 1. Open the Sentry event; each line is `kind pi_… order=…: detail`.
 2. In Stripe → Payments, open each `pi_…` and read its refund / dispute state.
