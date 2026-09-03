@@ -43,6 +43,11 @@ export interface Order {
   /** When the artist said they do not wish to contest a dispute
    *  (00060 / L12, Artist Agreement §4). A preference, not an outcome. */
   dispute_conceded_at?: string | null;
+  /** A new ship-by date the artist offered after missing the window
+   *  (00062 / L7). Does NOT move the seller-protection window. */
+  proposed_ship_by?: string | null;
+  window_missed_at?: string | null;
+  platform_nudged_at?: string | null;
   protection_status: 'pending' | 'protected' | 'ineligible' | 'waived';
   dispute_id: string | null;
   /** The last Stripe dispute status the webhook recorded for dispute_id

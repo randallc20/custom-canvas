@@ -588,6 +588,20 @@ BEGIN
   IF row_after.dispute_conceded_at IS NOT NULL THEN
     RAISE EXCEPTION 'transition matrix: dispute_conceded_at must be frozen for the artist (00060)';
   END IF;
+  -- 00061 (L6): relabelling a fault refund as change of mind would keep the
+  -- buyer's service fee from being returned.
+  IF row_after.refund_reason IS NOT NULL OR row_after.refund_initiated_by IS NOT NULL THEN
+    RAISE EXCEPTION 'transition matrix: refund_reason/refund_initiated_by must be frozen for the artist (00061)';
+  END IF;
+  -- 00062 (L7): an artist who could write proposed_ship_by would move a
+  -- promise the buyer already relied on, without the message and the email
+  -- that are what make it an offer.
+  IF row_after.proposed_ship_by IS NOT NULL THEN
+    RAISE EXCEPTION 'transition matrix: proposed_ship_by must be frozen for the artist (00062)';
+  END IF;
+  IF row_after.window_missed_at IS NOT NULL OR row_after.platform_nudged_at IS NOT NULL THEN
+    RAISE EXCEPTION 'transition matrix: window_missed_at/platform_nudged_at must be frozen for the artist (00062)';
+  END IF;
 
   -- shipped -> delivered: denied (delivered is server-side only now).
   denied := false;
@@ -1325,6 +1339,15 @@ BEGIN
        AND indexname = 'listings_available_not_mature_idx'
   ) THEN
     RAISE EXCEPTION 'missing index listings_available_not_mature_idx (00059)';
+  END IF;
+  -- 00062 (L7): the nightly fulfilment-window pass reads unshipped paid
+  -- orders by age; without this it is a full scan of orders every night.
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+     WHERE schemaname = 'public' AND tablename = 'orders'
+       AND indexname = 'orders_paid_unshipped_idx'
+  ) THEN
+    RAISE EXCEPTION 'missing index orders_paid_unshipped_idx (00062)';
   END IF;
 END $$;
 

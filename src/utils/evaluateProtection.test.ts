@@ -6,6 +6,7 @@ import {
   SIGNATURE_REQUIRED_FROM_CENTS,
   SIGNATURE_CONFIRMATION_AVAILABLE,
   MIN_CONDITION_NOTES_CHARS,
+  addBusinessDays,
 } from './evaluateProtection';
 
 // A Monday, so window arithmetic in the fixtures is easy to reason about.
@@ -202,5 +203,39 @@ describe('evaluateProtection', () => {
   it('exposes the thresholds the policy text quotes', () => {
     expect(SIGNATURE_REQUIRED_FROM_CENTS).toBe(75_000);
     expect(MIN_CONDITION_NOTES_CHARS).toBe(150);
+  });
+});
+
+/** L7 — the ship-by date shown to a buyer and measured by the cron. It must
+ *  be the exact inverse of businessDaysBetween, because the same window
+ *  decides seller-protection requirement 1. */
+describe('addBusinessDays', () => {
+  it('is the inverse of businessDaysBetween', () => {
+    for (const start of ['2026-09-01T12:00:00Z', '2026-09-04T23:00:00Z', '2026-09-05T01:00:00Z', '2026-09-06T09:00:00Z']) {
+      for (const n of [1, 3, 5, 10]) {
+        expect(businessDaysBetween(start, addBusinessDays(start, n))).toBe(n);
+      }
+    }
+  });
+
+  it('skips the weekend', () => {
+    // Friday 2026-09-04 + 1 business day = Monday 2026-09-07.
+    expect(addBusinessDays('2026-09-04T12:00:00Z', 1).slice(0, 10)).toBe('2026-09-07');
+    // Friday + 5 = the following Friday.
+    expect(addBusinessDays('2026-09-04T12:00:00Z', 5).slice(0, 10)).toBe('2026-09-11');
+  });
+
+  it('starting on a Saturday lands on the next weekday', () => {
+    expect(addBusinessDays('2026-09-05T12:00:00Z', 1).slice(0, 10)).toBe('2026-09-07');
+  });
+
+  it('returns the same instant for zero or negative days', () => {
+    const start = '2026-09-01T12:00:00Z';
+    expect(Date.parse(addBusinessDays(start, 0))).toBe(Date.parse(start));
+    expect(Date.parse(addBusinessDays(start, -3))).toBe(Date.parse(start));
+  });
+
+  it('does not crash on a bad date', () => {
+    expect(addBusinessDays('not-a-date', 5)).toBe('not-a-date');
   });
 });

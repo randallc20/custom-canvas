@@ -21,7 +21,11 @@ export type NotificationType =
   | 'artist_application'
   | 'artist_approved'
   | 'artist_rejected'
-  | 'order_disputed';
+  | 'order_disputed'
+  // 00062 (L7): a proposed new ship-by date or the platform's nudge, and a
+  // cancellation with its refund.
+  | 'order_delayed'
+  | 'order_cancelled';
 
 export interface Notification {
   id: string;

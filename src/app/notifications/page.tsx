@@ -34,6 +34,8 @@ const TYPE_ICONS: Record<NotificationType, string> = {
   artist_approved: '✅',
   artist_rejected: '📝',
   order_disputed: '⚠️',
+  order_delayed: '⏳',
+  order_cancelled: '↩️',
 };
 
 export default function NotificationsPage() {
