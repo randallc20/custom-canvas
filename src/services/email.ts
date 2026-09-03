@@ -476,3 +476,77 @@ export async function sendBulkEmails(emails: BulkEmail[]): Promise<void> {
     }
   }
 }
+
+/** The artist has offered a new ship-by date after missing the 5-business-day
+ *  window (Artist Agreement §7, L7). A buyer waiting on a piece is not
+ *  necessarily signed in, and §7's "tell the buyer" is not satisfied by a
+ *  notification bell nobody opened — so this says the date and both of their
+ *  options in the email itself. */
+export async function sendShipByProposedEmail(
+  to: string,
+  buyerName: string,
+  listingTitle: string,
+  artistName: string,
+  shipByText: string,
+  note?: string
+): Promise<boolean> {
+  const noteBlock = note
+    ? `<div style="background:#f9f9f9;padding:16px;border-radius:8px;margin:16px 0">
+        <p style="margin:0;color:#666;font-size:13px">From ${escapeHtml(artistName)}:</p>
+        <p style="margin:4px 0 0;color:#111;white-space:pre-wrap">${escapeHtml(note)}</p>
+      </div>`
+    : '';
+
+  return sendTemplate('ship_by_proposed', {
+    from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
+    to,
+    subject: `A new ship-by date for ${plain(listingTitle)}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+        <h2 style="color:#111">A new ship-by date</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, ${escapeHtml(artistName)} can't ship <strong>${escapeHtml(listingTitle)}</strong> within the original 5 business days, and has proposed shipping it by <strong>${escapeHtml(shipByText)}</strong>.</p>
+        ${noteBlock}
+        <p style="color:#666;font-size:14px;line-height:1.5">It's your choice. You can accept the new date, or <strong>cancel for a full refund</strong> — including the service fee. Both options are on the order.</p>
+        <a href="${APP_URL}/orders" style="display:inline-block;padding:12px 24px;background:#A84928;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View your order</a>
+      </div>
+    `,
+  });
+}
+
+/** An unshipped order was cancelled and refunded in full — by the buyer
+ *  exercising the right Terms of Sale §3 gives them, by the artist before
+ *  shipping, or by Custom Canvas after the artist went silent (L7). */
+export async function sendOrderCancelledEmail(
+  to: string,
+  recipientName: string,
+  listingTitle: string,
+  amountText: string,
+  by: 'buyer' | 'artist' | 'platform'
+): Promise<boolean> {
+  const why =
+    by === 'buyer'
+      ? 'You cancelled this order because it was not shipped within the promised window.'
+      : by === 'artist'
+      ? 'The artist cancelled this order before it shipped.'
+      : 'Custom Canvas cancelled this order: it was not shipped within the promised window and we were unable to reach the artist.';
+
+  return sendTemplate('order_cancelled', {
+    from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
+    to,
+    subject: `Order cancelled and refunded: ${plain(listingTitle)}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+        <h2 style="color:#111">Order cancelled and refunded</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(recipientName)}, <strong>${escapeHtml(listingTitle)}</strong> has been cancelled. ${escapeHtml(why)}</p>
+        <div style="background:#f9f9f9;padding:16px;border-radius:8px;margin:16px 0">
+          <p style="margin:0;color:#666;font-size:13px">Refunded in full</p>
+          <p style="margin:4px 0 0;font-weight:bold;color:#111">${amountText}</p>
+          <p style="margin:8px 0 0;color:#666;font-size:13px">The artwork price, shipping, the service fee and all tax. It can take 5&ndash;10 days to appear on your statement, depending on your bank.</p>
+        </div>
+        <a href="${APP_URL}/" style="display:inline-block;padding:12px 24px;background:#A84928;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Find another piece</a>
+      </div>
+    `,
+  });
+}

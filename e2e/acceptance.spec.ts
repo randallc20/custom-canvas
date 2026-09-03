@@ -56,7 +56,9 @@ test.describe('acceptance interstitial (L2, D11)', () => {
     const accept = dialog.getByRole('button', { name: /accept and continue/i });
     await expect(accept).toBeDisabled();
     const box = dialog.getByRole('checkbox');
-    await expect(dialog.getByText(/18 or older/i)).toBeVisible();
+    // Specific: the Terms of Service summary ALSO mentions being 18 or older
+    // (§2), so a loose match hits two elements.
+    await expect(dialog.getByText(/I am 18 or older and I agree/i)).toBeVisible();
 
     // --- 3. deferring leaves browsing open ------------------------------
     await dialog.getByRole('button', { name: /not now/i }).click();

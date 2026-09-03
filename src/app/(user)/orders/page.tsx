@@ -5,6 +5,7 @@ import { captureException } from '@/lib/sentry';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useBuyerOrders, useConfirmPickup } from '@/hooks/useOrders';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useFindOrCreateConversation } from '@/hooks/useConversations';
 import { useCreateReview } from '@/hooks/useReviews';
 import { Spinner } from '@/components/ui/Spinner';
@@ -17,6 +18,7 @@ import { ReviewForm } from '@/components/review/ReviewForm';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
 import { formatPrice } from '@/utils/formatPrice';
+import { fulfillmentWindow, formatDate } from '@/utils/fulfillmentWindow';
 import { refundReasonLabel } from '@/utils/refundSplit';
 import type { Order, OrderStatus } from '@/types/order';
 
@@ -42,10 +44,13 @@ export default function OrdersPage() {
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null);
   const [reviewedOrders, setReviewedOrders] = useState<Set<string>>(new Set());
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [acceptDate, setAcceptDate] = useState<string | null>(null);
+  const [cancelUnshipped, setCancelUnshipped] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
   const findOrCreate = useFindOrCreateConversation();
   const confirmPickup = useConfirmPickup();
+  const confirm = useConfirm();
 
   // Stripe's redirect can land here before checkout.session.completed has
   // written the order row (02-P2), and a 60 s staleTime then kept the empty
@@ -75,6 +80,50 @@ export default function OrdersPage() {
 
   // Local pickup: seller protection only attaches when BOTH parties confirm
   // the handoff, and both confirmations flip the order to delivered.
+  /** L7: Artist Agreement §7 points at the federal mail-and-internet-order
+   *  rule — the seller needs the buyer's CONSENT to a delay, or must refund
+   *  them. This is the consent. */
+  const acceptNewDate = async (order: Order) => {
+    setAcceptDate(order.id);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/accept-ship-by`, { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      toast('New date accepted — the artist has been told.', 'success');
+      void refetch();
+    } catch (e) {
+      captureException(e, { where: 'orders.acceptShipBy' });
+      toast(e instanceof Error ? e.message : 'Could not accept that date', 'error');
+    } finally {
+      setAcceptDate(null);
+    }
+  };
+
+  /** L7: "they may cancel for a full refund and we will settle it whether or
+   *  not you approve" (Terms of Sale §3, Artist Agreement §7). This does not
+   *  ask the artist, so the dialog is clear that it is final. */
+  const cancelForRefund = async (order: Order) => {
+    const ok = await confirm({
+      title: 'Cancel this order for a full refund?',
+      message:
+        'The artist did not ship within the promised window, so this is yours to decide — we will settle it whether or not they agree. You will be refunded the artwork price, shipping, the service fee and all tax. The piece goes back on sale.',
+      confirmLabel: 'Cancel and refund me',
+      destructive: true,
+    });
+    if (!ok) return;
+    setCancelUnshipped(order.id);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/cancel-unshipped`, { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      toast('Cancelled and refunded in full.', 'success');
+      void refetch();
+    } catch (e) {
+      captureException(e, { where: 'orders.cancelUnshipped' });
+      toast(e instanceof Error ? e.message : 'Could not cancel that order', 'error');
+    } finally {
+      setCancelUnshipped(null);
+    }
+  };
+
   const confirmHandoff = (order: Order) => {
     confirmPickup.mutate(order.id, {
       onSuccess: (body) =>
@@ -219,11 +268,61 @@ export default function OrdersPage() {
                     </Link>
                   </p>
                 )}
-                {order.status === 'paid' && !order.is_pickup && (
-                  <p className="mt-3 text-xs leading-relaxed text-muted">
-                    Need to cancel? Ask the artist in Messages before it ships.
-                  </p>
-                )}
+                {/* L7 — the shipping promise, and what the buyer can do when
+                    it is missed. Terms of Sale §3 and Artist Agreement §7 give
+                    the buyer a unilateral cancel right here; before L7 their
+                    only action was to ask the artist and hope. */}
+                {order.status === 'paid' && !order.is_pickup && (() => {
+                  const win = fulfillmentWindow(order);
+                  const proposed = order.proposed_ship_by;
+                  const canCancel = win.missed || !!proposed;
+                  return (
+                    <div className="mt-3 space-y-2">
+                      {proposed ? (
+                        <p className="text-xs leading-relaxed text-ink">
+                          The artist couldn&apos;t ship within the original window and has proposed{' '}
+                          <span className="font-medium">{formatDate(proposed)}</span>. It&apos;s your
+                          choice: accept the new date, or cancel for a full refund including the
+                          service fee.
+                        </p>
+                      ) : win.missed ? (
+                        <p className="text-xs leading-relaxed text-ink">
+                          This should have shipped by{' '}
+                          <span className="font-medium">{win.shipByText}</span> and hasn&apos;t. You
+                          can cancel for a full refund — including the service fee — without the
+                          artist&apos;s agreement.
+                        </p>
+                      ) : (
+                        <p className="text-xs leading-relaxed text-muted">
+                          Ships by <span className="font-medium text-ink">{win.shipByText}</span>.
+                          Need to cancel? Ask the artist in Messages before it ships.
+                        </p>
+                      )}
+                      {canCancel && (
+                        <div className="flex flex-wrap gap-2">
+                          {proposed && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              loading={acceptDate === order.id}
+                              onClick={() => acceptNewDate(order)}
+                            >
+                              Accept {formatDate(proposed)}
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            loading={cancelUnshipped === order.id}
+                            onClick={() => cancelForRefund(order)}
+                          >
+                            Cancel for a full refund
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 {order.is_pickup && order.status !== 'delivered' && order.status !== 'refunded' && (
                   <p className="mt-3 text-xs leading-relaxed text-muted">
                     Arrange pickup within <span className="font-medium text-ink">7 days</span> of

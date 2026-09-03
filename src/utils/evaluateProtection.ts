@@ -114,6 +114,26 @@ export function businessDaysBetween(fromIso: string, toIso: string): number {
   return days;
 }
 
+/** The instant N business days after `fromIso`, as an ISO string.
+ *
+ *  The inverse of businessDaysBetween, and it must stay exactly that: the
+ *  ship-by date a buyer is shown, the date the cron measures against, and the
+ *  window seller-protection requirement 1 is judged by all have to be the
+ *  same date, or an artist is told one deadline and held to another. Same
+ *  Mon–Fri, holiday-blind definition (L7).
+ */
+export function addBusinessDays(fromIso: string, days: number): string {
+  const cursor = new Date(fromIso);
+  if (Number.isNaN(cursor.getTime())) return fromIso;
+  let remaining = Math.max(0, Math.floor(days));
+  while (remaining > 0) {
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    const day = cursor.getUTCDay();
+    if (day !== 0 && day !== 6) remaining -= 1;
+  }
+  return cursor.toISOString();
+}
+
 export function evaluateProtection(
   input: ProtectionInput,
   options: ProtectionOptions = {}

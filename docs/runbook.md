@@ -40,6 +40,32 @@ Dashboard → Developers → Webhooks shows failed deliveries to
   balance → recurring 502. Fix by backfilling orders.stripe_refund_id with
   the refund id visible in Stripe, then retry (it will skip to the reversal).
 
+### Fulfilment-window cron (`/api/cron/fulfillment-windows`, 13:00 UTC)
+
+The only automated money movement in the product, so know exactly what it
+does (L7, Shipping "If your piece is never shipped"):
+
+- **Day 5+ unshipped, nothing proposed** → asks the artist to ship or offer a
+  date, tells the buyer where they stand, posts a note in the thread, and
+  stamps `platform_nudged_at`. Nothing is cancelled.
+- **5 business days after that nudge**, still unshipped, no proposed date, and
+  no artist message in the buyer↔artist thread since → **cancels and refunds
+  in full** (reason `not_shipped`, initiated_by `platform`), reverses the
+  payout, relists the piece, and notifies every admin.
+
+"Unreachable" is no artist message in the thread since the nudge — the same
+read seller-protection requirement 6 uses, so an artist who answered the buyer
+is never treated as silent. Every read failure resolves in the LENIENT
+direction (treated as "the artist spoke"), because the cost of being wrong is
+cancelling a live sale.
+
+Capped at 25 cancellations per run. If you see
+`hit the 25-cancel cap in one run` in Sentry, something is wrong with the
+selection — check before letting it run again.
+
+A buyer can always cancel a past-window unshipped order themselves; that path
+does not wait for the cron and does not ask the artist.
+
 ### Stripe reconcile cron (the safety net)
 `/api/cron/stripe-reconcile` runs daily at 14:00 UTC (`vercel.json`). It diffs
 Stripe's view of a set of payments against `orders` — read-only, it never

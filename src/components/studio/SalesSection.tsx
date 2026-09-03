@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatPrice } from '@/utils/formatPrice';
+import { fulfillmentWindow, formatDate } from '@/utils/fulfillmentWindow';
 import { useArtistProfileId } from '@/hooks/useArtistProfileId';
 import type { Order, OrderStatus } from '@/types/order';
 
@@ -40,6 +41,11 @@ export function SalesSection() {
   const [carrier, setCarrier] = useState('');
   const confirmPickup = useConfirmPickup();
   const [conceding, setConceding] = useState<string | null>(null);
+  const [proposeOrder, setProposeOrder] = useState<Order | null>(null);
+  const [proposeDate, setProposeDate] = useState('');
+  const [proposeNote, setProposeNote] = useState('');
+  const [proposing, setProposing] = useState(false);
+  const [cancellingOrder, setCancellingOrder] = useState<string | null>(null);
   const markDelivered = useMarkDelivered();
 
   // Local pickup: your half of the handoff confirmation. Protection for a
@@ -66,6 +72,62 @@ export function SalesSection() {
       toast(e instanceof Error ? e.message : 'Could not record that', 'error');
     } finally {
       setConceding(null);
+    }
+  };
+
+  /** Artist Agreement §7: "If you cannot meet the window. Tell the buyer in
+   *  Messages before it expires and offer them the choice of a new date or a
+   *  cancellation." This is that offer. */
+  const submitProposal = async () => {
+    const order = proposeOrder;
+    if (!order || !proposeDate) return;
+    setProposing(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/propose-ship-by`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ship_by: proposeDate, note: proposeNote || undefined }),
+      });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(typeof body.error === 'string' ? body.error : 'Could not send that date');
+      }
+      toast('The buyer has been told, and can accept or cancel.', 'success');
+      setProposeOrder(null);
+      setProposeDate('');
+      setProposeNote('');
+      void queryClient.invalidateQueries({ queryKey: ['artist-orders'] });
+    } catch (e) {
+      captureException(e, { where: 'studio.sales.proposeShipBy' });
+      toast(e instanceof Error ? e.message : 'Could not send that date', 'error');
+    } finally {
+      setProposing(false);
+    }
+  };
+
+  /** §7's other half: "or cancel and tell the buyer promptly". A full refund,
+   *  service fee included — the buyer is not out of pocket for a sale the
+   *  artist chose to stop. */
+  const handleCancelOrder = async (order: Order) => {
+    const ok = await confirm({
+      title: 'Cancel this order?',
+      message:
+        'The buyer is refunded in full — artwork price, shipping, the service fee and all tax — your payout for it is reversed, and the piece goes back on sale. This cannot be undone.',
+      confirmLabel: 'Cancel and refund the buyer',
+      destructive: true,
+    });
+    if (!ok) return;
+    setCancellingOrder(order.id);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/cancel-unshipped`, { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      toast('Cancelled and refunded.', 'success');
+      void queryClient.invalidateQueries({ queryKey: ['artist-orders'] });
+    } catch (e) {
+      captureException(e, { where: 'studio.sales.cancelOrder' });
+      toast(e instanceof Error ? e.message : 'Could not cancel that order', 'error');
+    } finally {
+      setCancellingOrder(null);
     }
   };
 
@@ -220,6 +282,60 @@ export function SalesSection() {
                   </div>
                 )}
 
+                {/* L7 — the shipping promise, and the two things §7 asks of
+                    an artist who cannot keep it. */}
+                {order.status === 'paid' && !order.is_pickup && (() => {
+                  const win = fulfillmentWindow(order);
+                  return (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs leading-relaxed text-muted">
+                        {order.proposed_ship_by ? (
+                          <>
+                            You proposed shipping by{' '}
+                            <span className="font-medium text-ink">{formatDate(order.proposed_ship_by)}</span>.
+                            The buyer can accept it or cancel for a full refund. Seller protection
+                            is still measured against the original {win.windowDays}-business-day
+                            window.
+                          </>
+                        ) : win.missed ? (
+                          <>
+                            <span className="font-medium text-ink">This is past its ship-by date</span>{' '}
+                            ({win.shipByText}). Ship it now, or offer the buyer a new date — if we
+                            hear nothing we will cancel and refund them in full, and the buyer can
+                            cancel at any time.
+                          </>
+                        ) : (
+                          <>
+                            Ship by <span className="font-medium text-ink">{win.shipByText}</span>{' '}
+                            ({win.windowDays} business days from the sale).
+                          </>
+                        )}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setProposeOrder(order);
+                            setProposeDate('');
+                            setProposeNote('');
+                          }}
+                        >
+                          Can&apos;t ship in time
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          loading={cancellingOrder === order.id}
+                          onClick={() => handleCancelOrder(order)}
+                        >
+                          Cancel order
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Shipping policy, "Local pickup": a no-show is a support
                     process, not something an artist should resolve by
                     cancelling and relisting a piece the buyer may still
@@ -283,6 +399,56 @@ export function SalesSection() {
           })}
         </div>
       )}
+
+      <Modal
+        isOpen={!!proposeOrder}
+        onClose={() => setProposeOrder(null)}
+        title="Offer the buyer a new ship-by date"
+      >
+        <div className="space-y-4">
+          <p className="text-sm leading-relaxed text-muted">
+            The Artist Agreement asks you to tell the buyer before the window expires and offer a
+            new date or a cancellation. We&apos;ll message and email them with the date; it is then
+            their choice to accept it or cancel for a full refund.
+          </p>
+          <div>
+            <label htmlFor="propose-date" className="mb-1 block text-sm font-medium text-ink">
+              New ship-by date
+            </label>
+            <input
+              id="propose-date"
+              type="date"
+              value={proposeDate}
+              min={new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)}
+              onChange={(e) => setProposeDate(e.target.value)}
+              className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink"
+            />
+          </div>
+          <div>
+            <label htmlFor="propose-note" className="mb-1 block text-sm font-medium text-ink">
+              A note for the buyer (optional)
+            </label>
+            <textarea
+              id="propose-note"
+              rows={3}
+              value={proposeNote}
+              onChange={(e) => setProposeNote(e.target.value)}
+              placeholder="What happened, and why this date is realistic."
+              className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink"
+            />
+          </div>
+          <p className="rounded-md bg-sand/60 px-3 py-2 text-xs leading-relaxed text-ink">
+            This does not extend seller protection. Requirement 1 is measured against the original
+            5 business days from the sale, whatever date the buyer agrees to.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setProposeOrder(null)}>Cancel</Button>
+            <Button disabled={!proposeDate} loading={proposing} onClick={submitProposal}>
+              Send the new date
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal isOpen={!!shipModal} title="Ship Order" onClose={() => { setShipModal(null); setTrackingNumber(''); setCarrier(''); }}>
         <div className="space-y-4">
