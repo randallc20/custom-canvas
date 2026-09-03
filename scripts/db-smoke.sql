@@ -154,6 +154,8 @@ INSERT INTO expected_policies VALUES
   ('muted_conversations','*','Users manage own mutes'),
   ('notifications','r','Users can see own notifications'),
   ('notifications','w','Users can update own notifications'),
+  -- 00064 (L8): buyer and the order's artist only; no client writes.
+  ('order_returns','r','Return parties can view'),
   ('orders','r','Admins can see all orders'),
   ('orders','r','Artists can see their orders'),
   ('orders','r','Buyers can see own orders'),
@@ -1461,6 +1463,117 @@ BEGIN
   SELECT dmca_substantiated_count(subject) INTO n;
   IF n <> 3 THEN
     RAISE EXCEPTION 'dmca: a notice older than 12 months was counted (got %)', n;
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+END $$;
+ROLLBACK;
+
+-- ---------------------------------------------------------------------------
+-- 14. Returns (00064, L8). The refund is conditioned on the piece coming
+--     back, so the record has to be unwritable from a client and readable
+--     only by the two parties. The buyer supplies exactly one thing — the
+--     return tracking number — and does it through a route, so
+--     shipped_back_at is a server timestamp and the seven-day window in
+--     Terms of Sale §5 is measured against something a client cannot set.
+-- ---------------------------------------------------------------------------
+BEGIN;
+DO $$
+DECLARE
+  ord uuid;
+  buyer uuid;
+  artist_user uuid;
+  outsider uuid;
+  leaked text;
+  denied boolean;
+  visible int;
+BEGIN
+  -- No client WRITE privilege of any kind on the return record.
+  SELECT string_agg(privilege_type || ' -> ' || grantee, ', ') INTO leaked
+    FROM information_schema.table_privileges
+   WHERE table_schema = 'public' AND table_name = 'order_returns'
+     AND grantee IN ('anon', 'authenticated')
+     AND privilege_type IN ('INSERT', 'UPDATE', 'DELETE');
+  IF leaked IS NOT NULL THEN
+    RAISE EXCEPTION 'order_returns is client-writable: %', leaked;
+  END IF;
+  -- anon cannot even read it: a return carries an address.
+  SELECT string_agg(privilege_type, ', ') INTO leaked
+    FROM information_schema.table_privileges
+   WHERE table_schema = 'public' AND table_name = 'order_returns' AND grantee = 'anon';
+  IF leaked IS NOT NULL THEN
+    RAISE EXCEPTION 'order_returns is readable by anon: %', leaked;
+  END IF;
+
+  SELECT o.id, o.buyer_id, ap.profile_id INTO ord, buyer, artist_user
+    FROM orders o JOIN artist_profiles ap ON ap.id = o.artist_id
+   WHERE o.buyer_id IS NOT NULL
+   LIMIT 1;
+  IF ord IS NULL THEN
+    RAISE NOTICE 'returns: no order with both parties on this database; RLS check is vacuous';
+    RETURN;
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  INSERT INTO order_returns (order_id, required, reason, authorized_at, return_address, ship_by)
+    VALUES (ord, true, 'change_of_mind', now(),
+            '{"name":"Smoke","street":"1 Smoke St","city":"Houston","state":"TX","zip":"77006"}'::jsonb,
+            now() + interval '7 days')
+    ON CONFLICT (order_id) DO UPDATE SET required = true, authorized_at = now();
+
+  -- Everything below runs under SET ROLE as well as the JWT claims. Without
+  -- the role switch this block runs as the table owner, RLS is bypassed
+  -- entirely, and every assertion here passes vacuously — which is exactly
+  -- what happened on the first cut of this section.
+  SELECT p.id INTO outsider FROM profiles p
+   WHERE p.id <> buyer AND p.id <> artist_user AND p.role <> 'admin' LIMIT 1;
+
+  -- The buyer and the artist can each see their own.
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', buyer, 'role', 'authenticated')::text, true);
+  PERFORM set_config('role', 'authenticated', true);
+  SELECT count(*) INTO visible FROM order_returns WHERE order_id = ord;
+  PERFORM set_config('role', 'none', true);
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'returns: the buyer cannot read their own return record';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', artist_user, 'role', 'authenticated')::text, true);
+  PERFORM set_config('role', 'authenticated', true);
+  SELECT count(*) INTO visible FROM order_returns WHERE order_id = ord;
+  PERFORM set_config('role', 'none', true);
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'returns: the order artist cannot read the return record';
+  END IF;
+
+  -- Nobody else can: the record carries a return address.
+  IF outsider IS NOT NULL THEN
+    PERFORM set_config('request.jwt.claims',
+                       json_build_object('sub', outsider, 'role', 'authenticated')::text, true);
+    PERFORM set_config('role', 'authenticated', true);
+    SELECT count(*) INTO visible FROM order_returns WHERE order_id = ord;
+    PERFORM set_config('role', 'none', true);
+    IF visible <> 0 THEN
+      RAISE EXCEPTION 'returns: an unrelated account read a return record (address leak)';
+    END IF;
+  END IF;
+
+  -- And the buyer cannot write their own waiver or inspection outcome.
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', buyer, 'role', 'authenticated')::text, true);
+  denied := false;
+  PERFORM set_config('role', 'authenticated', true);
+  BEGIN
+    UPDATE order_returns SET waived_at = now(), inspection_outcome = 'accepted' WHERE order_id = ord;
+  EXCEPTION WHEN insufficient_privilege THEN denied := true;
+  END;
+  PERFORM set_config('role', 'none', true);
+  IF NOT denied THEN
+    RAISE EXCEPTION 'returns: the buyer wrote the return record (UPDATE privilege widened?)';
+  END IF;
+  IF (SELECT inspection_outcome FROM order_returns WHERE order_id = ord) IS NOT NULL THEN
+    RAISE EXCEPTION 'returns: the buyer accepted their own inspection';
   END IF;
 
   PERFORM set_config('request.jwt.claims', '', true);

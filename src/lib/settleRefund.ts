@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe';
 import { calculateRefundSplit, isFaultRefund, type RefundReason } from '@/utils/refundSplit';
+import { returnBlocksSettlement, type ReturnRecord } from '@/utils/orderReturns';
 
 type AdminClient = ReturnType<typeof createAdminSupabaseClient>;
 
@@ -99,6 +100,23 @@ export async function settleRefund(
         "A change-of-mind refund needs the artist to approve it first. If the fault is ours or the artist's — never shipped, lost, damaged, not as described, our error — choose that reason instead and this settles without them.",
     };
   }
+
+  // L8: "the refund may be issued after delivery and reasonable inspection of
+  // the returned artwork". When a return is required and has neither been
+  // accepted on inspection nor waived, the money does not move — otherwise
+  // the buyer keeps the piece AND the money, the one outcome the documents
+  // are explicit about preventing.
+  //
+  // Checked HERE rather than in the admin route so it cannot be walked
+  // around: the cron and the buyer's cancel path go through this function
+  // too, and a gate that only guards one door is not a gate.
+  const { data: ret } = await admin
+    .from('order_returns')
+    .select('*')
+    .eq('order_id', order.id)
+    .maybeSingle();
+  const blocked = returnBlocksSettlement((ret as ReturnRecord | null) ?? null);
+  if (blocked) return { ok: false, status: 409, error: blocked };
 
   const stripe = getStripe();
   const { refundTax, refundAmount, refundFee } = calculateRefundSplit(order, opts.reason);

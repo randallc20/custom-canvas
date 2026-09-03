@@ -46,6 +46,9 @@ export function SalesSection() {
   const [proposeNote, setProposeNote] = useState('');
   const [proposing, setProposing] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState<string | null>(null);
+  const [refundOrder, setRefundOrder] = useState<Order | null>(null);
+  const [returnAddress, setReturnAddress] = useState({ name: '', street: '', city: '', state: '', zip: '' });
+  const [returnInstructions, setReturnInstructions] = useState('');
   const markDelivered = useMarkDelivered();
 
   // Local pickup: your half of the handoff confirmation. Protection for a
@@ -163,20 +166,35 @@ export function SalesSection() {
     }
   };
 
-  const handleApproveRefund = async (order: Order) => {
-    const ok = await confirm({
-      title: 'Approve this refund?',
-      message: 'Custom Canvas will settle the payment: the buyer gets the price and shipping back, and your payout for this sale is returned. The buyer\'s service fee is not refunded. This can\'t be undone.',
-      confirmLabel: 'Approve refund',
-      destructive: true,
-    });
-    if (!ok) return;
+  /** L8 / ruling D9: approving a change-of-mind refund now conditions it on
+   *  the piece coming back, so the artist has to say where it goes. Asked at
+   *  the moment of approval — the only moment they are certainly present —
+   *  and never taken from their public profile, which is not an address they
+   *  agreed to publish by listing a painting. The buyer sees it only after
+   *  approval. */
+  const submitApproveRefund = async () => {
+    const order = refundOrder;
+    if (!order) return;
+    const missing = (['name', 'street', 'city', 'state', 'zip'] as const).filter((k) => !returnAddress[k].trim());
+    if (missing.length) {
+      toast('The full return address is needed — the buyer is sending the piece back to it.', 'error');
+      return;
+    }
     setApprovingRefund(order.id);
     try {
-      const res = await fetch(`/api/orders/${order.id}/approve-refund`, { method: 'POST' });
+      const res = await fetch(`/api/orders/${order.id}/approve-refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          return_address: returnAddress,
+          instructions: returnInstructions.trim() || undefined,
+        }),
+      });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
-      toast('Refund approved — Custom Canvas will settle the payment.', 'success');
+      toast('Refund approved. The buyer has the return address and has 7 days to ship it back.', 'success');
+      setRefundOrder(null);
       void queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['artist-orders'] });
     } catch (e) {
       captureException(e, { where: 'SalesSection.approveRefund' });
       toast(e instanceof Error ? e.message : 'Could not approve the refund', 'error');
@@ -387,7 +405,7 @@ export function SalesSection() {
                         size="sm"
                         variant="ghost"
                         loading={approvingRefund === order.id}
-                        onClick={() => handleApproveRefund(order)}
+                        onClick={() => setRefundOrder(order)}
                       >
                         Approve refund
                       </Button>
@@ -399,6 +417,81 @@ export function SalesSection() {
           })}
         </div>
       )}
+
+      <Modal
+        isOpen={!!refundOrder}
+        onClose={() => setRefundOrder(null)}
+        title="Approve this refund"
+        panelClassName="relative z-10 mx-4 max-h-[90vh] w-full max-w-lg animate-modal-in overflow-y-auto rounded-xl border border-line bg-surface p-6 shadow-card"
+      >
+        <div className="space-y-4">
+          <p className="text-sm leading-relaxed text-muted">
+            Custom Canvas settles the payment after the piece comes back and is inspected: the
+            buyer gets the price, shipping and the tax on those back, and your payout for this sale
+            is returned. On a change of mind the buyer&apos;s service fee is not refunded, and they
+            ordinarily bear return shipping.
+          </p>
+          <div>
+            <p className="text-sm font-medium text-ink">Where should they send it?</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Shown only to this buyer, only after you approve. It is never taken from your public
+              profile.
+            </p>
+            <div className="mt-2 space-y-2">
+              <Input
+                label="Name"
+                value={returnAddress.name}
+                onChange={(e) => setReturnAddress({ ...returnAddress, name: e.target.value })}
+              />
+              <Input
+                label="Street"
+                value={returnAddress.street}
+                onChange={(e) => setReturnAddress({ ...returnAddress, street: e.target.value })}
+              />
+              <div className="grid grid-cols-3 gap-2">
+                <Input
+                  label="City"
+                  value={returnAddress.city}
+                  onChange={(e) => setReturnAddress({ ...returnAddress, city: e.target.value })}
+                />
+                <Input
+                  label="State"
+                  value={returnAddress.state}
+                  onChange={(e) => setReturnAddress({ ...returnAddress, state: e.target.value })}
+                />
+                <Input
+                  label="ZIP"
+                  value={returnAddress.zip}
+                  onChange={(e) => setReturnAddress({ ...returnAddress, zip: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+          <div>
+            <label htmlFor="return-instructions" className="mb-1 block text-sm font-medium text-ink">
+              Packing or insurance instructions (optional)
+            </label>
+            <textarea
+              id="return-instructions"
+              rows={3}
+              value={returnInstructions}
+              onChange={(e) => setReturnInstructions(e.target.value)}
+              placeholder="Leave blank and we will send our standard instructions: protective packaging, same condition, tracked service."
+              className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink"
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setRefundOrder(null)}>Cancel</Button>
+            <Button
+              variant="danger"
+              loading={approvingRefund === refundOrder?.id}
+              onClick={submitApproveRefund}
+            >
+              Approve and authorise the return
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={!!proposeOrder}

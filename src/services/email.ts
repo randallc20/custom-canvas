@@ -550,3 +550,39 @@ export async function sendOrderCancelledEmail(
     `,
   });
 }
+
+/** A return has been authorised: where to send the piece, by when, and how
+ *  (Terms of Sale §5 — "Custom Canvas will provide return instructions,
+ *  including the return address and any required tracking or insurance").
+ *  In the email as well as the thread, because the address and the seven-day
+ *  clock are the two things a buyer needs in hand. */
+export async function sendReturnAuthorizedEmail(
+  to: string,
+  buyerName: string,
+  listingTitle: string,
+  addressText: string,
+  shipByText: string,
+  instructions: string
+): Promise<boolean> {
+  return sendTemplate('return_authorized', {
+    from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
+    to,
+    subject: `Return authorised: ${plain(listingTitle)}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+        <h2 style="color:#111">Return authorised</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, your return of <strong>${escapeHtml(listingTitle)}</strong> is authorised. Your refund will be settled after the piece is returned and reasonably inspected.</p>
+        <div style="background:#f9f9f9;padding:16px;border-radius:8px;margin:16px 0">
+          <p style="margin:0;color:#666;font-size:13px">Send it to</p>
+          <p style="margin:4px 0 0;color:#111;white-space:pre-wrap;font-weight:bold">${escapeHtml(addressText)}</p>
+          <p style="margin:12px 0 0;color:#666;font-size:13px">Ship it by</p>
+          <p style="margin:4px 0 0;color:#111;font-weight:bold">${escapeHtml(shipByText)} &mdash; 7 calendar days</p>
+        </div>
+        <p style="color:#666;font-size:14px;line-height:1.5">${escapeHtml(instructions)}</p>
+        <p style="color:#666;font-size:14px;line-height:1.5">Reply in Messages with the tracking number, or use &ldquo;I&rsquo;ve shipped it back&rdquo; on the order.</p>
+        <a href="${APP_URL}/orders" style="display:inline-block;padding:12px 24px;background:#A84928;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View your order</a>
+      </div>
+    `,
+  });
+}

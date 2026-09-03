@@ -13,12 +13,15 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { QueryError } from '@/components/ui/QueryError';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { ReviewForm } from '@/components/review/ReviewForm';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
 import { formatPrice } from '@/utils/formatPrice';
 import { fulfillmentWindow, formatDate } from '@/utils/fulfillmentWindow';
+import { formatAddress } from '@/utils/orderReturns';
+import { useOrderReturns } from '@/hooks/useOrderReturn';
 import { refundReasonLabel } from '@/utils/refundSplit';
 import type { Order, OrderStatus } from '@/types/order';
 
@@ -51,6 +54,11 @@ export default function OrdersPage() {
   const findOrCreate = useFindOrCreateConversation();
   const confirmPickup = useConfirmPickup();
   const confirm = useConfirm();
+  const { data: returns } = useOrderReturns((orders ?? []).map((o) => o.id));
+  const [returnShipping, setReturnShipping] = useState<Order | null>(null);
+  const [returnTracking, setReturnTracking] = useState('');
+  const [returnCarrier, setReturnCarrier] = useState('usps');
+  const [returnBusy, setReturnBusy] = useState(false);
 
   // Stripe's redirect can land here before checkout.session.completed has
   // written the order row (02-P2), and a 60 s staleTime then kept the empty
@@ -83,6 +91,35 @@ export default function OrdersPage() {
   /** L7: Artist Agreement §7 points at the federal mail-and-internet-order
    *  rule — the seller needs the buyer's CONSENT to a delay, or must refund
    *  them. This is the consent. */
+  /** L8: the only client-reachable write on a return record, and it goes
+   *  through a route so shipped_back_at is a server timestamp — the seven-day
+   *  window in Terms of Sale §5 is measured against it. */
+  const submitReturnShipped = async () => {
+    const order = returnShipping;
+    if (!order || returnTracking.trim().length < 3) {
+      toast('The return instructions ask for a tracking number — enter the one from your receipt.', 'error');
+      return;
+    }
+    setReturnBusy(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/return-shipped`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tracking_number: returnTracking.trim(), carrier: returnCarrier }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      toast('Thank you — we will settle your refund once it arrives and is inspected.', 'success');
+      setReturnShipping(null);
+      setReturnTracking('');
+      void refetch();
+    } catch (e) {
+      captureException(e, { where: 'orders.returnShipped' });
+      toast(e instanceof Error ? e.message : 'Could not record that', 'error');
+    } finally {
+      setReturnBusy(false);
+    }
+  };
+
   const acceptNewDate = async (order: Order) => {
     setAcceptDate(order.id);
     try {
@@ -329,10 +366,59 @@ export default function OrdersPage() {
                     the artist&apos;s ready message. Can&apos;t make it? Tell them in Messages.
                   </p>
                 )}
+                {/* L8 — the return the refund is conditioned on. Terms of
+                    Sale §5: address, seven calendar days, tracking, then
+                    inspection. */}
+                {(() => {
+                  const ret = returns?.[order.id];
+                  if (!ret?.authorized_at || !ret.required || ret.waived_at) return null;
+                  return (
+                    <div className="mt-3 rounded-lg border border-terra/30 bg-terraSoft/40 p-3 text-xs leading-relaxed">
+                      <p className="font-medium text-ink">
+                        Return authorised
+                        {ret.ship_by && <> · ship it back by {formatDate(ret.ship_by)}</>}
+                      </p>
+                      {ret.return_address && (
+                        <p className="mt-1 whitespace-pre-wrap text-muted">
+                          Send it to:{'\n'}
+                          {formatAddress(ret.return_address)}
+                        </p>
+                      )}
+                      {ret.instructions && <p className="mt-2 text-muted">{ret.instructions}</p>}
+                      {ret.received_at ? (
+                        <p className="mt-2 text-muted">
+                          {ret.inspection_outcome === 'accepted'
+                            ? 'Received and inspected — your refund is being settled.'
+                            : ret.inspection_outcome === 'rejected'
+                            ? 'Received, but the inspection raised a problem. Support will be in touch.'
+                            : 'Received — inspection to follow.'}
+                        </p>
+                      ) : ret.shipped_back_at ? (
+                        <p className="mt-2 text-muted">
+                          On its way back{ret.tracking_number ? ` — ${ret.carrier?.toUpperCase()} ${ret.tracking_number}` : ''}.
+                          Your refund settles once it arrives and is inspected.
+                        </p>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-2"
+                          onClick={() => {
+                            setReturnShipping(order);
+                            setReturnTracking('');
+                          }}
+                        >
+                          I&apos;ve shipped it back
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {['paid', 'shipped', 'delivered'].includes(order.status) && (
                   <div className="mt-3">
                     {order.refund_approved_at ? (
-                      <p className="text-xs text-muted">Refund approved — Custom Canvas is settling your payment.</p>
+                      <p className="text-xs text-muted">Refund approved — Custom Canvas is settling your payment{returns?.[order.id]?.required && !returns?.[order.id]?.waived_at ? ' once the piece is back with the artist and inspected' : ''}.</p>
                     ) : !order.artist?.profile_id ? (
                       /* The artist's account is gone (00049 keeps the order);
                          there is no thread to start a refund request in. */
@@ -349,6 +435,43 @@ export default function OrdersPage() {
           })}
         </div>
       )}
+
+      <Modal
+        isOpen={!!returnShipping}
+        onClose={() => setReturnShipping(null)}
+        title="I’ve shipped it back"
+      >
+        <div className="space-y-4">
+          <p className="text-sm leading-relaxed text-muted">
+            Your refund is settled after the piece arrives and is reasonably inspected. The return
+            instructions ask for a tracked service, so give us the number and we can follow it too.
+          </p>
+          <div>
+            <label htmlFor="return-carrier" className="mb-1 block text-sm font-medium text-ink">Carrier</label>
+            <select
+              id="return-carrier"
+              className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink"
+              value={returnCarrier}
+              onChange={(e) => setReturnCarrier(e.target.value)}
+            >
+              <option value="usps">USPS</option>
+              <option value="ups">UPS</option>
+              <option value="fedex">FedEx</option>
+              <option value="dhl">DHL</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <Input
+            label="Tracking number"
+            value={returnTracking}
+            onChange={(e) => setReturnTracking(e.target.value)}
+          />
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setReturnShipping(null)}>Cancel</Button>
+            <Button loading={returnBusy} onClick={submitReturnShipped}>Confirm</Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={!!reviewOrder}
