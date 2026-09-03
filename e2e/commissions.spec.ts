@@ -423,6 +423,8 @@ test.describe.serial('part 11 — commissions', () => {
     await expect(panel.getByText('New request', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
     await paceCommissionWrites(loverPage);
     await panel.getByRole('button', { name: 'Cancel Request' }).click();
+    // R9: Cancel Request is destructive and now confirms first (03-P2).
+    await loverPage.getByRole('dialog').getByRole('button', { name: 'Cancel request' }).click();
     // P6: the requester's own cancel is labelled as theirs.
     await expect(panel.getByText('Cancelled by you').first()).toBeVisible({ timeout: 15_000 });
   });

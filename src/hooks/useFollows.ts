@@ -74,7 +74,9 @@ export function useToggleFollow() {
     // once, and roll back if the write is refused.
     onMutate: async ({ profileId, artistId, isCurrentlyFollowing }) => {
       await queryClient.cancelQueries({ queryKey: ['followed-ids', profileId] });
-      const previous = queryClient.getQueryData<string[]>(['followed-ids', profileId]);
+      // Baseline to [] when the set has not loaded yet, so a refused write
+      // still rolls back instead of leaving the optimistic flip in place.
+      const previous = queryClient.getQueryData<string[]>(['followed-ids', profileId]) ?? [];
       queryClient.setQueryData<string[]>(['followed-ids', profileId], (old = []) =>
         isCurrentlyFollowing ? old.filter((id) => id !== artistId) : [...old, artistId]
       );
@@ -82,7 +84,7 @@ export function useToggleFollow() {
     },
     // Call sites fire-and-forget with .mutate() — surface failures here.
     onError: (err, { profileId }, context) => {
-      if (context?.previous) queryClient.setQueryData(['followed-ids', profileId], context.previous);
+      queryClient.setQueryData(['followed-ids', profileId], context?.previous ?? []);
       surface(err);
     },
     onSettled: (_data, _err, { profileId, artistId }) => {

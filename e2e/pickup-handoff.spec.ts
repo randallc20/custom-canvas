@@ -109,7 +109,8 @@ test.describe.serial('two-sided pickup handoff', () => {
 
     await artistPage.reload();
     await expect(artistCard().getByText('Delivered', { exact: true })).toBeVisible({ timeout: 20_000 });
-    await expect(artistCard().getByRole('button', { name: /^✓ Protected$/ })).toBeVisible();
+    // The check mark is aria-hidden, so the accessible name is just "Protected".
+    await expect(artistCard().getByRole('button', { name: /^Protected$/ })).toBeVisible();
     await expect(artistCard().getByRole('button', { name: 'Confirm pickup handoff' })).toHaveCount(0);
 
     // The buyer sees the same order state, and the confirm affordance is gone.

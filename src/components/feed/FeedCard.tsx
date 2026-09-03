@@ -67,6 +67,10 @@ export function FeedCard({ listing, revealDelayMs = 0, natural = false }: FeedCa
             {user && (
               <button
                 onClick={handleSave}
+                // Until the shared saved-ids set has loaded every heart reads
+                // "Save", and a click on an already-saved piece posts a duplicate
+                // (409). Hold the click until the state is known.
+                disabled={!!user && savedIds === undefined}
                 className={`transition-colors duration-150 ${isSaved ? 'text-terra' : 'text-muted/60 hover:text-terra'}`}
                 aria-label={isSaved ? 'Unsave' : 'Save'}
               >

@@ -58,6 +58,7 @@ export function ArtistBrowseCard({ artist }: ArtistBrowseCardProps) {
             className="mt-3 w-full"
             onClick={handleFollow}
             loading={toggleFollow.isPending}
+            disabled={!!user && followedIds === undefined}
           >
             {isFollowing ? 'Following' : 'Follow'}
           </Button>

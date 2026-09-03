@@ -51,7 +51,9 @@ export function useToggleSave() {
     // once, and roll back if the write is refused.
     onMutate: async ({ profileId, listingId, isSaved }) => {
       await queryClient.cancelQueries({ queryKey: ['saved-ids', profileId] });
-      const previous = queryClient.getQueryData<string[]>(['saved-ids', profileId]);
+      // Baseline to [] when the set has not loaded yet, so a refused write
+      // still rolls back instead of leaving the optimistic flip in place.
+      const previous = queryClient.getQueryData<string[]>(['saved-ids', profileId]) ?? [];
       queryClient.setQueryData<string[]>(['saved-ids', profileId], (old = []) =>
         isSaved ? old.filter((id) => id !== listingId) : [...old, listingId]
       );
@@ -59,7 +61,7 @@ export function useToggleSave() {
     },
     // Call sites fire-and-forget with .mutate() — surface failures here.
     onError: (err, { profileId }, context) => {
-      if (context?.previous) queryClient.setQueryData(['saved-ids', profileId], context.previous);
+      queryClient.setQueryData(['saved-ids', profileId], context?.previous ?? []);
       surface(err);
     },
     // Only the two keys this write can change: the id set and the /saved list.
