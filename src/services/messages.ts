@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { announceAcceptanceRequired } from '@/services/acceptance';
 import { Message } from '@/types/message';
 
 interface MessageParams {
@@ -34,12 +35,15 @@ export async function getMessages(conversationId: string, params: MessageParams 
 }
 
 /** A 403 from the send endpoint: the write was REFUSED by policy (blocked
- *  sender / non-participant) — expected behavior, worth a toast but never a
- *  Sentry event. */
+ *  sender / non-participant / a stale acceptance) — expected behavior, worth
+ *  a toast but never a Sentry event. `code` carries the machine-readable
+ *  reason where the route sends one. */
 export class MessageRefusedError extends Error {
-  constructor(message: string) {
+  code?: string;
+  constructor(message: string, code?: string) {
     super(message);
     this.name = 'MessageRefusedError';
+    this.code = code;
   }
 }
 
@@ -71,7 +75,12 @@ export async function sendMessage(data: {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const msg = typeof body.error === 'string' ? body.error : 'Failed to send message';
-    if (res.status === 403) throw new MessageRefusedError(msg);
+    if (res.status === 403) {
+      // An acceptance refusal is actionable, and the person cannot act on it
+      // unless something tells them: bring the interstitial back.
+      if (body.code === 'acceptance_required') announceAcceptanceRequired();
+      throw new MessageRefusedError(msg, body.code);
+    }
     throw new Error(msg);
   }
   return res.json();

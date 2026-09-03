@@ -61,3 +61,18 @@ export async function recordArtistAgreementAcceptance(): Promise<void> {
     }
   }
 }
+
+/** Fired when a gated write is refused for a stale acceptance.
+ *
+ *  The 403 carries a real explanation, but the person cannot act on it unless
+ *  something puts the dialog back in front of them — and they may well have
+ *  dismissed it, which is exactly why they hit the wall. A tester found this
+ *  on production the honest way: buyer-to-artist messages sent, artist-to-buyer
+ *  came back "Your message didn't send — please try again", which was true and
+ *  useless. */
+export const ACCEPTANCE_REQUIRED_EVENT = 'cc:acceptance-required';
+
+export function announceAcceptanceRequired(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(ACCEPTANCE_REQUIRED_EVENT));
+}

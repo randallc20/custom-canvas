@@ -67,13 +67,22 @@ export function useSendMessage() {
     // The composer clears optimistically — without this, a refused send
     // (blocked user, bad payload) just vanishes with zero feedback.
     onError: (err) => {
-      // A policy refusal (blocked sender) is the app working as designed —
-      // toast it, but don't page Sentry (the nightly's block test would fire
-      // an issue every night).
+      // A policy refusal (blocked sender, a stale acceptance) is the app
+      // working as designed — toast it, but don't page Sentry (the nightly's
+      // block test would fire an issue every night).
       if (!(err instanceof MessageRefusedError)) {
         captureException(err, { where: 'useSendMessage' });
       }
-      toast('Your message didn’t send — please try again.', 'error');
+      // Say what the SERVER said. The generic line was true and useless: a
+      // tester on production was told to "try again" by an acceptance gate
+      // that would refuse them for ever until they accepted the new terms,
+      // and nothing on screen said so.
+      toast(
+        err instanceof MessageRefusedError
+          ? err.message
+          : 'Your message didn’t send — please try again.',
+        'error',
+      );
     },
   });
 }

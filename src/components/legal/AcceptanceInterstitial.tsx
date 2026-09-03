@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
-import { acceptOutstanding, fetchAcceptance } from '@/services/acceptance';
+import { ACCEPTANCE_REQUIRED_EVENT, acceptOutstanding, fetchAcceptance } from '@/services/acceptance';
 
 export const ACCEPTANCE_QUERY_KEY = ['acceptance'] as const;
 
@@ -78,6 +78,23 @@ export function AcceptanceInterstitial() {
   useEffect(() => {
     if (asking && !dismissed) setOpen(true);
   }, [asking, dismissed]);
+
+  // A gated write was just refused. Undo any dismissal and come back: the
+  // person has tried to do the thing the acceptance is blocking, which is the
+  // moment they most need to be asked.
+  useEffect(() => {
+    const onRequired = () => {
+      try {
+        sessionStorage.removeItem(DISMISS_KEY);
+      } catch {
+        /* storage unavailable */
+      }
+      setDismissed(false);
+      void queryClient.invalidateQueries({ queryKey: ACCEPTANCE_QUERY_KEY });
+    };
+    window.addEventListener(ACCEPTANCE_REQUIRED_EVENT, onRequired);
+    return () => window.removeEventListener(ACCEPTANCE_REQUIRED_EVENT, onRequired);
+  }, [queryClient]);
 
   const accept = useMutation({
     mutationFn: acceptOutstanding,

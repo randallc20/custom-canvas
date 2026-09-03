@@ -86,8 +86,40 @@ test.describe('acceptance interstitial (L2, D11)', () => {
     expect(refused.status).toBe(403);
     expect(refused.body?.code).toBe('acceptance_required');
 
+    // --- 4b. THE REGRESSION A TESTER FOUND ON PRODUCTION ----------------
+    //
+    // Buyer-to-artist messages sent; artist-to-buyer came back "Your message
+    // didn't send — please try again". True and useless: the acceptance gate
+    // was refusing them and would have done so for ever, and nothing on
+    // screen said why or what to do. The 403 carries a real explanation and
+    // `code: 'acceptance_required'`; the send hook was throwing both away.
+    //
+    // Walked through the real UI, because that is where it was invisible.
+    const listing = page.locator('#feed a[href^="/listing/"]').first();
+    await page.goto('/');
+    await listing.waitFor({ state: 'visible', timeout: 20_000 });
+    await listing.click();
+
+    const msgBtn = page.getByRole('button', { name: 'Message Artist' });
+    await msgBtn.waitFor({ state: 'visible', timeout: 20_000 });
+    await msgBtn.click();
+    await page.waitForURL(/\/messages\/[^/?]+/, { timeout: 20_000 });
+
+    const composer = page.locator('textarea[placeholder="Type a message..."]');
+    await composer.waitFor({ state: 'visible', timeout: 20_000 });
+    await composer.fill('Testing the acceptance gate.');
+    await page.locator('div.flex.items-end.gap-2 button.bg-terra').click();
+
+    // The toast must say what the SERVER said, not "please try again".
+    const toast = page.locator('[class*="fixed"][class*="bottom-4"], [role="status"]');
+    await expect(toast.getByText(/terms/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/please try again/i)).toHaveCount(0);
+
+    // …and the dialog comes back on its own, even though it was dismissed in
+    // step 3 — trying to do the blocked thing is the moment to ask.
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+
     // --- 5. accepting clears it, and it stays cleared --------------------
-    await page.getByRole('button', { name: /review now/i }).click();
     await expect(dialog).toBeVisible();
     await box.check();
     await expect(accept).toBeEnabled();
@@ -95,6 +127,16 @@ test.describe('acceptance interstitial (L2, D11)', () => {
 
     await expect(dialog).toBeHidden({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /review now/i })).toHaveCount(0);
+
+    // …and the thing they were blocked from now works. This is the half that
+    // proves the fix rather than the diagnosis: the tester could see the
+    // reason, act on it, and carry on.
+    await page.goBack();
+    const composer2 = page.locator('textarea[placeholder="Type a message..."]');
+    await composer2.waitFor({ state: 'visible', timeout: 20_000 });
+    await composer2.fill('Sent after accepting the terms.');
+    await page.locator('div.flex.items-end.gap-2 button.bg-terra').click();
+    await expect(page.getByText('Sent after accepting the terms.')).toBeVisible({ timeout: 20_000 });
 
     // The record is on the row, not in the tab.
     await page.reload();
