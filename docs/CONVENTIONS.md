@@ -48,8 +48,18 @@ tables. A deliberate schema change updates the expectations in the same PR.
 
 - Never run `pnpm` here (npm lockfile; a stray `pnpm-lock.yaml` flips Vercel's
   package manager and skips sharp's build script). Use `./node_modules/.bin/*`.
+- **Two Vercel projects, and only one of them is git-linked.**
+  `custom-canvas` serves `custom-canvas-chi.vercel.app` — that is STAGING, and
+  it IS linked to `master`, so every push deploys it. `custom-canvas-prod`
+  serves `customcanvas.shop` — that is PROD, it is NOT git-linked, and
+  `.vercel/project.json` in this repo points at it. So a push updates staging
+  and nothing else; prod moves only when someone runs the deploy command.
+  Getting this backwards is not academic: on 2026-09-03 the arc's code went to
+  prod while its migrations were still DEV-only and the live feed started
+  answering `column listings.is_mature does not exist`. Deploy prod LAST, after
+  the migrations are on prod and `./scripts/db-smoke.sh --prod` is green.
 - Prod deploys are manual and pinned: `npx -y vercel@59.5.0 deploy --prod
-  --yes` — prod is NOT git-linked. 2026-09-02: the `VERCEL_TOKEN` in
+  --yes`. 2026-09-02: the `VERCEL_TOKEN` in
   `.env.local` degraded to a "limited" token (valid for /v2/user, 403 on the
   project scope — deploys fail with "Could not retrieve Project Settings").
   The CLI is now logged in on this machine instead (`vercel login` device
