@@ -26,6 +26,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { reason } = await request.json().catch(() => ({}));
+  // Stripe caps a metadata value at 500 characters and rejects the whole
+  // refund over it — which the catch below reported as "safe to retry",
+  // into the same rejection. Truncate here (01-r2 appendix).
+  const adminReason = typeof reason === 'string' ? reason.trim().slice(0, 500) : '';
 
   const admin = createAdminSupabaseClient();
   const { data: order } = await admin
@@ -64,7 +68,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           payment_intent: order.stripe_payment_intent_id,
           amount: refundAmount,
           reverse_transfer: false,
-          metadata: { policy_refund: 'true', order_id: order.id, ...(reason ? { admin_reason: reason } : {}) },
+          metadata: { policy_refund: 'true', order_id: order.id, ...(adminReason ? { admin_reason: adminReason } : {}) },
         },
         { idempotencyKey: `refund_${order.id}` }
       );
