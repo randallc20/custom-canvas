@@ -146,6 +146,55 @@ hand if the artist still has it.
 - **Chargeback/dispute** (Stripe Dashboard → Payments → Disputes): gather the
   order + shipping evidence, submit in Stripe. Platform is merchant of record.
 
+## DMCA notices (`/admin/dmca`)
+
+⚠️ **Before this page is honest, two things must exist and both are Chris's:**
+the designated agent registered in the U.S. Copyright Office DMCA Designated
+Agent Directory (the $6 filing — safe harbour under §512 depends on the
+registration, not on the page), and the dedicated mailbox
+(`dmca@customcanvas.shop` on the domain's real mail host; Resend sends but does
+not receive). Until counsel's filled agent details land in
+`docs/legal/website legal documents/markdown/dmca-policy.md`, `/dmca` replaces
+the agent block with an interim notice pointing at support@ — that swap keys
+on the placeholders themselves, so the real block publishes the moment the
+text arrives, with no deploy.
+
+**Intake → removal → restoration:**
+
+1. **Log it** on `/admin/dmca` with the claimant's name and email, the listing
+   id, and notes on which of the six required elements are present. The policy
+   says an incomplete notice "may not trigger our obligations" and that we may
+   request clarification — if elements are missing, ask, and mark it
+   **Defective** if it stays that way.
+2. **Remove material** hides the listing and stamps `dmca_removed_at`, which
+   the 00065 guard uses to stop the artist republishing it from Studio. Only
+   the restore path clears it.
+3. **Notify the user.** The policy commits to taking reasonable steps to tell
+   them and to give them a copy or summary of the notice **including the
+   claimant's contact information**. Do this by email; keep it factual.
+   Removal is not a finding of infringement — say so.
+4. **Counter-notice**: mark it received, and **forward it to the original
+   claimant** (the policy tells the user it may be forwarded, so this is
+   expected, not a courtesy).
+5. **Restore** no sooner than **10** and no later than **14 business days**
+   after the counter-notice, UNLESS the designated agent has received notice
+   of a qualifying court action. The route refuses before 10 business days and
+   flags a restore past 14 — if you see that flag, the window was missed and
+   it is worth knowing why. You may also decline restoration where the
+   material independently breaches the Terms of Service, the Listing Standards
+   or the law.
+
+**Repeat infringers.** The page shows a per-user count from
+`dmca_substantiated_count()`, which is the policy's definition in SQL:
+substantiated notices in the trailing 12 months, EXCLUDING withdrawn,
+defective, and restored-after-counter-notice. **Three or more ordinarily means
+termination** — but the policy is explicit that this is guidance and that the
+assessment is on the total circumstances, so the badge is a prompt to decide,
+not a trigger. Immediate termination is available regardless of count for
+deliberate or large-scale infringement (wholesale copying of an artist's
+catalogue), and lesser measures — removing material, restricting listing
+privileges, a warning, a suspension pending review — are all on the table.
+
 ## Retention (`/api/cron/retention`, Sundays 11:00 UTC)
 
 Privacy §6 states retention periods; this keeps them (L10). A retention

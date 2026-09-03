@@ -48,6 +48,9 @@ const NAV_LINKS = [
   { href: '/admin/disputes', label: 'Disputes', desc: 'Resolve reports' },
   { href: '/admin/commissions', label: 'Commissions', desc: 'Resolve disputed commissions' },
   { href: '/admin/verifications', label: 'Verifications', desc: 'Local Verified queue' },
+  // L11: the DMCA policy commits to a process with dates in it; it cannot be
+  // run out of an inbox.
+  { href: '/admin/dmca', label: 'DMCA', desc: 'Copyright notices' },
   { href: '/admin/applications', label: 'Applications', desc: 'Approve new artists' },
   { href: '/admin/services', label: 'Services', desc: 'Curate artist services' },
 ];

@@ -51,12 +51,13 @@ INSERT INTO expected_functions VALUES
   ('is_privileged'), ('blocked_by'), ('sender_is_blocked'),
   ('link_education_partners'), ('refresh_completeness_score'),
   ('neighborhood_listing_counts'), ('my_unread_counts'), ('artist_sales_totals'),
-  ('follower_count'), ('current_terms_version'),
+  ('follower_count'), ('current_terms_version'), ('dmca_substantiated_count'),
   -- trigger functions (exercised via their tables' writes)
   ('artist_search_update'), ('enforce_featured_cap'), ('enforce_partner_picks_cap'),
   ('guard_artist_profiles_insert'), ('guard_artist_profiles_update'),
   ('guard_commissions_insert'), ('guard_conversations_update'),
   ('guard_gallery_profile_update'), ('guard_listing_alert_stamps'),
+  ('guard_listings_update'),
   ('guard_message_attachments_insert'), ('guard_message_attachments_update'),
   ('guard_messages_insert'), ('guard_messages_update'),
   ('guard_orders_update'), ('guard_profiles_update'), ('handle_new_user'),
@@ -118,6 +119,7 @@ INSERT INTO expected_policies VALUES
   ('conversations','a','Authenticated users can create conversations'),
   ('conversations','r','Participants can see own conversations'),
   ('conversations','w','Participants can update conversations'),
+  ('dmca_notices','*','Admins manage DMCA notices'),
   ('featured_listings','a','Admins add featured listings'),
   ('featured_listings','d','Admins remove featured listings'),
   ('featured_listings','r','Featured shelf is public'),
@@ -1380,6 +1382,88 @@ BEGIN
   IF p.terms_of_sale_version IS NOT NULL OR p.terms_of_sale_accepted_at IS NOT NULL THEN
     RAISE EXCEPTION 'signup acceptance: the Terms of Sale must NOT be stamped at signup (accepted at checkout)';
   END IF;
+END $$;
+ROLLBACK;
+
+-- ---------------------------------------------------------------------------
+-- 13. DMCA (00065, L11). A removal must stick: `hidden` is a status an artist
+--     sets and clears themselves, so without the stamp and its guard a
+--     removed listing could be republished from Studio the same afternoon —
+--     which would put the safe harbour at risk over a single click. Also
+--     pins the repeat-infringer count against the policy's exclusions, and
+--     that neither browser role can read the notice file.
+-- ---------------------------------------------------------------------------
+BEGIN;
+DO $$
+DECLARE
+  l uuid;
+  artist_user uuid;
+  subject uuid;
+  denied boolean;
+  leaked text;
+  n int;
+BEGIN
+  -- No client access to the notice file at all: it carries a claimant's
+  -- contact details and an accusation against a user.
+  SELECT string_agg(privilege_type || ' -> ' || grantee, ', ') INTO leaked
+    FROM information_schema.table_privileges
+   WHERE table_schema = 'public' AND table_name = 'dmca_notices'
+     AND grantee IN ('anon', 'authenticated');
+  IF leaked IS NOT NULL THEN
+    RAISE EXCEPTION 'dmca_notices is client-accessible: %', leaked;
+  END IF;
+
+  SELECT li.id, ap.profile_id INTO l, artist_user
+    FROM listings li JOIN artist_profiles ap ON ap.id = li.artist_id LIMIT 1;
+  IF l IS NULL THEN
+    RAISE EXCEPTION 'dmca: no listing to build the fixture from';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  UPDATE listings SET status = 'hidden', dmca_removed_at = now() WHERE id = l;
+
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', artist_user, 'role', 'authenticated')::text, true);
+  denied := false;
+  BEGIN
+    UPDATE listings SET status = 'available' WHERE id = l;
+  EXCEPTION WHEN raise_exception THEN denied := true;
+  END;
+  IF NOT denied THEN
+    RAISE EXCEPTION 'dmca: the artist republished a listing removed on a copyright notice';
+  END IF;
+
+  -- And the stamp is not theirs to clear.
+  UPDATE listings SET dmca_removed_at = NULL WHERE id = l;
+  IF (SELECT dmca_removed_at FROM listings WHERE id = l) IS NULL THEN
+    RAISE EXCEPTION 'dmca: the artist cleared dmca_removed_at';
+  END IF;
+
+  -- The repeat-infringer count, against the policy's own exclusions:
+  -- withdrawn, defective and restored-after-counter-notice do NOT count.
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  SELECT id INTO subject FROM profiles WHERE role <> 'admin' LIMIT 1;
+  INSERT INTO dmca_notices (subject_profile_id, claimant_name, claimant_email, status)
+    VALUES (subject, 'Smoke Claimant', 'smoke@example.com', 'received'),
+           (subject, 'Smoke Claimant', 'smoke@example.com', 'material_removed'),
+           (subject, 'Smoke Claimant', 'smoke@example.com', 'counter_received'),
+           (subject, 'Smoke Claimant', 'smoke@example.com', 'withdrawn'),
+           (subject, 'Smoke Claimant', 'smoke@example.com', 'defective'),
+           (subject, 'Smoke Claimant', 'smoke@example.com', 'restored');
+  SELECT dmca_substantiated_count(subject) INTO n;
+  IF n <> 3 THEN
+    RAISE EXCEPTION 'dmca: substantiated count is %, expected 3 (withdrawn/defective/restored must not count)', n;
+  END IF;
+
+  -- A notice older than twelve months drops out of the window.
+  INSERT INTO dmca_notices (subject_profile_id, claimant_name, claimant_email, status, received_at)
+    VALUES (subject, 'Smoke Claimant', 'smoke@example.com', 'received', now() - interval '13 months');
+  SELECT dmca_substantiated_count(subject) INTO n;
+  IF n <> 3 THEN
+    RAISE EXCEPTION 'dmca: a notice older than 12 months was counted (got %)', n;
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
 END $$;
 ROLLBACK;
 
