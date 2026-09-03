@@ -206,14 +206,25 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
     const savedHref = await card.getAttribute('href');
     const pinned = page.locator(`#feed a[href="${savedHref}"]`).first();
     const savedTitle = (await pinned.locator('h3').first().innerText()).trim();
+    // The heart is an OPTIMISTIC update: it flips before the write lands and
+    // rolls back if the write is refused. Asserting the flip and navigating
+    // immediately asserted nothing and cancelled the in-flight insert — the
+    // row never reached the database, and /saved was correctly empty. Wait
+    // for the write itself, then assert the flip.
+    const saved = page.waitForResponse(
+      (r) => r.url().includes('/rest/v1/saved_listings') && r.request().method() === 'POST',
+      { timeout: 15_000 },
+    );
     await pinned.locator('button[aria-label="Save"]').first().click();
-    // Responds instantly: the heart flips to Unsave.
+    const savedRes = await saved;
+    expect(savedRes.status(), 'the save write must be accepted').toBeLessThan(300);
     await expect(pinned.locator('button[aria-label="Unsave"]').first()).toBeVisible({ timeout: 10_000 });
 
     await page.goto('/saved');
     await expect(page.getByText(savedTitle).first()).toBeVisible({ timeout: 15_000 });
 
-    // Unsave from the Saved Art page — the card leaves the list.
+    // Unsave from the Saved Art page — the card leaves the list. Same rule as
+    // the save above: wait for the DELETE, not for the optimistic flip.
     await page
       .locator('a[href^="/listing/"]')
       .filter({ hasText: savedTitle })

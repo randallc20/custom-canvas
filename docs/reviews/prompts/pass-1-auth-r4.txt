@@ -1,0 +1,139 @@
+You are reviewing the Custom Canvas codebase — a Houston art marketplace: Next.js 14 App Router, Supabase (Postgres + RLS + storage + auth), Stripe Connect, React Query, Tailwind. ~327 TS/TSX files, ~24k LOC in src/, 48 SQL migrations, Playwright e2e. It is live on production but payments are still gated off pending Stripe activation.
+
+Your job this session is one pass: Accounts, auth & access control. Read only the scope below, and produce a written report. Nothing else.
+
+## Scope — the legal-alignment arc's acceptance, versioning and DMCA work
+
+This is the third auth pass. `docs/reviews/01-auth-access-r4.md` and
+`01-auth-access-r2.md` are the earlier ones and everything serious in them is
+fixed — do NOT re-report those. Your scope is what the legal-alignment arc
+added on 2026-09-03.
+
+Read all of these:
+
+- `src/lib/acceptance.ts` and `src/app/api/account/acceptance/route.ts` — the
+  acceptance record and the 403 gate. Versions are supposed to be stamped
+  server-side from constants and never from anything the client sends; the
+  POST takes an optional `documents` array that is supposed to only ever
+  NARROW what is stamped.
+- `src/components/legal/AcceptanceInterstitial.tsx` and
+  `src/services/acceptance.ts` — the visible half.
+- Every route that gained `acceptanceGateFor` (13 of them: checkout, listings
+  POST and PATCH, messages, reviews, commissions POST and the seven
+  commission actions). Is the gate before or after the work? Is anything
+  gated that should not be, or ungated that should be?
+- `supabase/migrations/00058_terms_acceptance.sql` and
+  `00063_stamp_terms_at_signup.sql` — the acceptance columns, their freeze in
+  `guard_profiles_update`, and `handle_new_user` now stamping the Terms of
+  Service at signup.
+- `src/app/api/admin/dmca/route.ts`, `src/app/admin/dmca/page.tsx`,
+  `supabase/migrations/00065_dmca_notices.sql` — admin-only RLS, the
+  `dmca_removed_at` guard that stops an artist republishing removed material,
+  and `dmca_substantiated_count()`.
+- `supabase/migrations/00064_order_returns.sql` — the return record's RLS:
+  buyer and that order's artist may read, nobody writes from a client. It
+  carries a postal address.
+- `src/app/api/orders/[id]/return-shipped/route.ts`,
+  `.../cancel-unshipped/route.ts`, `.../propose-ship-by/route.ts`,
+  `.../accept-ship-by/route.ts`, `.../concede-dispute/route.ts`,
+  `src/app/api/admin/orders/[id]/signature-confirmed/route.ts`,
+  `.../return/route.ts` — seven new routes. Ownership, role, and CAS on each.
+- `src/lib/maturePreference.ts`, `src/context/MatureContext.tsx` and the feed
+  filtering — ruling D8. This is a content filter, not access control; say so
+  if you find people treating it as the latter.
+- `scripts/db-smoke.sql` sections 10–14.
+
+Answer these:
+
+- **Can an account forge its own acceptance?** Trace every writer of
+  `profiles.terms_*` and `artist_profiles.agreement_*`. Consider the
+  `documents` array, the signup trigger, and a direct PostgREST call.
+- **The gate.** Does a stale acceptance actually stop a purchase, a listing, a
+  message, a review and a commission action? Find a gated action that is
+  reachable another way.
+- **IDOR on the seven new routes.** For each: what if this order id belongs to
+  someone else? Name the check.
+- **The return address.** Who can read `order_returns`? Prove the RLS policy
+  does what it claims, including through an embedded join from another table.
+- **The DMCA removal.** Can the artist get the listing back — by status, by
+  clearing the stamp, by editing the row another way, by deleting and
+  recreating? Can a non-admin read the notice file?
+- **Fail-open vs fail-closed.** `GET /api/account/acceptance` fails OPEN by
+  design and `acceptanceGate` fails CLOSED. Confirm that is actually what the
+  code does, and that the open one cannot be used to bypass the closed one.
+
+## What the previous pass found, and what changed
+
+The r5 money pass and the r3 auth pass have been actioned in full: their P0
+and every P1 is fixed and pushed. Read `docs/reviews/04-money-r5.md` and
+`docs/reviews/01-auth-access-r3.md` first so you do not re-report them, then
+read `git show 9bfe0ff` for the fixes, and go after what those fixes
+introduced or missed. Migrations 00066 and 00067 are new. The open P2s and P3s
+in those two reports are known and NOT the point of this pass — mention one
+only if the fix made it worse.
+
+## Ground rules
+
+**Report only.** The one file you may write is `docs/reviews/01-auth-access-r4.md`. Do not fix anything, do not refactor, do not run a codemod. If a fix is one obvious line, describe it in the finding — do not apply it.
+
+**Read before you claim.** A finding is real only if you have read the code that would break *and its callers*. "This doesn't validate X" is not a finding when the caller validates X. Reading a file's imports is not reading the file.
+
+**Try to disprove each finding before you write it.** For every candidate, make one honest attempt at arguing it is NOT a bug — a guard elsewhere, an RLS policy, a type that makes the input impossible, a caller that already handles it. Drop the ones you cannot defend after that attempt. Six findings that are all real beat thirty where I have to work out which six.
+
+**Every finding needs a concrete failure path.** Not "this could be a problem." Say who does what and what goes wrong: "an artist opens another artist's listing edit URL; the fetch filters on id but not owner, so the page renders their listing; the save then returns zero rows at RLS and the UI shows a success toast." If you cannot write that sentence, it is not a finding — it is a nit, and nits go in the appendix.
+
+**Uncertainty is fine; faking certainty is not.** If you suspect something but cannot confirm it without running the app or seeing production data, mark it UNVERIFIED and say exactly what would settle it.
+
+## Already settled — do not raise these
+
+Decisions, not oversights. Flagging them wastes the pass:
+
+- Destination charges with the platform as merchant of record. Not direct charges.
+- Stripe Express connected accounts, Stripe-hosted onboarding. Not embedded components.
+- The buyer covers Stripe's processing fee as a "Service fee" line. Platform commission is 15% of the artwork price only, never shipping. The artist is paid price − commission + shipping.
+- Payments are deliberately gated behind NEXT_PUBLIC_PAYMENTS_ENABLED until live activation. That flag being false is not a bug.
+- npm, never pnpm (a stray pnpm-lock.yaml flips Vercel's package manager). Prod deploys are manual and pinned.
+- Next.js 14 App Router + Supabase + React Query + Tailwind. Do not propose migrating the framework, the data layer, the state library, or the CSS approach.
+- `docs/CONVENTIONS.md` is the house standard, earned from a real defect sweep. Code that follows it is correct by definition. Code that VIOLATES it is a finding worth raising — check for that specifically.
+
+Also out of scope: formatting and naming taste, "add a comment here", dependency bumps, test-file style, and anything you would phrase as "consider extracting".
+
+## Context to read first
+
+`docs/CONVENTIONS.md`, `README.md`, `DECISIONS.md`. Then know this history: a full-platform adversarial review ran 2026-08-25 and all 15 of its defects are fixed; a six-phase hardening arc shipped after it; two rounds of live tester feedback are closed; a real staging purchase plus dispute and payout reversal were verified end to end. Assume the obvious surface bugs are gone. Look where those passes did not.
+
+## Severity
+
+- **P0** — loses money, exposes another user's data, or corrupts state. Launch-blocking.
+- **P1** — a real user hits it in a normal flow and the product is visibly broken.
+- **P2** — breaks under growth or under an unusual-but-real input; fine at today's volume.
+- **P3** — maintainability: the next change in this code is likely to introduce a bug.
+
+Cap the report at 12 findings, ranked, P0 first. More than that and the strongest 12 get full write-ups while the rest get one line each in the appendix. A pass that honestly finds two P0s and nothing else is a good pass. Do not pad to fill the cap.
+
+## Report format
+
+Write `docs/reviews/01-auth-access-r4.md` in this shape:
+
+# Accounts, auth & access control — review <date>
+
+**Files read:** every file you actually opened. If you skipped part of the scope, say which part and why.
+**Verdict:** two sentences on the health of this slice.
+
+Then one section per finding:
+
+### P<n> — <one-line claim>
+**Where:** `path/to/file.ts:120-134`
+**What happens:** the concrete failure path.
+**Why it's real:** what you read that rules out the innocent explanation.
+**Fix direction:** two sentences. Not a patch.
+
+Then close with two sections:
+
+## Appendix: minor
+One line each.
+
+## Not findings
+Things you looked at hard and concluded were fine, one line each. This is how I know what you actually covered.
+
+Start by listing the files in scope and giving me your reading plan. Then read. Then report.
