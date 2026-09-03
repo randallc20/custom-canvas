@@ -20,7 +20,8 @@ import { test, expect, Page } from '@playwright/test';
  *   3.1/3.2/7.1  front door renders (hero, cards, no debris)
  *   3.3          location picker (set, persist, clear)
  *   3.4/7.5      nonsense + forgiving search
- *   3.5          footer walk (About/Terms/Privacy + Partners page)
+ *   3.5          footer walk (About/Terms/Terms of Sale/Shipping/Privacy/DMCA
+ *                + Partners page) and the eight published legal documents (L1)
  *   3.6          about-page fee copy (~3% service fee, no 15%/85-15 split)
  *   3.7          guarded routes bounce to /login with returnUrl
  *   3.8          cookie banner
@@ -306,7 +307,7 @@ test.describe('footer and static pages (3.5, 3.6, 3.10)', () => {
     await page.goto('/');
     await dismissCookies(page);
     const footer = page.locator('footer');
-    for (const name of ['About', 'Partners', 'Terms', 'Privacy']) {
+    for (const name of ['About', 'Partners', 'Terms', 'Terms of Sale', 'Shipping & Returns', 'Privacy', 'DMCA']) {
       await expect(footer.getByRole('link', { name, exact: true })).toBeVisible(LOAD);
     }
 
@@ -325,6 +326,43 @@ test.describe('footer and static pages (3.5, 3.6, 3.10)', () => {
       expect(body, `${path} has placeholder copy`).not.toContain('under construction');
     }
   });
+
+  /** L1: the eight counsel documents are published from the repo markdown.
+   *  Each page must render its own heading, the version line parsed out of
+   *  the document, and enough body text that a blank or half-rendered page
+   *  fails here. The version numbers are the ones acceptance is stamped
+   *  against (L2) — if counsel ships a new version, this fails until the
+   *  constants and this list move together. */
+  const LEGAL_PAGES = [
+    { path: '/terms', heading: 'Terms of Service', version: '2.0' },
+    { path: '/terms-of-sale', heading: 'Terms of Sale', version: '2.0' },
+    { path: '/shipping-returns', heading: 'Shipping, Returns & Refunds', version: '1.0' },
+    { path: '/privacy', heading: 'Privacy Policy', version: '2.0' },
+    { path: '/dmca', heading: 'DMCA & Copyright Policy', version: '1.0' },
+    { path: '/seller-protection', heading: 'Seller Protection Policy', version: '1.0' },
+    { path: '/listing-standards', heading: 'Listing Standards', version: '1.0' },
+    { path: '/artist-agreement', heading: 'Artist Agreement', version: '2.0' },
+  ];
+
+  for (const { path, heading, version } of LEGAL_PAGES) {
+    test(`${path} publishes ${heading} v${version} from source`, async ({ page }) => {
+      const res = await page.goto(path);
+      expect(res?.ok(), `${path} should respond 200`).toBeTruthy();
+      await dismissCookies(page);
+
+      await expect(page.getByRole('heading', { name: heading, level: 1, exact: true })).toBeVisible(LOAD);
+      await expect(page.getByText(`Version ${version} · Effective September 3, 2026`)).toBeVisible(LOAD);
+
+      const body = await page.locator('body').innerText();
+      // A page that failed to read its markdown still renders the header.
+      expect(body.length, `${path} rendered no document body`).toBeGreaterThan(2000);
+      expect(body, `${path} still shows a counsel placeholder`).not.toMatch(
+        /\[(NAME OR POSITION|TELEPHONE NUMBER|DEDICATED DMCA EMAIL)\]/,
+      );
+      // Every document links to the rest of the set (ToS 16.1, ToSale 9).
+      await expect(page.getByRole('navigation', { name: 'Other policies' })).toBeVisible(LOAD);
+    });
+  }
 
   test('/galleries redirects to the Partners page', async ({ page }) => {
     await page.goto('/galleries');
