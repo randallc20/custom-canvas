@@ -467,9 +467,11 @@ END $$;
 ROLLBACK;
 
 -- ---------------------------------------------------------------------------
--- 6. Order transition matrix (00050). guard_orders_update must check the
---    TRANSITION, not the target state: an artist may only move paid -> shipped,
---    and every platform-owned stamp is frozen for them. The artist is
+-- 6. Order transition matrix (00050, 00057). guard_orders_update must check
+--    the TRANSITION, not the target state: an artist may only move paid ->
+--    shipped, every platform-owned stamp is frozen for them, and the
+--    evidence columns (shipping_address always; tracking/carrier once
+--    delivered/disputed/refunded) cannot be rewritten after the fact. The artist is
 --    simulated by setting request.jwt.claims — that is all auth.uid() reads,
 --    so is_privileged() is false and the guard's non-privileged branch runs.
 --    The privileged path (service role: no claims) is exercised too, because
@@ -485,6 +487,7 @@ DECLARE
   o uuid;
   denied boolean;
   first_shipped timestamptz;
+  first_delivered timestamptz;
   row_after orders%ROWTYPE;
 BEGIN
   SELECT ap.id, ap.profile_id INTO artist_row
@@ -499,8 +502,9 @@ BEGIN
   END IF;
 
   INSERT INTO orders (buyer_id, artist_id, amount_cents, platform_fee_cents, artist_payout_cents,
-                      buyer_fee_cents, shipping_cents, status, stripe_payment_intent_id)
-  VALUES (buyer, artist_row.id, 10000, 1500, 8500, 330, 0, 'paid', 'pi_smoke_' || gen_random_uuid())
+                      buyer_fee_cents, shipping_cents, status, stripe_payment_intent_id, shipping_address)
+  VALUES (buyer, artist_row.id, 10000, 1500, 8500, 330, 0, 'paid', 'pi_smoke_' || gen_random_uuid(),
+          '{"street":"1 Smoke St","city":"Houston","state":"TX","zip":"77002","country":"US"}'::jsonb)
   RETURNING id INTO o;
 
   -- Become the artist (non-privileged).
@@ -517,14 +521,35 @@ BEGIN
     RAISE EXCEPTION 'transition matrix: paid -> shipped should be allowed and stamp shipped_at';
   END IF;
   first_shipped := row_after.shipped_at;
+  IF row_after.tracking_number IS DISTINCT FROM 'SMOKE' OR row_after.carrier IS DISTINCT FROM 'usps' THEN
+    RAISE EXCEPTION 'transition matrix: tracking/carrier must be accepted on paid -> shipped (the Ship Order modal)';
+  END IF;
+
+  -- A typo fix on a SHIPPED order is still the artist's to make (00057
+  -- freezes tracking/carrier only from delivered/disputed/refunded).
+  UPDATE orders SET tracking_number = 'SMOKE-FIXED', carrier = 'ups' WHERE id = o;
+  SELECT * INTO row_after FROM orders WHERE id = o;
+  IF row_after.tracking_number IS DISTINCT FROM 'SMOKE-FIXED' OR row_after.carrier IS DISTINCT FROM 'ups' THEN
+    RAISE EXCEPTION 'transition matrix: tracking/carrier must stay editable on a shipped order';
+  END IF;
 
   -- Frozen stamps: the write is silently discarded, never applied.
   UPDATE orders SET delivered_at = now(), pre_dispute_status = 'paid', shipped_email_sent_at = now(),
-                    shipped_at = now() - interval '30 days'
+                    shipped_at = now() - interval '30 days',
+                    dispute_status = 'needs_response',
+                    shipping_address = '{"street":"666 Forged Ave","city":"Nowhere","state":"TX","zip":"00000","country":"US"}'::jsonb
     WHERE id = o;
   SELECT * INTO row_after FROM orders WHERE id = o;
   IF row_after.delivered_at IS NOT NULL THEN
     RAISE EXCEPTION 'transition matrix: delivered_at must be frozen for the artist';
+  END IF;
+  -- 00057: the ship-to address is Stripe's and the platform's, never the
+  -- artist's; dispute_status is the webhook's record of what dispute_id means.
+  IF row_after.shipping_address->>'street' IS DISTINCT FROM '1 Smoke St' THEN
+    RAISE EXCEPTION 'transition matrix: shipping_address must be frozen for the artist (00057)';
+  END IF;
+  IF row_after.dispute_status IS NOT NULL THEN
+    RAISE EXCEPTION 'transition matrix: dispute_status must be frozen for the artist (00057)';
   END IF;
   IF row_after.pre_dispute_status IS NOT NULL THEN
     RAISE EXCEPTION 'transition matrix: pre_dispute_status must be frozen for the artist';
@@ -562,6 +587,14 @@ BEGIN
     RAISE EXCEPTION 'transition matrix: disputed -> shipped was ALLOWED for the artist';
   END IF;
 
+  -- Evidence freeze (00057): once disputed, tracking and carrier are what
+  -- the platform submits to the bank — the artist's write is discarded.
+  UPDATE orders SET tracking_number = 'FORGED', carrier = 'fedex' WHERE id = o;
+  SELECT * INTO row_after FROM orders WHERE id = o;
+  IF row_after.tracking_number IS DISTINCT FROM 'SMOKE-FIXED' OR row_after.carrier IS DISTINCT FROM 'ups' THEN
+    RAISE EXCEPTION 'transition matrix: tracking/carrier must be frozen on a disputed order (00057)';
+  END IF;
+
   -- Privileged: settle as refunded.
   PERFORM set_config('request.jwt.claims', '', true);
   UPDATE orders SET status = 'refunded', pre_dispute_status = NULL WHERE id = o;
@@ -576,6 +609,11 @@ BEGIN
   END;
   IF NOT denied THEN
     RAISE EXCEPTION 'transition matrix: refunded -> delivered was ALLOWED for the artist';
+  END IF;
+  UPDATE orders SET tracking_number = 'FORGED', carrier = 'fedex' WHERE id = o;
+  SELECT * INTO row_after FROM orders WHERE id = o;
+  IF row_after.tracking_number IS DISTINCT FROM 'SMOKE-FIXED' OR row_after.carrier IS DISTINCT FROM 'ups' THEN
+    RAISE EXCEPTION 'transition matrix: tracking/carrier must be frozen on a refunded order (00057)';
   END IF;
 
   -- Privileged restore to paid (a won dispute), then the artist ships again:
@@ -597,6 +635,34 @@ BEGIN
   SELECT * INTO row_after FROM orders WHERE id = o;
   IF row_after.status <> 'delivered' OR row_after.delivered_at IS NULL THEN
     RAISE EXCEPTION 'transition matrix: privileged shipped -> delivered must stamp delivered_at';
+  END IF;
+  first_delivered := row_after.delivered_at;
+
+  -- Delivered: tracking/carrier are evidence now, frozen for the artist (00057).
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', artist_row.profile_id, 'role', 'authenticated')::text, true);
+  UPDATE orders SET tracking_number = 'FORGED', carrier = 'fedex' WHERE id = o;
+  SELECT * INTO row_after FROM orders WHERE id = o;
+  IF row_after.tracking_number IS DISTINCT FROM 'SMOKE-FIXED' OR row_after.carrier IS DISTINCT FROM 'ups' THEN
+    RAISE EXCEPTION 'transition matrix: tracking/carrier must be frozen on a delivered order (00057)';
+  END IF;
+
+  -- A chargeback on the delivered order, later won: the privileged restore
+  -- (disputed -> delivered) must keep the ORIGINAL delivered_at (00057 null
+  -- guard on the 00022 trigger) — that date is requirement-3 evidence.
+  PERFORM set_config('request.jwt.claims', '', true);
+  UPDATE orders SET status = 'disputed', pre_dispute_status = 'delivered', dispute_id = 'dp_smoke_2',
+                    dispute_status = 'needs_response'
+    WHERE id = o;
+  UPDATE orders SET delivered_at = first_delivered - interval '60 days' WHERE id = o; -- age the stamp so a re-stamp is visible
+  first_delivered := first_delivered - interval '60 days';
+  UPDATE orders SET status = 'delivered', pre_dispute_status = NULL, dispute_outcome = 'won',
+                    dispute_status = 'won'
+    WHERE id = o AND status = 'disputed';
+  SELECT * INTO row_after FROM orders WHERE id = o;
+  IF row_after.status <> 'delivered' OR row_after.delivered_at IS DISTINCT FROM first_delivered THEN
+    RAISE EXCEPTION 'transition matrix: a won restore to delivered must keep the original delivered_at (00057): % vs %',
+      row_after.delivered_at, first_delivered;
   END IF;
 END $$;
 ROLLBACK;

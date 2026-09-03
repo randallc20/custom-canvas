@@ -36,6 +36,9 @@ export interface Order {
   signature_confirmed: boolean;
   protection_status: 'pending' | 'protected' | 'ineligible' | 'waived';
   dispute_id: string | null;
+  /** The last Stripe dispute status the webhook recorded for dispute_id
+   *  (00057): what "we have this id" means. Null on rows recorded before. */
+  dispute_status: string | null;
   dispute_outcome: 'won' | 'lost' | 'accepted' | null;
   /** Status the order held when a chargeback froze it (00050); the closed
    *  handler restores to it. Null outside an open dispute. */
