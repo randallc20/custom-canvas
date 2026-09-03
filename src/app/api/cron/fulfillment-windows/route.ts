@@ -212,7 +212,13 @@ async function artistSpokeSince(
     .select('id')
     .in('conversation_id', ids)
     .eq('sender_id', artist.profile_id)
-    .eq('message_type', 'text')
+    // Anything the artist actually wrote. The composer sends an attachment as
+    // its own row with message_type 'image' or 'file' and no accompanying
+    // text, so filtering to 'text' treated an artist who answered with a
+    // photo of the packed crate as silent — and this cron cancels and refunds
+    // the sale on that basis (r7 money pass, P1). Only `system` is excluded,
+    // because those are ours.
+    .neq('message_type', 'system')
     .gt('created_at', sinceIso)
     .limit(1);
   if (msgError) {

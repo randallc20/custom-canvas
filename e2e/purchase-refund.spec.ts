@@ -137,8 +137,10 @@ test.describe.serial('purchase and refund (Stripe test mode)', () => {
 
     // Part 9.3 — the small print. L1 gave the Terms of Sale their own page;
     // this link pointed at the Terms of Service until then.
-    await expect(page.getByRole('link', { name: /^terms of sale$/i })).toHaveAttribute('href', '/terms-of-sale');
-    await expect(page.getByRole('link', { name: /shipping, returns/i })).toHaveAttribute('href', '/shipping-returns');
+    // Scoped to main: the L1 footer carries the same two links on every page.
+    const notice = page.getByRole('main');
+    await expect(notice.getByRole('link', { name: /^terms of sale$/i })).toHaveAttribute('href', '/terms-of-sale');
+    await expect(notice.getByRole('link', { name: /shipping, returns/i })).toHaveAttribute('href', '/shipping-returns');
     await expect(page.getByText('CUSTOM CANVAS', { exact: true })).toBeVisible();
     // L6's rule, disclosed at the point of sale rather than the old flat
     // "non-refundable service fee".

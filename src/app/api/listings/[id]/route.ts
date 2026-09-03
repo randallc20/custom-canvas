@@ -55,6 +55,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     'year_created', 'price_cents', 'shipping_rate_cents', 'price_visible',
     'ai_involvement', 'ai_disclosure',
     'sold_price_cents', 'show_sold_price', 'series_id', 'status',
+    // Listing Standards Part one and three (00059 / L4). These were added to
+    // the form, the zod schema and the create route but NOT here, so an
+    // artist told to tag a nude ticked "mature", was forced to fill in the
+    // condition notes, pressed Save, was returned to Studio as if it had
+    // worked — and the piece stayed in every default feed, because is_mature
+    // was silently dropped. The same save discarded a change from `original`
+    // to `reproduction`. Found by the r5 auth pass.
+    'edition_type', 'edition_size', 'edition_number', 'is_signed',
+    'condition_notes', 'handling_notes', 'is_mature',
   ] as const;
   const updates: Record<string, unknown> = {};
   for (const key of EDITABLE) if (key in parsed.data) updates[key] = parsed.data[key];

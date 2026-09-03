@@ -5,7 +5,7 @@ import { formatPrice } from '@/utils/formatPrice';
 import * as Sentry from '@sentry/nextjs';
 import { z } from 'zod';
 import { authorizeReturn } from '@/lib/orderReturns';
-import { buyerTookPossession } from '@/utils/fulfillment';
+import { buyerTookPossession, pickupPossessionUnknown } from '@/utils/fulfillment';
 
 const returnAddressSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -48,12 +48,19 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   // certainly present — and never taken from their public profile, which is
   // not an address they agreed to publish by listing a painting.
   const body = await request.json().catch(() => null);
+
   // Only ask for an address when there is something to send back — which is
   // "did the buyer take possession", NOT "did it ship". An unshipped order
   // has nothing to return (r5 P1), but a COLLECTED pickup piece does, and
   // keying on shipped_at alone let the buyer keep the artwork and the money
   // (r6 P0).
-  const needsReturn = buyerTookPossession(order);
+  // For a pickup nobody has confirmed, only the artist knows. Default to
+  // requiring the return and let them say otherwise explicitly — the cost of
+  // being wrong that way is a return they can waive, rather than the buyer
+  // keeping both the piece and the money (r7 money pass, P0).
+  const needsReturn =
+    buyerTookPossession(order) ||
+    (pickupPossessionUnknown(order) && body?.piece_not_collected !== true);
   const address = returnAddressSchema.safeParse(body?.return_address);
   if (needsReturn && !address.success) {
     return NextResponse.json(

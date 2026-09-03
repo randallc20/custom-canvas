@@ -27,10 +27,40 @@ export function buyerTookPossession(order: {
 }): boolean {
   if (order.shipped_at) return true;
   if (!order.is_pickup) return false;
-  // A pickup handoff is two-sided; either the pair of confirmations or the
-  // `delivered` status they produce means the piece has changed hands.
+  // EITHER confirmation, not both.
+  //
+  // Requiring both made possession depend on a voluntary button the refunding
+  // BUYER controls: collect the piece, never tap Confirm, ask for a
+  // change-of-mind refund, and the artist's modal told them "the buyer never
+  // received this piece" over the top of their own confirmation — no return,
+  // refund settled, painting relisted while it hung on the buyer's wall (r7
+  // money pass, P0). The artist's confirmation alone is the studio saying the
+  // work left it, which is the fact that matters here.
   return (
     order.status === 'delivered' ||
-    (!!order.pickup_confirmed_by_buyer_at && !!order.pickup_confirmed_by_artist_at)
+    !!order.pickup_confirmed_by_artist_at ||
+    !!order.pickup_confirmed_by_buyer_at
+  );
+}
+
+/**
+ * A pickup order nobody has confirmed at all: possession is genuinely unknown,
+ * and only the artist can say. The refund modal asks them, defaulting to "yes,
+ * they collected it" — the safe direction, because the cost of being wrong is
+ * a return the artist can waive, not a piece and a refund both gone.
+ */
+export function pickupPossessionUnknown(order: {
+  shipped_at?: string | null;
+  is_pickup?: boolean | null;
+  status?: string;
+  pickup_confirmed_by_buyer_at?: string | null;
+  pickup_confirmed_by_artist_at?: string | null;
+}): boolean {
+  return (
+    !order.shipped_at &&
+    !!order.is_pickup &&
+    order.status !== 'delivered' &&
+    !order.pickup_confirmed_by_artist_at &&
+    !order.pickup_confirmed_by_buyer_at
   );
 }

@@ -10,7 +10,7 @@ import {
   type ReturnAddress,
   type ReturnRecord,
 } from '@/utils/orderReturns';
-import { buyerTookPossession } from '@/utils/fulfillment';
+import { buyerTookPossession, pickupPossessionUnknown } from '@/utils/fulfillment';
 import type { RefundReason } from '@/utils/refundSplit';
 
 type AdminClient = ReturnType<typeof createAdminSupabaseClient>;
@@ -54,7 +54,12 @@ export async function authorizeReturn(
   // Possession is the fact that decides whether the buyer has anything to
   // send back — not the reason, not the caller's optimism, and not shipped_at
   // alone (a collected pickup piece has no shipped_at).
-  const required = opts.required ?? returnRequiredByDefault(opts.reason, buyerTookPossession(order));
+  const required =
+    opts.required ??
+    returnRequiredByDefault(
+      opts.reason,
+      buyerTookPossession(order) || pickupPossessionUnknown(order),
+    );
   const now = new Date();
   // Seven CALENDAR days, per §5.
   const shipBy = new Date(now.getTime() + RETURN_SHIP_BY_DAYS * 86_400_000);

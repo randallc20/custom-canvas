@@ -7,7 +7,7 @@ import {
   type ReturnRecord,
 } from './orderReturns';
 import { REFUND_REASONS } from './refundSplit';
-import { buyerTookPossession } from './fulfillment';
+import { buyerTookPossession, pickupPossessionUnknown } from './fulfillment';
 
 /**
  * L8 — the settle gate. Terms of Sale §5: "the refund may be issued after
@@ -194,15 +194,27 @@ describe('possession, not shipment (r6 P0)', () => {
     expect(returnRequiredByDefault('change_of_mind', true)).toBe(true);
   });
 
-  it('a pickup nobody has collected yet has not', () => {
-    expect(buyerTookPossession({ is_pickup: true, status: 'paid' })).toBe(false);
-    // One-sided confirmation is not a handoff.
+  it('a pickup nobody has confirmed at all is UNKNOWN, not "not collected"', () => {
+    const nobodyConfirmed = { is_pickup: true, status: 'paid' };
+    expect(buyerTookPossession(nobodyConfirmed)).toBe(false);
+    // …but that is not the same as knowing the piece is still in the studio,
+    // and the artist is asked (r7 P0).
+    expect(pickupPossessionUnknown(nobodyConfirmed)).toBe(true);
+  });
+
+  it('EITHER confirmation counts as possession (r7 P0)', () => {
+    // Requiring both put possession behind a voluntary button the refunding
+    // buyer controls: collect the piece, never tap Confirm, and the refund
+    // needed no return.
     expect(
-      buyerTookPossession({
-        is_pickup: true,
-        status: 'paid',
-        pickup_confirmed_by_buyer_at: '2026-09-01T12:00:00Z',
-      }),
+      buyerTookPossession({ is_pickup: true, status: 'paid', pickup_confirmed_by_artist_at: '2026-09-01T12:00:00Z' }),
+    ).toBe(true);
+    expect(
+      buyerTookPossession({ is_pickup: true, status: 'paid', pickup_confirmed_by_buyer_at: '2026-09-01T12:00:00Z' }),
+    ).toBe(true);
+    // And then it is no longer unknown.
+    expect(
+      pickupPossessionUnknown({ is_pickup: true, status: 'paid', pickup_confirmed_by_artist_at: '2026-09-01T12:00:00Z' }),
     ).toBe(false);
   });
 

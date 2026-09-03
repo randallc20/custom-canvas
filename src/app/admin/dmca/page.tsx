@@ -146,7 +146,10 @@ function DmcaContent() {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error?.toString() || 'Failed');
-      toast(body.overdue ? 'Restored — note this was past the 14-business-day window.' : 'Done.', body.overdue ? 'error' : 'success');
+      toast(
+        body.warning ?? (body.overdue ? 'Restored — note this was past the 14-business-day window.' : 'Done.'),
+        body.warning || body.overdue ? 'error' : 'success',
+      );
       await load();
     } catch (e) {
       captureException(e, { where: 'admin.dmca.act' });
@@ -258,6 +261,14 @@ function DmcaContent() {
                       Defective
                     </Button>
                   </>
+                )}
+                {/* Withdrawn or defective after a removal puts the listing
+                    back automatically; the card says so rather than leaving
+                    the admin wondering. */}
+                {['withdrawn', 'defective'].includes(n.status) && n.listing && (
+                  <span className="text-xs text-muted">
+                    Not substantiated — the listing and its images were restored.
+                  </span>
                 )}
                 {n.status === 'counter_received' && (
                   <Button size="sm" variant="outline" loading={busy === n.id} onClick={() => act(n.id, 'restore', 'Restore the material', 'Only if the designated agent has NOT received notice of a qualifying court action. The route refuses before 10 business days and flags a restore past 14.')}>

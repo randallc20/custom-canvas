@@ -72,12 +72,13 @@ function imagePath(url: string): string | null {
 async function quarantineImages(
   admin: ReturnType<typeof createAdminSupabaseClient>,
   listingId: string,
-): Promise<string[]> {
+): Promise<{ moved: string[]; expected: number }> {
   const { data: images } = await admin
     .from('listing_images')
     .select('image_url')
     .eq('listing_id', listingId);
 
+  const expected = (images ?? []).length;
   const moved: string[] = [];
   for (const img of images ?? []) {
     const path = imagePath(img.image_url as string);
@@ -104,7 +105,7 @@ async function quarantineImages(
     }
     moved.push(path);
   }
-  return moved;
+  return { moved, expected };
 }
 
 /** Put quarantined images back when a counter-notice succeeds. */
@@ -129,6 +130,46 @@ async function restoreImages(
     }
     await admin.storage.from('dmca-quarantine').remove([path]);
   }
+}
+
+/**
+ * Undo a removal completely: images back out of quarantine, status back to
+ * what it was, stamp cleared. Used by the withdraw and defective paths, where
+ * there is no waiting period because there is no substantiated notice left to
+ * wait on.
+ */
+async function undoRemoval(
+  admin: ReturnType<typeof createAdminSupabaseClient>,
+  listingId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: listing } = await admin
+    .from('listings')
+    .select('status, pre_dmca_status, dmca_quarantined_paths')
+    .eq('id', listingId)
+    .maybeSingle();
+
+  const quarantined = (listing?.dmca_quarantined_paths as string[] | null) ?? [];
+  if (quarantined.length) await restoreImages(admin, quarantined);
+
+  let target = (listing?.pre_dmca_status as string | null) ?? 'hidden';
+  if (target === 'available') {
+    const { count } = await admin
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('listing_id', listingId)
+      .in('status', ['paid', 'shipped', 'delivered', 'disputed']);
+    if ((count ?? 0) > 0) target = 'hidden';
+  }
+
+  const { error } = await admin
+    .from('listings')
+    .update({ dmca_removed_at: null, pre_dmca_status: null, dmca_quarantined_paths: null, status: target })
+    .eq('id', listingId);
+  if (error) {
+    Sentry.captureException(error, { extra: { where: 'admin.dmca.undoRemoval', listingId } });
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
 
 export async function GET() {
@@ -194,7 +235,7 @@ export async function PATCH(request: NextRequest) {
   const admin = createAdminSupabaseClient();
   const { data: notice } = await admin
     .from('dmca_notices')
-    .select('id, listing_id, status, received_at, quarantined_paths')
+    .select('id, listing_id, status, received_at, counter_received_at')
     .eq('id', id)
     .single();
   if (!notice) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -244,19 +285,41 @@ export async function PATCH(request: NextRequest) {
     }
     // Hiding the row is not "disabling access" while the file is still
     // served from a public bucket.
-    const quarantined = await quarantineImages(admin, notice.listing_id as string);
-
+    const { moved, expected } = await quarantineImages(admin, notice.listing_id as string);
     await admin
-      .from('dmca_notices')
-      .update({ ...stamp('material_removed'), quarantined_paths: quarantined })
-      .eq('id', id);
-    return NextResponse.json({ ok: true, images_quarantined: quarantined.length });
+      .from('listings')
+      .update({ dmca_quarantined_paths: moved })
+      .eq('id', notice.listing_id);
+
+    await admin.from('dmca_notices').update(stamp('material_removed')).eq('id', id);
+
+    // Report honestly. Stamping `material_removed` while a file we failed to
+    // move is still served from the claimant's own URL is the one thing this
+    // log must not do quietly — safe harbour rests on access actually being
+    // disabled, and the admin has to know to chase it.
+    const incomplete = moved.length < expected;
+    if (incomplete) {
+      Sentry.captureMessage(
+        `DMCA removal on listing ${notice.listing_id}: quarantined ${moved.length} of ${expected} images — the rest are STILL PUBLIC.`,
+        'error',
+      );
+    }
+    return NextResponse.json({
+      ok: true,
+      images_quarantined: moved.length,
+      images_expected: expected,
+      incomplete,
+      ...(incomplete
+        ? { warning: `Only ${moved.length} of ${expected} images could be taken down. The rest are still publicly reachable — check Sentry and remove them by hand before responding to the claimant.` }
+        : {}),
+    });
   }
 
   if (action === 'restore') {
     // "not less than 10 and not more than 14 business days after receiving
     // the counter-notice". The window is the whole point of recording dates.
-    const from = notice.received_at as string;
+    // §512(g) runs the window from the COUNTER-NOTICE, not from the notice.
+    const from = (notice.counter_received_at as string | null) ?? (notice.received_at as string);
     const earliest = addBusinessDays(from, RESTORE_MIN_BUSINESS_DAYS);
     const latest = addBusinessDays(from, RESTORE_MAX_BUSINESS_DAYS);
     const now = new Date().toISOString();
@@ -271,7 +334,7 @@ export async function PATCH(request: NextRequest) {
     if (notice.listing_id) {
       const { data: listing } = await admin
         .from('listings')
-        .select('status, pre_dmca_status')
+        .select('status, pre_dmca_status, dmca_quarantined_paths')
         .eq('id', notice.listing_id)
         .maybeSingle();
 
@@ -292,34 +355,57 @@ export async function PATCH(request: NextRequest) {
         if ((count ?? 0) > 0) target = 'hidden';
       }
 
+      // Mirror image of the removal: the files come back before the listing
+      // is visible again. The paths live on the LISTING, so a second notice
+      // against the same piece cannot restore it with its images still locked
+      // away (r5 auth pass, P2).
+      const quarantined = (listing?.dmca_quarantined_paths as string[] | null) ?? [];
+      if (quarantined.length) await restoreImages(admin, quarantined);
+
       const { error: restoreError } = await admin
         .from('listings')
-        .update({ dmca_removed_at: null, pre_dmca_status: null, status: target })
+        .update({
+          dmca_removed_at: null,
+          pre_dmca_status: null,
+          dmca_quarantined_paths: null,
+          status: target,
+        })
         .eq('id', notice.listing_id);
       if (restoreError) {
         Sentry.captureException(restoreError, { extra: { where: 'admin.dmca.restore', noticeId: id } });
         return NextResponse.json({ error: restoreError.message }, { status: 500 });
       }
     }
-    // Mirror image of the removal: the files come back before the listing is
-    // visible again.
-    const paths = (notice.quarantined_paths as string[] | null) ?? [];
-    if (paths.length) await restoreImages(admin, paths);
-
-    await admin
-      .from('dmca_notices')
-      .update({ ...stamp('restored'), quarantined_paths: null })
-      .eq('id', id);
+    await admin.from('dmca_notices').update(stamp('restored')).eq('id', id);
     return NextResponse.json({
       ok: true,
-      images_restored: paths.length,
+      images_restored: 0,
       overdue: now > latest,
       window: { earliest, latest },
     });
   }
 
-  const status = action === 'counter_received' ? 'counter_received' : action === 'withdraw' ? 'withdrawn' : 'defective';
+  if (parsed.data.action === 'counter_received') {
+    const { error } = await admin
+      .from('dmca_notices')
+      .update({ ...stamp('counter_received'), counter_received_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  // withdraw / defective. Neither is a substantiated notice, so if the
+  // material was already taken down it goes straight back — no waiting
+  // period, because there is nothing left to wait for. Before this, both were
+  // a bare status stamp: the card then rendered no buttons at all, the artist
+  // could neither republish nor delete, their images sat in a private bucket,
+  // and support's own tool had no control that could help (r5 auth pass, P1).
+  const status = parsed.data.action === 'withdraw' ? 'withdrawn' : 'defective';
+  if (notice.listing_id && notice.status === 'material_removed') {
+    const undone = await undoRemoval(admin, notice.listing_id as string);
+    if (!undone.ok) return NextResponse.json({ error: undone.error }, { status: 500 });
+  }
   const { error } = await admin.from('dmca_notices').update(stamp(status)).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, listing_restored: notice.status === 'material_removed' });
 }

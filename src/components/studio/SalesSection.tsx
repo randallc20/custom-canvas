@@ -15,7 +15,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatPrice } from '@/utils/formatPrice';
-import { buyerTookPossession } from '@/utils/fulfillment';
+import { buyerTookPossession, pickupPossessionUnknown } from '@/utils/fulfillment';
 import { fulfillmentWindow, formatDate } from '@/utils/fulfillmentWindow';
 import { useArtistProfileId } from '@/hooks/useArtistProfileId';
 import type { Order, OrderStatus } from '@/types/order';
@@ -50,6 +50,7 @@ export function SalesSection() {
   const [refundOrder, setRefundOrder] = useState<Order | null>(null);
   const [returnAddress, setReturnAddress] = useState({ name: '', street: '', city: '', state: '', zip: '' });
   const [returnInstructions, setReturnInstructions] = useState('');
+  const [pieceNotCollected, setPieceNotCollected] = useState(false);
   const markDelivered = useMarkDelivered();
 
   // Local pickup: your half of the handoff confirmation. Protection for a
@@ -135,6 +136,10 @@ export function SalesSection() {
     }
   };
 
+  /** Same rule the route applies, so the modal never contradicts it. */
+  const needsReturnFor = (order: Order) =>
+    buyerTookPossession(order) || (pickupPossessionUnknown(order) && !pieceNotCollected);
+
   const handleConfirmHandoff = (order: Order) => {
     confirmPickup.mutate(order.id, {
       onSuccess: (body) =>
@@ -179,7 +184,8 @@ export function SalesSection() {
     // "Did the buyer take possession", not "did it ship" — a collected
     // pickup piece has no shipped_at but is very much in the buyer's hands
     // (r6 money pass, P0).
-    const needsReturn = buyerTookPossession(order);
+    const needsReturn =
+      buyerTookPossession(order) || (pickupPossessionUnknown(order) && !pieceNotCollected);
     const missing = needsReturn
       ? (['name', 'street', 'city', 'state', 'zip'] as const).filter((k) => !returnAddress[k].trim())
       : [];
@@ -195,7 +201,7 @@ export function SalesSection() {
         body: JSON.stringify(
           needsReturn
             ? { return_address: returnAddress, instructions: returnInstructions.trim() || undefined }
-            : {},
+            : { piece_not_collected: true },
         ),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
@@ -451,13 +457,30 @@ export function SalesSection() {
             is returned. On a change of mind the buyer&apos;s service fee is not refunded, and they
             ordinarily bear return shipping.
           </p>
-          {refundOrder && !buyerTookPossession(refundOrder) && (
+          {refundOrder && pickupPossessionUnknown(refundOrder) && (
+            <label className="flex items-start gap-2 rounded-md border border-line bg-sand/40 p-3 text-sm text-ink">
+              <input
+                type="checkbox"
+                className="mt-0.5 rounded border-line"
+                checked={pieceNotCollected}
+                onChange={(e) => setPieceNotCollected(e.target.checked)}
+              />
+              <span>
+                The buyer never collected this piece — it is still with me.
+                <span className="mt-0.5 block text-xs text-muted">
+                  Neither of you confirmed the handoff, so we have to ask. Leave this unticked if
+                  they took it: the refund then waits for the piece to come back.
+                </span>
+              </span>
+            </label>
+          )}
+          {refundOrder && !needsReturnFor(refundOrder) && (
             <p className="rounded-md bg-sand/60 px-3 py-2 text-sm leading-relaxed text-ink">
               The buyer never received this piece, so there is nothing to send back — no return
               address needed.
             </p>
           )}
-          {!!refundOrder && buyerTookPossession(refundOrder) && (
+          {!!refundOrder && needsReturnFor(refundOrder) && (
           <div>
             <p className="text-sm font-medium text-ink">Where should they send it?</p>
             <p className="mt-0.5 text-xs text-muted">
@@ -495,7 +518,7 @@ export function SalesSection() {
             </div>
           </div>
           )}
-          {!!refundOrder && buyerTookPossession(refundOrder) && (
+          {!!refundOrder && needsReturnFor(refundOrder) && (
           <div>
             <label htmlFor="return-instructions" className="mb-1 block text-sm font-medium text-ink">
               Packing or insurance instructions (optional)
@@ -517,7 +540,7 @@ export function SalesSection() {
               loading={approvingRefund === refundOrder?.id}
               onClick={submitApproveRefund}
             >
-              {refundOrder && buyerTookPossession(refundOrder) ? 'Approve and authorise the return' : 'Approve refund'}
+              {refundOrder && needsReturnFor(refundOrder) ? 'Approve and authorise the return' : 'Approve refund'}
             </Button>
           </div>
         </div>

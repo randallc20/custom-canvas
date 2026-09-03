@@ -53,6 +53,13 @@ export async function artistRepliedInTimeForOrder(
     .select('sender_id, created_at')
     .in('conversation_id', convoIds)
     .gt('created_at', order.created_at)
+    // Platform notes are attributed to one of the two people (a `system`
+    // message nobody can be traced to reads worse than one that can), so
+    // without this filter Custom Canvas's own "return authorised" or
+    // "shipping window missed" note counted as a BUYER message the artist had
+    // failed to answer — and requirement 6 then stripped their protection for
+    // our messages, not the buyer's (r7 money pass, P1).
+    .neq('message_type', 'system')
     .order('created_at', { ascending: true });
 
   return artistRepliedInTime((msgs ?? []) as { sender_id: string; created_at: string }[], {

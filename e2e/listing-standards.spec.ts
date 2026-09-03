@@ -94,3 +94,52 @@ test.describe('listing standards (L4)', () => {
     await anon.close();
   });
 });
+
+/**
+ * r5 auth pass, P1. The edit route's EDITABLE allowlist never learned about
+ * L4's seven columns, so the form validated them, the PATCH carried them, the
+ * save reported success — and every one of them was dropped. An artist told
+ * to tag a nude did so, was returned to Studio, and the piece stayed in
+ * everyone's default feed.
+ */
+test.describe('editing a listing keeps the Listing Standards fields (r5 P1)', () => {
+  test.skip(!creds, 'E2E_ARTIST_EMAIL/PASSWORD not set');
+
+  test('the mature flag and the edition type survive a save', async ({ page, browser }) => {
+    await login(page, creds!.email, creds!.password);
+
+    // Publish something ordinary, with an image so it does not pollute the
+    // shared feed as a card with no picture.
+    await page.goto('/listings/new');
+    const title = `L4 Edit Check ${Date.now().toString(36)}`;
+    await page.getByLabel('Title').fill(title);
+    await page.getByLabel('Medium').fill('Charcoal on paper');
+    await page.getByLabel('Price ($)').fill('75');
+    await page.getByLabel('Condition').fill('New, no damage.');
+    if (process.env.E2E_SMALL_IMAGE) {
+      await page.locator('input[type=file]').setInputFiles(process.env.E2E_SMALL_IMAGE);
+      await expect(page.locator('img[alt="Listing image"]').first()).toBeVisible({ timeout: 30_000 });
+    }
+    await page.getByRole('button', { name: /publish listing/i }).click();
+    await expect(page).toHaveURL(/\/studio\/work/, { timeout: 30_000 });
+
+    // An anonymous visitor can find it.
+    const anon = await browser.newContext();
+    const visitor = await anon.newPage();
+    await visitor.goto(`/?search=${encodeURIComponent(title)}`);
+    await expect(visitor.getByText(title).first()).toBeVisible({ timeout: 15_000 });
+
+    // Now tag it mature from the EDIT form.
+    await page.getByText(title).first().click();
+    await page.getByRole('link', { name: /edit/i }).first().click();
+    await expect(page).toHaveURL(/\/listings\/.*\/edit/, { timeout: 20_000 });
+    await page.getByLabel(/contains nudity or mature themes/i).check();
+    await page.getByRole('button', { name: /save/i }).first().click();
+    await expect(page).toHaveURL(/\/studio\/work/, { timeout: 30_000 });
+
+    // The save must actually have taken: gone from the anonymous feed.
+    await visitor.goto(`/?search=${encodeURIComponent(title)}`);
+    await expect(visitor.getByText(title)).toHaveCount(0);
+    await anon.close();
+  });
+});
