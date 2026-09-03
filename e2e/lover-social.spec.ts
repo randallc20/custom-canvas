@@ -374,7 +374,7 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
     const row = page.locator('a[href^="/messages/"]').filter({ hasText: loverName }).first();
     await expect(row).toBeVisible({ timeout: 20_000 });
     // Unread count pill on the thread row.
-    await expect(row.locator('span.bg-terra').first()).toBeVisible({ timeout: 15_000 });
+    await expect(row.locator('span.bg-terraText').first()).toBeVisible({ timeout: 15_000 });
 
     await row.click();
     await page.waitForURL(/\/messages\/[^/?]+/, { timeout: 15_000 });
@@ -397,7 +397,7 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
     // Best-effort: the lover's tab was open on the thread while the reply
     // landed, so realtime may already have marked it read — only assert the
     // clear when a badge is actually showing.
-    const hadBadge = await row.locator('span.bg-terra').first().isVisible().catch(() => false);
+    const hadBadge = await row.locator('span.bg-terraText').first().isVisible().catch(() => false);
 
     await row.click();
     await page.waitForURL(/\/messages\/[^/?]+/, { timeout: 15_000 });
@@ -406,7 +406,7 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
     if (hadBadge) {
       await page.goto('/messages');
       const rowAgain = page.locator('a[href^="/messages/"]').filter({ hasText: artistFullName }).first();
-      await expect(rowAgain.locator('span.bg-terra')).toHaveCount(0, { timeout: 20_000 });
+      await expect(rowAgain.locator('span.bg-terraText')).toHaveCount(0, { timeout: 20_000 });
     }
   });
 
