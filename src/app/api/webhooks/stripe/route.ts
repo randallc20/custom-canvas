@@ -475,15 +475,18 @@ export async function POST(request: NextRequest) {
                 formatPrice(paidCents)
               ).catch((e) => Sentry.captureException(e));
             }
-            const oversoldRows: Array<Record<string, string>> = [
-              {
+            const oversoldRows: Array<Record<string, string>> = [];
+            // buyer_id is null when the buyer deleted their account mid-Checkout
+            // (R14); the refund still happened, there is just nobody to notify.
+            if (order.buyer_id) {
+              oversoldRows.push({
                 user_id: order.buyer_id,
                 type: 'refund_approved',
                 title: 'Refunded: sold moments before your payment',
                 body: `"${oversoldTitle}" was sold to another collector moments before your payment went through. You have been refunded in full (${formatPrice(paidCents)}); it can take a few days to show on your statement.`,
                 link: '/orders',
-              },
-            ];
+              });
+            }
             for (const adminId of await adminIds(supabase)) {
               oversoldRows.push({
                 user_id: adminId,
