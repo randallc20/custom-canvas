@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
+import { QueryError } from '@/components/ui/QueryError';
 import { formatPrice } from '@/utils/formatPrice';
 import { commissionDisplayStatus } from '@/utils/commissionDisplay';
 import { supabase } from '@/lib/supabase';
@@ -33,14 +34,17 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
   const [artistProfileId, setArtistProfileId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const { data: commission = null, isLoading: loading } = useQuery({
+  // A failed read is not "not found": the old queryFn dropped the error and
+  // returned null, so a network blip read as a missing commission.
+  const { data: commission = null, isLoading: loading, isError, refetch, isFetching } = useQuery({
     queryKey: ['commission', conversationId],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('commissions')
         .select('*')
         .eq('conversation_id', conversationId)
         .maybeSingle();
+      if (error) throw error;
       return (data as Commission | null) ?? null;
     },
   });
@@ -142,6 +146,13 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
   };
 
   if (loading) return <div className="flex justify-center py-8"><Spinner /></div>;
+  if (isError) {
+    return (
+      <div className="p-4">
+        <QueryError message="We couldn't load this commission." onRetry={() => refetch()} retrying={isFetching} />
+      </div>
+    );
+  }
   if (!commission) return <p className="p-4 text-sm text-muted">Commission not found.</p>;
 
   const isArtist = artistProfileId === user?.id;

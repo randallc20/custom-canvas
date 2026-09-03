@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
+import { QueryError } from '@/components/ui/QueryError';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { formatPrice } from '@/utils/formatPrice';
@@ -31,7 +32,7 @@ interface SearchResult {
 export function PartnerPicksManager({ galleryId }: { galleryId: string }) {
   const { toast } = useToast();
   const confirm = useConfirm();
-  const { data: picks, isLoading } = useGalleryPicks(galleryId);
+  const { data: picks, isLoading, isError, refetch, isFetching } = useGalleryPicks(galleryId);
   const addMutation = useAddPick();
   const removeMutation = useRemovePick();
   const updateMutation = useUpdatePick();
@@ -134,6 +135,17 @@ export function PartnerPicksManager({ galleryId }: { galleryId: string }) {
   };
 
   if (isLoading) return <div className="flex justify-center py-8"><Spinner /></div>;
+
+  // A failed load must not look like an empty shelf: the search box below
+  // would happily add a pick on top of rows we never saw.
+  if (isError) {
+    return (
+      <div className="mt-8 rounded-xl border border-line bg-surface p-6 shadow-card">
+        <h2 className="mb-4 text-lg font-semibold text-ink">Your Picks</h2>
+        <QueryError message="We couldn't load your picks." onRetry={() => refetch()} retrying={isFetching} />
+      </div>
+    );
+  }
 
   return (
     <div className="mt-8 rounded-xl border border-line bg-surface p-6 shadow-card">

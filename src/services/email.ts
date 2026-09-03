@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs';
 import { getResend } from '@/lib/resend';
 
 // In production, a missing EMAIL_FROM must be loud — the resend.dev fallback
@@ -28,8 +29,29 @@ function plain(s: string): string {
   return s.replace(/[\r\n]+/g, ' ').trim();
 }
 
-export async function sendArtistApprovedEmail(to: string, name: string): Promise<void> {
-  await getResend().emails.send({
+
+type SendPayload = Parameters<ReturnType<typeof getResend>['emails']['send']>[0];
+
+/** Every single-send goes through here. The Resend SDK returns
+ *  `{ data: null, error }` rather than throwing, so a rotated key, an
+ *  unverified domain, or a suspended account used to produce no signal at all.
+ *  Resolves true on success, false on a reported error (already captured to
+ *  Sentry, naming the template and the recipient's domain — never the
+ *  address); only a thrown SDK/network error rejects. */
+async function sendTemplate(template: string, payload: SendPayload): Promise<boolean> {
+  const { error } = await getResend().emails.send(payload);
+  if (!error) return true;
+  const to = Array.isArray(payload.to) ? payload.to[0] : payload.to;
+  const domain = typeof to === 'string' ? to.split('@')[1] ?? 'unknown' : 'unknown';
+  Sentry.captureMessage(
+    `Email send failed: template=${template} to=@${domain} — ${error.name}: ${error.message}`,
+    'error'
+  );
+  return false;
+}
+
+export async function sendArtistApprovedEmail(to: string, name: string): Promise<boolean> {
+  return sendTemplate('artist_approved', {
     from: FROM_EMAIL,
     replyTo: SUPPORT_EMAIL,
     to,
@@ -44,8 +66,8 @@ export async function sendArtistApprovedEmail(to: string, name: string): Promise
   });
 }
 
-export async function sendArtistRejectedEmail(to: string, name: string, reason: string): Promise<void> {
-  await getResend().emails.send({
+export async function sendArtistRejectedEmail(to: string, name: string, reason: string): Promise<boolean> {
+  return sendTemplate('artist_rejected', {
     from: FROM_EMAIL,
     replyTo: SUPPORT_EMAIL,
     to,
@@ -70,8 +92,8 @@ export async function sendAdminPasswordResetEmail(
   to: string,
   name: string | null,
   actionLink: string
-): Promise<void> {
-  await getResend().emails.send({
+): Promise<boolean> {
+  return sendTemplate('admin_password_reset', {
     from: FROM_EMAIL,
     replyTo: SUPPORT_EMAIL,
     to,
@@ -92,8 +114,8 @@ export async function sendNewMessageEmail(
   senderName: string,
   preview: string,
   conversationUrl: string
-): Promise<void> {
-  await getResend().emails.send({
+): Promise<boolean> {
+  return sendTemplate('new_message', {
     from: FROM_EMAIL,
     replyTo: SUPPORT_EMAIL,
     to,
@@ -112,8 +134,8 @@ export async function sendCommissionRequestEmail(
   to: string,
   artistName: string,
   title: string
-): Promise<void> {
-  await getResend().emails.send({
+): Promise<boolean> {
+  return sendTemplate('commission_request', {
     from: FROM_EMAIL,
     replyTo: SUPPORT_EMAIL,
     to,
@@ -135,8 +157,8 @@ export async function sendOrderConfirmationEmail(
   amount: string,
   orderId: string,
   artistName: string
-): Promise<void> {
-  await getResend().emails.send({
+): Promise<boolean> {
+  return sendTemplate('order_confirmation', {
     from: FROM_EMAIL,
     replyTo: SUPPORT_EMAIL,
     to,
@@ -164,8 +186,8 @@ export async function sendNewSaleEmail(
   listingTitle: string,
   amount: string,
   payoutAmount: string
-): Promise<void> {
-  await getResend().emails.send({
+): Promise<boolean> {
+  return sendTemplate('new_sale', {
     from: FROM_EMAIL,
     replyTo: SUPPORT_EMAIL,
     to,
@@ -191,7 +213,7 @@ export async function sendShippingUpdateEmail(
   buyerName: string,
   listingTitle: string,
   trackingNumber: string | null
-): Promise<void> {
+): Promise<boolean> {
   const trackingBlock = trackingNumber
     ? `<div style="background:#f9f9f9;padding:16px;border-radius:8px;margin:16px 0">
         <p style="margin:0;color:#666;font-size:13px">Tracking number:</p>
@@ -199,7 +221,7 @@ export async function sendShippingUpdateEmail(
       </div>`
     : '';
 
-  await getResend().emails.send({
+  return sendTemplate('shipping_update', {
     from: FROM_EMAIL,
     replyTo: SUPPORT_EMAIL,
     to,
@@ -221,10 +243,10 @@ export async function sendReviewReceivedEmail(
   rating: number,
   comment: string | null,
   reviewerName: string
-): Promise<void> {
+): Promise<boolean> {
   const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
 
-  await getResend().emails.send({
+  return sendTemplate('review_received', {
     from: FROM_EMAIL,
     replyTo: SUPPORT_EMAIL,
     to,
@@ -250,8 +272,8 @@ export async function sendCommissionUpdateEmail(
   artistName: string,
   note: string,
   commissionId: string
-): Promise<void> {
-  await getResend().emails.send({
+): Promise<boolean> {
+  return sendTemplate('commission_update', {
     from: FROM_EMAIL,
     replyTo: SUPPORT_EMAIL,
     to,
@@ -273,8 +295,8 @@ export async function sendCommissionNudgeEmail(
   buyerName: string,
   commissionTitle: string,
   commissionId: string
-): Promise<void> {
-  await getResend().emails.send({
+): Promise<boolean> {
+  return sendTemplate('commission_nudge', {
     from: FROM_EMAIL,
     replyTo: SUPPORT_EMAIL,
     to,
@@ -294,8 +316,8 @@ export async function sendReviewRequestEmail(
   buyerName: string,
   listingTitle: string,
   orderId: string
-): Promise<void> {
-  await getResend().emails.send({
+): Promise<boolean> {
+  return sendTemplate('review_request', {
     from: FROM_EMAIL,
     replyTo: SUPPORT_EMAIL,
     to,
@@ -310,7 +332,7 @@ export async function sendReviewRequestEmail(
   });
 }
 
-export async function sendArtistDripEmail(to: string, name: string, stage: string): Promise<void> {
+export async function sendArtistDripEmail(to: string, name: string, stage: string): Promise<boolean> {
   // Copy reflects the submit-for-review flow: artists build, then SUBMIT —
   // they can't self-publish, so never promise "go live" as their own action.
   const content: Record<string, { subject: string; heading: string; body: string }> = {
@@ -319,14 +341,14 @@ export async function sendArtistDripEmail(to: string, name: string, stage: strin
     artist_day7: { subject: 'Your shop is almost ready to submit', heading: 'One last nudge', body: 'Finish your shop and submit it for review to start selling and taking commissions on Custom Canvas.' },
   };
   const c = content[stage] ?? content.artist_day1;
-  await getResend().emails.send({
+  return sendTemplate('artist_drip', {
     from: FROM_EMAIL, replyTo: SUPPORT_EMAIL, to, subject: c.subject,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" /><h2 style="color:#111">${c.heading}</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, ${c.body}</p><a href="${APP_URL}/dashboard" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Finish my profile</a></div>`,
   });
 }
 
-export async function sendBuyerDripEmail(to: string, name: string): Promise<void> {
-  await getResend().emails.send({
+export async function sendBuyerDripEmail(to: string, name: string): Promise<boolean> {
+  return sendTemplate('buyer_drip', {
     from: FROM_EMAIL, replyTo: SUPPORT_EMAIL, to, subject: 'Meet the artists near you',
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" /><h2 style="color:#111">Discover local art</h2><p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, there's a whole community of local artists to explore on Custom Canvas. Find a piece — or an artist — you love.</p><a href="${APP_URL}/" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Explore art</a></div>`,
   });

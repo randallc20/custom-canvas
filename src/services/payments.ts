@@ -5,6 +5,11 @@ export async function createStripeConnectLink(artistProfileId: string): Promise<
     body: JSON.stringify({ artistProfileId }),
   });
 
-  if (!response.ok) throw new Error('Failed to create Stripe Connect link');
+  if (!response.ok) {
+    // Surface the route's plain message (502 from Stripe, failed row write)
+    // rather than a generic string the artist cannot act on.
+    const body = await response.json().catch(() => ({}));
+    throw new Error(typeof body.error === 'string' ? body.error : 'Failed to create Stripe Connect link');
+  }
   return response.json();
 }

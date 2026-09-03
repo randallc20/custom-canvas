@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 import type { OwnArtistProfile } from '@/hooks/useArtistProfileId';
 import type { ListingWithImages } from '@/types/listing';
 
@@ -25,31 +26,37 @@ export function SetupChecklist({
   listings: ListingWithImages[] | undefined;
 }) {
   const isResubmit = artist.application_status === 'rejected';
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarLoaded, setAvatarLoaded] = useState(false);
 
-  // Avatar lives on profiles; one small read.
+  // Avatar lives on profiles; one small read. The user comes from the auth
+  // context like everywhere else — a direct `auth.getUser()` that answered
+  // null (token-refresh race) used to leave `avatarLoaded` false and the
+  // submit button disabled for good. "No user" now counts as loaded.
+  const userId = user?.id;
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase
-        .from('profiles')
-        .select('avatar_url')
-        .eq('id', user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (mounted) {
-            setAvatarUrl(data?.avatar_url ?? null);
-            setAvatarLoaded(true);
-          }
-        }, () => { if (mounted) setAvatarLoaded(true); });
-    });
+    if (!userId) {
+      setAvatarLoaded(true);
+      return;
+    }
+    supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (mounted) {
+          setAvatarUrl(data?.avatar_url ?? null);
+          setAvatarLoaded(true);
+        }
+      }, () => { if (mounted) setAvatarLoaded(true); });
     return () => { mounted = false; };
-  }, []);
+  }, [userId]);
 
   const listingCount = listings?.length ?? 0;
   const bestPhotoCount = (listings ?? []).reduce(
@@ -117,20 +124,28 @@ export function SetupChecklist({
 
   const submit = async () => {
     setSubmitting(true);
-    const res = await fetch('/api/artist/submit', { method: 'POST' });
-    if (res.ok) {
-      toast('Submitted — we\'ll review your shop soon', 'success');
-      queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
-    } else {
-      const { error } = await res.json().catch(() => ({ error: null }));
-      // 409 = already submitted (double click / second tab) — not an error event.
-      if (res.status !== 409) {
-        captureException(new Error(`${error ?? 'submit failed'} (HTTP ${res.status})`), { where: 'SetupChecklist.submit' });
+    try {
+      const res = await fetch('/api/artist/submit', { method: 'POST' });
+      if (res.ok) {
+        toast('Submitted — we\'ll review your shop soon', 'success');
+        queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
+      } else {
+        const { error } = await res.json().catch(() => ({ error: null }));
+        // 409 = already submitted (double click / second tab) — not an error event.
+        if (res.status !== 409) {
+          captureException(new Error(`${error ?? 'submit failed'} (HTTP ${res.status})`), { where: 'SetupChecklist.submit' });
+        }
+        toast(error ?? 'Could not submit — please try again', 'error');
+        if (res.status === 409) queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
       }
-      toast(error ?? 'Could not submit — please try again', 'error');
-      if (res.status === 409) queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] });
+    } catch (err) {
+      // A dropped request rejects the fetch itself; without this the spinner
+      // ran forever and the artist could not retry without a reload.
+      captureException(err, { where: 'SetupChecklist.submit' });
+      toast('Could not reach Custom Canvas — check your connection and try again', 'error');
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   return (

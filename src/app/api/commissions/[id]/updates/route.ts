@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { sendCommissionUpdateEmail } from '@/services/email';
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const { data: buyer } = await admin.from('profiles').select('email, full_name').eq('id', commission.requester_id).single();
   if (buyer?.email) {
-    sendCommissionUpdateEmail(buyer.email, buyer.full_name ?? 'there', artist.display_name, note.trim(), params.id).catch(() => {});
+    sendCommissionUpdateEmail(buyer.email, buyer.full_name ?? 'there', artist.display_name, note.trim(), params.id).catch((e) => Sentry.captureException(e));
   }
 
   return NextResponse.json(update);

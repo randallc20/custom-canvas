@@ -5,6 +5,7 @@ import { captureException } from '@/lib/sentry';
 import { useConfirmPickup, useArtistOrders, useUpdateOrderStatus, useMarkDelivered } from '@/hooks/useOrders';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { QueryError } from '@/components/ui/QueryError';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -28,7 +29,7 @@ const STATUS_BADGE: Record<OrderStatus, { variant: 'default' | 'success' | 'warn
 
 export function SalesSection() {
   const { artistId, loading: loadingArtist } = useArtistProfileId();
-  const { data: orders, isLoading } = useArtistOrders(artistId);
+  const { data: orders, isLoading, isError, refetch, isFetching } = useArtistOrders(artistId);
   const updateStatus = useUpdateOrderStatus();
   const { toast } = useToast();
   const confirm = useConfirm();
@@ -105,7 +106,9 @@ export function SalesSection() {
     <div>
       <h2 className="mb-6 text-xl font-bold text-ink">Sales</h2>
 
-      {!orders || orders.length === 0 ? (
+      {isError ? (
+        <QueryError message="We couldn't load your sales." onRetry={() => refetch()} retrying={isFetching} />
+      ) : !orders || orders.length === 0 ? (
         <EmptyState title="No sales yet" description="When collectors purchase your art, orders will appear here." />
       ) : (
         <div className="space-y-4">
@@ -134,6 +137,7 @@ export function SalesSection() {
                 {order.shipping_address && (
                   <div className="mt-3 rounded-lg bg-sand/40 px-3 py-2 text-sm text-muted">
                     <p className="text-xs font-medium text-muted">Ship to:</p>
+                    {order.shipping_address.name && <p className="font-medium text-ink">{order.shipping_address.name}</p>}
                     <p>{order.shipping_address.street}</p>
                     <p>{order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.zip}</p>
                   </div>

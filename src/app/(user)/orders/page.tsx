@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { captureException } from '@/lib/sentry';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -9,6 +9,7 @@ import { useFindOrCreateConversation } from '@/hooks/useConversations';
 import { useCreateReview } from '@/hooks/useReviews';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { QueryError } from '@/components/ui/QueryError';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -26,9 +27,13 @@ const STATUS_BADGE: Record<OrderStatus, { variant: 'default' | 'success' | 'warn
   disputed: { variant: 'danger', label: 'Disputed' },
 };
 
+const CONFIRM_POLL_MS = 3_000;
+const CONFIRM_POLL_FOR_MS = 60_000;
+const RECENT_ORDER_WINDOW_MS = 2 * 60_000;
+
 export default function OrdersPage() {
   const { user } = useAuth();
-  const { data: orders, isLoading } = useBuyerOrders(user?.id ?? '');
+  const { data: orders, isLoading, isError, refetch, isFetching } = useBuyerOrders(user?.id ?? '');
   const searchParams = useSearchParams();
   const justPurchased = searchParams.get('success') === 'true';
   const createReview = useCreateReview();
@@ -39,6 +44,26 @@ export default function OrdersPage() {
   const router = useRouter();
   const findOrCreate = useFindOrCreateConversation();
   const confirmPickup = useConfirmPickup();
+
+  // Stripe's redirect can land here before checkout.session.completed has
+  // written the order row (02-P2), and a 60 s staleTime then kept the empty
+  // list. After a purchase, poll every 3 s for up to 60 s until an order from
+  // this purchase shows up. The webhook usually beats the redirect, so
+  // "created after page load" would miss the very order it is waiting for —
+  // anything created in the last two minutes counts (checkout itself takes
+  // longer than a few seconds, and the buyer's previous purchase is older).
+  const pageLoadedAt = useRef(Date.now());
+  const [confirmExpired, setConfirmExpired] = useState(false);
+  const hasRecentOrder = (orders ?? []).some(
+    (o) => new Date(o.created_at).getTime() >= pageLoadedAt.current - RECENT_ORDER_WINDOW_MS
+  );
+  const confirming = justPurchased && !hasRecentOrder && !confirmExpired;
+  useEffect(() => {
+    if (!confirming) return;
+    const interval = setInterval(() => { refetch(); }, CONFIRM_POLL_MS);
+    const timeout = setTimeout(() => setConfirmExpired(true), CONFIRM_POLL_FOR_MS);
+    return () => { clearInterval(interval); clearTimeout(timeout); };
+  }, [confirming, refetch]);
 
   if (isLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
@@ -83,20 +108,41 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {!orders || orders.length === 0 ? (
-        <EmptyState title="No orders yet" description="When you purchase artwork, your orders will appear here." />
+      {isError ? (
+        <QueryError message="We couldn't load your orders." onRetry={() => refetch()} retrying={isFetching} />
+      ) : !orders || orders.length === 0 ? (
+        confirming ? (
+          <div className="flex flex-col items-center gap-3 py-16 text-center" role="status">
+            <Spinner />
+            <p className="text-sm text-muted">Confirming your purchase…</p>
+          </div>
+        ) : (
+          <EmptyState title="No orders yet" description="When you purchase artwork, your orders will appear here." />
+        )
       ) : (
         <div className="space-y-4">
           {orders.map((order) => {
             const badge = STATUS_BADGE[order.status];
+            // reviews.order_id is UNIQUE, so PostgREST embeds reviews(id) as ONE
+            // object, not an array — `.length` on it was undefined, every
+            // reviewed order re-offered "Leave a Review", and the submit 409'd.
+            const embeddedReview = (order as { reviews?: unknown }).reviews;
             const alreadyReviewed =
-              ((order as { reviews?: unknown[] }).reviews?.length ?? 0) > 0 || reviewedOrders.has(order.id);
+              (Array.isArray(embeddedReview) ? embeddedReview.length > 0 : !!embeddedReview) ||
+              reviewedOrders.has(order.id);
             const canReview = order.status === 'delivered' && !alreadyReviewed;
             return (
               <div key={order.id} className="rounded-lg border border-line p-4">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-xs text-muted">Order #{order.id.slice(0, 8)}</p>
+                    {(order.listing?.title || order.artist?.display_name) && (
+                      <p className="mt-1 text-sm text-ink">
+                        {order.listing?.title && <span className="font-medium">{order.listing.title}</span>}
+                        {order.listing?.title && order.artist?.display_name && <span className="text-muted"> · </span>}
+                        {order.artist?.display_name && <span className="text-muted">by {order.artist.display_name}</span>}
+                      </p>
+                    )}
                     <p className="mt-1 font-medium text-ink">{formatPrice(order.amount_cents)}</p>
                     <p className="text-xs text-muted">
                       {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

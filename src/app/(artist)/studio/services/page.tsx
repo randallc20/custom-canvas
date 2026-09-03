@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { QueryError } from '@/components/ui/QueryError';
 
 interface Service {
   id: string;
@@ -29,18 +30,27 @@ const CATEGORY_LABELS: Record<Service['category'], string> = {
 export default function StudioServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
-    supabase
+  // supabase-js returns errors rather than throwing; the old `.then(({ data }))`
+  // rendered "No providers listed yet" for a failed read.
+  const load = useCallback(async () => {
+    setLoading(true);
+    setFailed(false);
+    const { data, error } = await supabase
       .from('artist_services')
       .select('id, name, category, blurb, city, contact_email, contact_phone, website_url')
       .order('display_order', { ascending: true })
-      .order('created_at', { ascending: true })
-      .then(({ data }) => {
-        setServices((data ?? []) as Service[]);
-        setLoading(false);
-      });
+      .order('created_at', { ascending: true });
+    if (error) {
+      setFailed(true);
+    } else {
+      setServices((data ?? []) as Service[]);
+    }
+    setLoading(false);
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
@@ -57,7 +67,9 @@ export default function StudioServicesPage() {
         no cut and makes no guarantee.
       </p>
 
-      {byCategory.length === 0 ? (
+      {failed ? (
+        <QueryError message="We couldn't load the services directory." onRetry={load} />
+      ) : byCategory.length === 0 ? (
         <EmptyState
           title="No providers listed yet"
           description="We're curating local photographers and services — check back soon."

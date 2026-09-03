@@ -1,6 +1,9 @@
 export type OrderStatus = 'pending' | 'paid' | 'shipped' | 'delivered' | 'refunded' | 'disputed';
 
 export interface ShippingAddress {
+  /** Recipient name from Stripe's shipping details (utils/orderRecord.ts);
+   *  the app's own form never collected one, so it may be absent. */
+  name?: string;
   street: string;
   city: string;
   state: string;

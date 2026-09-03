@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { QueryError } from '@/components/ui/QueryError';
 import { formatPrice } from '@/utils/formatPrice';
 import { supabase } from '@/lib/supabase';
 
@@ -65,10 +66,21 @@ function AdminDashboard() {
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setLoadError(null);
     Promise.all([
-      fetch('/api/admin/stats').then((r) => r.json()),
+      // A 401/403 body is `{ error }`; reading it as stats crashed the page to
+      // the error boundary on `total_users.toLocaleString()`.
+      fetch('/api/admin/stats').then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          throw new Error(typeof body.error === 'string' ? body.error : `Stats request failed (HTTP ${r.status})`);
+        }
+        return r.json() as Promise<PlatformStats>;
+      }),
       supabase
         .from('orders')
         .select('id, amount_cents, status, created_at, buyer:profiles!orders_buyer_id_fkey(full_name)')
@@ -82,11 +94,23 @@ function AdminDashboard() {
       setRecentOrders(ordersData as unknown as RecentOrder[]);
       setRecentUsers(usersData as unknown as RecentUser[]);
       setLoading(false);
+    }).catch((err: unknown) => {
+      setLoadError(err instanceof Error ? err.message : 'Could not load the dashboard');
+      setLoading(false);
     });
   }, []);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
-  if (!stats) return null;
+  if (loadError || !stats) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        <h1 className="mb-6 text-2xl font-bold text-ink">Admin Dashboard</h1>
+        <QueryError message={loadError ?? 'Could not load the dashboard'} onRetry={load} />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">

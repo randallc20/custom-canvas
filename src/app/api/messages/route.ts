@@ -7,7 +7,9 @@ import { sendNewMessageEmail } from '@/services/email';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 // Real user message types worth emailing about (system/mirror messages are not).
-const EMAILABLE = new Set(['text', 'image', 'listing_card', 'quote_card']);
+// 'file' is what ChatThread sends for a PDF/document attachment (00045) — a
+// brief sent as the first message must email the artist like a photo does.
+const EMAILABLE = new Set(['text', 'image', 'file', 'listing_card', 'quote_card']);
 
 export async function POST(request: NextRequest) {
   const supabase = createServerSupabaseClient();

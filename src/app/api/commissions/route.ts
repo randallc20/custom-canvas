@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { commissionRequestSchema } from '@/schemas/commissionSchema';
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (artistProfile?.email) {
-    sendCommissionRequestEmail(artistProfile.email, artistProfile.full_name ?? 'Artist', commission.title).catch(() => {});
+    sendCommissionRequestEmail(artistProfile.email, artistProfile.full_name ?? 'Artist', commission.title).catch((e) => Sentry.captureException(e));
   }
 
   // In-app notification for the artist (service role — notifications has no

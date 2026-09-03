@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { sendArtistDripEmail, sendBuyerDripEmail } from '@/services/email';
 
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
       if (!(await alreadySent(profile.id, candidate))) { stage = candidate; break; }
     }
     if (!stage) continue;
-    await sendArtistDripEmail(profile.email, profile.full_name ?? 'there', stage).catch(() => {});
+    await sendArtistDripEmail(profile.email, profile.full_name ?? 'there', stage).catch((e) => Sentry.captureException(e));
     await markSent(profile.id, stage);
     sent++;
   }
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
       admin.from('orders').select('id', { count: 'exact', head: true }).eq('buyer_id', b.id),
     ]);
     if ((saves ?? 0) + (follows ?? 0) + (orders ?? 0) > 0) continue;
-    await sendBuyerDripEmail(b.email, b.full_name ?? 'there').catch(() => {});
+    await sendBuyerDripEmail(b.email, b.full_name ?? 'there').catch((e) => Sentry.captureException(e));
     await markSent(b.id, 'buyer_day1');
     sent++;
   }

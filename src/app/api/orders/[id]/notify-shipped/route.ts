@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { sendShippingUpdateEmail } from '@/services/email';
@@ -54,7 +55,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
     buyer.full_name ?? 'Collector',
     listing?.title ?? 'Your artwork',
     order.tracking_number
-  ).catch(() => {});
+  ).catch((e) => Sentry.captureException(e));
 
   return NextResponse.json({ ok: true });
 }

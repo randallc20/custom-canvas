@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { QueryError } from '@/components/ui/QueryError';
 import { useToast } from '@/components/ui/Toast';
 import { ImageUpload } from '@/components/upload/ImageUpload';
 import { useSeries, useInvalidateArtistContent } from '@/hooks/useArtistContent';
@@ -20,7 +21,7 @@ import type { ListingSeries } from '@/types/artist';
 export function SeriesSection() {
   const { toast } = useToast();
   const { artistId, loading: loadingArtist } = useArtistProfileId();
-  const { data: series = [], isLoading } = useSeries(artistId);
+  const { data: series = [], isLoading, isError, refetch, isFetching } = useSeries(artistId);
   const invalidate = useInvalidateArtistContent();
 
   const [editing, setEditing] = useState<ListingSeries | null>(null);
@@ -106,7 +107,9 @@ export function SeriesSection() {
         <Button onClick={openCreate}>New Series</Button>
       </div>
 
-      {series.length === 0 ? (
+      {isError ? (
+        <QueryError message="We couldn't load your series." onRetry={() => refetch()} retrying={isFetching} />
+      ) : series.length === 0 ? (
         <EmptyState
           title="No series yet"
           description="Create your first series to organize your portfolio — like “Bayou Landscapes” or “Portraits 2026.”"

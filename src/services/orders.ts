@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/sentry';
 import { Order, OrderStatus } from '@/types/order';
 
 export async function getOrdersByBuyer(buyerId: string): Promise<Order[]> {
@@ -67,7 +68,7 @@ export async function updateOrderStatus(
   if (status === 'shipped') {
     // Server-side send — Resend can't run in the browser (the old inline call
     // here silently never sent) and buyer email is service-role-only (00031).
-    fetch(`/api/orders/${id}/notify-shipped`, { method: 'POST' }).catch(() => {});
+    fetch(`/api/orders/${id}/notify-shipped`, { method: 'POST' }).catch((e) => captureException(e, { where: 'orders.notifyShipped' }));
   }
 
   return data;

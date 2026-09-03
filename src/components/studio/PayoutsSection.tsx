@@ -11,6 +11,8 @@ import { formatPrice } from '@/utils/formatPrice';
 import { useState } from 'react';
 import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 import { useSearchParams } from 'next/navigation';
+import { useToast } from '@/components/ui/Toast';
+import { captureException } from '@/lib/sentry';
 
 export function PayoutsSection() {
   const { user } = useAuth();
@@ -19,13 +21,18 @@ export function PayoutsSection() {
   const { data: totals } = useArtistSalesTotals(artist?.id ?? '');
   const searchParams = useSearchParams();
   const justSetup = searchParams.get('setup') === 'complete';
+  const { toast } = useToast();
 
   const handleConnect = async () => {
     setConnecting(true);
     try {
       const { url } = await createStripeConnectLink(user!.id);
       window.location.href = url;
-    } catch {
+    } catch (err) {
+      // The route's plain-language error (a 502 from Stripe, a failed row
+      // write) reaches the artist; a bare catch here only cleared the spinner.
+      captureException(err, { where: 'PayoutsSection.connect' });
+      toast(err instanceof Error ? err.message : 'Could not connect to Stripe — please try again.', 'error');
       setConnecting(false);
     }
   };
