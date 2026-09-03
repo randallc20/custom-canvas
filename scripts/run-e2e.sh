@@ -57,19 +57,28 @@ eval "$SEED_EXPORTS"
 # The sweep's spec files (docs/LIVE-TEST-PLAN.md coverage) plus the two
 # fixture-consuming regression suites. purchase-refund is opt-in: it moves
 # Stripe-test money and hides its own listing afterwards.
-SPECS=(smoke visitor tester-journey artist-shop approval-flow setup-guard
-       lover-social commissions partner admin-safety)
+#
+# An entry is `spec` (chromium) or `spec:project`. `visitor:mobile` is the
+# second pass over the public surface on the iPhone project — the Playwright
+# `mobile` project existed but nothing ever ran it, so every mobile-only
+# regression (the filter drawer, review 03) was invisible (05-P3 "tests").
+SPECS=(smoke visitor visitor:mobile critical-paths tester-journey artist-shop
+       approval-flow setup-guard lover-social commissions partner
+       pickup-handoff unsubscribe admin-safety)
 if [[ "${E2E_MONEY:-}" == "1" ]]; then SPECS+=(purchase-refund); fi
 
 declare -a RESULTS
 FAILED=0
-for spec in "${SPECS[@]}"; do
+for entry in "${SPECS[@]}"; do
+  spec="${entry%%:*}"
+  project="${entry#*:}"
+  [[ "$project" == "$entry" ]] && project=chromium
   echo
-  echo "== $spec =="
-  if ./node_modules/.bin/playwright test "$spec" --project=chromium --workers=1; then
-    RESULTS+=("PASS  $spec")
+  echo "== $entry ($project) =="
+  if ./node_modules/.bin/playwright test "$spec" --project="$project" --workers=1; then
+    RESULTS+=("PASS  $entry")
   else
-    RESULTS+=("FAIL  $spec")
+    RESULTS+=("FAIL  $entry")
     FAILED=1
   fi
   # Let auth-token issuance cool off between spec files — back-to-back runs

@@ -16,6 +16,11 @@
 //   - creates a paid-buyer fixture: an Art Lover holding one PAID order
 //     (synthetic payment intent) so admin-safety 14.11b can assert that
 //     self-delete is refused (R1 / 01-P0)
+//   - creates a pickup fixture: an Art Lover holding one PAID *pickup* order
+//     from the seed artist, for the two-sided handoff spec (R11)
+//   - creates an unsubscribe fixture: an Art Lover with all email categories
+//     ON, and prints their unsubscribe_token (service-role-only column) so
+//     the /unsubscribe spec can follow a real token link (R11)
 //
 // Never point this at prod: it uses the DEV service-role key from .env.local.
 import { readFileSync } from 'node:fs';
@@ -176,15 +181,15 @@ log(`guard fixtures created: ${noProfileEmail}, ${noGalleryEmail}`);
 //    refund it: there is nothing at Stripe to refund.
 const paidBuyerEmail = `e2e.paidbuyer.${TS}@customcanvas.dev`;
 const paidBuyerUser = await createUser(paidBuyerEmail, { role: 'user', full_name: 'E2E Paid Buyer' });
+const seedArtist = byEmail.get('artist.test@customcanvas.dev');
+const { data: seedArtistRow, error: seedArtistErr } = await admin
+  .from('artist_profiles').select('id').eq('profile_id', seedArtist.id).single();
+if (seedArtistErr || !seedArtistRow) throw seedArtistErr ?? new Error('artist.test has no artist_profiles row');
+const seedArtistId = seedArtistRow.id;
 {
-  const seedArtist = byEmail.get('artist.test@customcanvas.dev');
-  const { data: artistRow, error: apErr } = await admin
-    .from('artist_profiles').select('id').eq('profile_id', seedArtist.id).single();
-  if (apErr || !artistRow) throw apErr ?? new Error('artist.test has no artist_profiles row');
-
   const { error: orderErr } = await admin.from('orders').insert({
     buyer_id: paidBuyerUser.id,
-    artist_id: artistRow.id,
+    artist_id: seedArtistId,
     amount_cents: 12500,
     platform_fee_cents: 1875,
     artist_payout_cents: 10625,
@@ -196,6 +201,58 @@ const paidBuyerUser = await createUser(paidBuyerEmail, { role: 'user', full_name
   });
   if (orderErr) throw orderErr;
   log(`paid-buyer fixture created: ${paidBuyerEmail} (one paid order)`);
+}
+
+// 7. Pickup fixture (R11, e2e/pickup-handoff.spec.ts): an Art Lover holding
+//    one PAID order flagged is_pickup, sold by the seed artist. Both parties
+//    confirm the handoff through their own UI, which is the only path a
+//    pickup order has to 'delivered'. Same synthetic-payment-intent shape as
+//    the paid-buyer fixture (step 1a sweeps it next run) — never refund it.
+const pickupBuyerEmail = `e2e.pickupbuyer.${TS}@customcanvas.dev`;
+const pickupBuyerUser = await createUser(pickupBuyerEmail, { role: 'user', full_name: 'E2E Pickup Buyer' });
+let pickupOrderId = '';
+{
+  const { data: order, error: orderErr } = await admin.from('orders').insert({
+    buyer_id: pickupBuyerUser.id,
+    artist_id: seedArtistId,
+    amount_cents: 8500,
+    platform_fee_cents: 1275,
+    artist_payout_cents: 7225,
+    buyer_fee_cents: 583,
+    shipping_cents: 0,
+    is_pickup: true,
+    status: 'paid',
+    stripe_payment_intent_id: `pi_e2e_pickup_${TS}`,
+  }).select('id').single();
+  if (orderErr) throw orderErr;
+  pickupOrderId = order.id;
+  log(`pickup fixture created: ${pickupBuyerEmail} (order ${pickupOrderId.slice(0, 8)})`);
+}
+
+// 8. Unsubscribe fixture (R11, e2e/unsubscribe.spec.ts): a throwaway Art
+//    Lover with every email category still ON. unsubscribe_token is
+//    service-role-only (00031), so the token is read here and exported —
+//    that is exactly the link the emails carry.
+const unsubEmail = `e2e.unsub.${TS}@customcanvas.dev`;
+const unsubUser = await createUser(unsubEmail, { role: 'user', full_name: 'E2E Unsub' });
+let unsubToken = '';
+{
+  const { data: row, error } = await admin
+    .from('profiles')
+    .update({
+      email_preferences: {
+        marketing: true,
+        new_listing_alerts: true,
+        message_notifications: true,
+        price_drop_alerts: true,
+      },
+    })
+    .eq('id', unsubUser.id)
+    .select('unsubscribe_token')
+    .maybeSingle();
+  if (error || !row) throw error ?? new Error('unsubscribe fixture updated zero rows');
+  unsubToken = row.unsubscribe_token;
+  log(`unsubscribe fixture created: ${unsubEmail}`);
 }
 
 log('done — eval the export block below');
@@ -216,3 +273,13 @@ console.log(`export E2E_GUARD_NO_GALLERY_EMAIL='${noGalleryEmail}'`);
 console.log(`export E2E_GUARD_GALLERY_EMAIL='bayou-city-gallery@cc-demo.com'`);
 console.log(`export E2E_PAID_BUYER_EMAIL='${paidBuyerEmail}'`);
 console.log(`export E2E_PAID_BUYER_PASSWORD='${PASSWORD}'`);
+console.log(`export E2E_PICKUP_BUYER_EMAIL='${pickupBuyerEmail}'`);
+console.log(`export E2E_PICKUP_BUYER_PASSWORD='${PASSWORD}'`);
+console.log(`export E2E_PICKUP_ORDER_ID='${pickupOrderId}'`);
+console.log(`export E2E_UNSUB_EMAIL='${unsubEmail}'`);
+console.log(`export E2E_UNSUB_PASSWORD='${PASSWORD}'`);
+console.log(`export E2E_UNSUB_TOKEN='${unsubToken}'`);
+// e2e/helpers/data.ts reads fixture rows straight from PostgREST (R7 deleted
+// the /api/artists and /api/listings collection routes it used to use).
+console.log(`export NEXT_PUBLIC_SUPABASE_URL='${env.NEXT_PUBLIC_SUPABASE_URL}'`);
+console.log(`export NEXT_PUBLIC_SUPABASE_ANON_KEY='${env.NEXT_PUBLIC_SUPABASE_ANON_KEY}'`);
