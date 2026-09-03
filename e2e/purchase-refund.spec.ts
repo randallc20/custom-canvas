@@ -288,19 +288,64 @@ test.describe.serial('purchase and refund (Stripe test mode)', () => {
     await expect(page.getByText(/request a refund for my order/i).first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test('artist approves the refund (cancel first, then approve)', async () => {
+  test('artist approves the refund and supplies a return address (L8)', async () => {
     const page = artistPage;
     await page.goto('/studio/sales');
     const orderCard = page.locator('div.rounded-xl', { hasText: orderShort }).first();
     await orderCard.getByRole('button', { name: /approve refund/i }).click();
-    // 10.3 — the confirm box spells out what happens; Cancel aborts.
-    await expect(page.getByText(/your payout for this sale is returned/i)).toBeVisible();
-    await page.getByRole('button', { name: /^cancel$/i }).click();
+
+    // 10.3 — the dialog spells out what happens; Cancel aborts.
+    const dialog = page.getByRole('dialog', { name: /approve this refund/i });
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+    await expect(dialog.getByText(/your payout for this sale is returned/i)).toBeVisible();
+    await dialog.getByRole('button', { name: /^cancel$/i }).click();
     await expect(orderCard.getByRole('button', { name: /approve refund/i })).toBeVisible();
 
+    // L8 / ruling D9: a change-of-mind refund is conditioned on the piece
+    // coming back, so the artist says where. Refused without it.
     await orderCard.getByRole('button', { name: /approve refund/i }).click();
-    await page.getByRole('button', { name: /approve refund/i }).last().click();
-    await expect(page.getByText(/custom canvas (will settle|is settling)/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: /approve and authorise the return/i }).click();
+    await expect(page.getByText(/full return address is needed/i)).toBeVisible({ timeout: 10_000 });
+
+    await dialog.getByLabel('Name').fill('RT2 Artist Studio');
+    await dialog.getByLabel('Street').fill('12 Bayou Street');
+    await dialog.getByLabel('City').fill('Houston');
+    await dialog.getByLabel('State').fill('TX');
+    await dialog.getByLabel('ZIP').fill('77006');
+    await dialog.getByRole('button', { name: /approve and authorise the return/i }).click();
+    await expect(page.getByText(/7 days to ship it back/i)).toBeVisible({ timeout: 20_000 });
+  });
+
+  test('the buyer is told where to send it, and the settle is refused until it is back (L8)', async ({ browser }) => {
+    // The buyer sees the address only after authorisation — never from the
+    // artist's public profile.
+    await buyerPage.goto('/orders');
+    const card = buyerPage.locator('div.rounded-lg', { hasText: orderShort }).first();
+    await expect(card.getByText(/Return authorised/i)).toBeVisible({ timeout: 20_000 });
+    await expect(card.getByText(/12 Bayou Street/)).toBeVisible();
+    await expect(card.getByText(/Houston, TX 77006/)).toBeVisible();
+
+    // Terms of Sale §5: "the refund may be issued after delivery and
+    // reasonable inspection of the returned artwork". Admin has no settle
+    // button while the piece is still out — the server refusal behind it is
+    // pinned by the returnBlocksSettlement matrix in
+    // src/utils/orderReturns.test.ts.
+    const ctx = await browser.newContext();
+    const adminPage = await ctx.newPage();
+    await login(adminPage, admin.email!, admin.password!);
+    await adminPage.goto('/admin/orders');
+    const adminRow = adminPage.locator('tr', { hasText: orderShort }).first();
+    await expect(adminRow.getByText(/Awaiting return/i)).toBeVisible({ timeout: 20_000 });
+    await expect(adminRow.getByRole('button', { name: /settle refund/i })).toHaveCount(0);
+    await ctx.close();
+
+    // The buyer ships it back — the one thing they supply.
+    await card.getByRole('button', { name: /shipped it back/i }).click();
+    const shipDialog = buyerPage.getByRole('dialog', { name: /shipped it back/i });
+    await shipDialog.getByLabel('Tracking number').fill(`RT2RETURN${RUN}`);
+    await shipDialog.getByRole('button', { name: /confirm/i }).click();
+    await expect(buyerPage.getByText(/once it arrives and is inspected/i).first()).toBeVisible({ timeout: 20_000 });
   });
 
   test('buyer sees "settling"; admin settles; everyone shows Refunded', async ({ browser }) => {
@@ -312,6 +357,14 @@ test.describe.serial('purchase and refund (Stripe test mode)', () => {
     await login(page, admin.email!, admin.password!);
     await page.goto('/admin/orders');
     const row = page.locator('tr', { hasText: orderShort }).first();
+
+    // L8: the piece is back; record receipt and the inspection that §5 makes
+    // the refund conditional on. Until this, the settle is refused.
+    await expect(row.getByText(/Return in transit/i)).toBeVisible({ timeout: 15_000 });
+    await row.getByRole('button', { name: /received & accepted/i }).click();
+    await page.getByRole('button', { name: /received & inspected/i }).last().click();
+    await expect(page.getByText(/recorded/i).first()).toBeVisible({ timeout: 20_000 });
+
     await expect(row.getByRole('button', { name: /settle refund/i })).toBeVisible({ timeout: 15_000 });
     await row.getByRole('button', { name: /settle refund/i }).click();
 

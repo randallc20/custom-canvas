@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Modal } from '@/components/ui/Modal';
+import { returnBlocksSettlement, type ReturnRecord } from '@/utils/orderReturns';
 import {
   calculateRefundSplit,
   isFaultRefund,
@@ -80,6 +81,8 @@ function OrdersContent() {
   const [signing, setSigning] = useState<string | null>(null);
   const [refundModal, setRefundModal] = useState<AdminOrder | null>(null);
   const [refundReason, setRefundReason] = useState<RefundReason>('change_of_mind');
+  const [returns, setReturns] = useState<Record<string, ReturnRecord>>({});
+  const [returnBusy, setReturnBusy] = useState<string | null>(null);
   const [settling, setSettling] = useState<string | null>(null);
   const { toast } = useToast();
   const confirm = useConfirm();
@@ -91,8 +94,14 @@ function OrdersContent() {
       .select('id, amount_cents, shipping_cents, platform_fee_cents, artist_payout_cents, amount_tax_cents, buyer_fee_cents, status, created_at, refund_approved_at, refund_reason, signature_required, signature_confirmed, buyer:profiles!orders_buyer_id_fkey(full_name)')
       .order('created_at', { ascending: false })
       .limit(200)
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         setOrders((data ?? []) as unknown as AdminOrder[]);
+        // L8: the settle gate reads these, so the page has to show them or an
+        // admin sees "Refund" refuse with no visible reason.
+        const { data: rets } = await supabase.from('order_returns').select('*').limit(500);
+        const byOrder: Record<string, ReturnRecord> = {};
+        for (const r of (rets ?? []) as unknown as ReturnRecord[]) byOrder[r.order_id] = r;
+        setReturns(byOrder);
         setLoading(false);
       });
   }, []);
@@ -134,6 +143,34 @@ function OrdersContent() {
       toast(e instanceof Error ? e.message : 'Refund failed', 'error');
     } finally {
       setSettling(null);
+    }
+  };
+
+  /** L8, ruling D13's admin-run minimum. "The refund may be issued after
+   *  delivery and reasonable inspection of the returned artwork" — so
+   *  recording that inspection is what unblocks the money, and waiving it is
+   *  the documented alternative when a return is unlawful, unsafe,
+   *  impracticable or unnecessary. */
+  const handleReturn = async (o: AdminOrder, body: Record<string, unknown>, title: string, message: string) => {
+    const ok = await confirm({ title, message, confirmLabel: title });
+    if (!ok) return;
+    setReturnBusy(o.id);
+    try {
+      const res = await fetch(`/api/admin/orders/${o.id}/return`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error((await res.json()).error?.toString() || 'Failed');
+      toast('Recorded.', 'success');
+      const { data: rets } = await supabase.from('order_returns').select('*').eq('order_id', o.id);
+      const row = (rets ?? [])[0] as unknown as ReturnRecord | undefined;
+      if (row) setReturns((prev) => ({ ...prev, [o.id]: row }));
+    } catch (e) {
+      captureException(e, { where: 'admin.orders.return' });
+      toast(e instanceof Error ? e.message : 'Could not record that', 'error');
+    } finally {
+      setReturnBusy(null);
     }
   };
 
@@ -256,6 +293,43 @@ function OrdersContent() {
                     {o.status === 'refunded' && o.refund_reason && (
                       <span className="text-xs text-muted">{refundReasonLabel(o.refund_reason)}</span>
                     )}
+                    {/* L8 — the return the settle gate is waiting on. */}
+                    {(() => {
+                      const ret = returns[o.id];
+                      if (!ret || o.status === 'refunded') return null;
+                      const blocked = returnBlocksSettlement(ret);
+                      if (!blocked) {
+                        return <span className="text-xs text-sageText">Return cleared</span>;
+                      }
+                      return (
+                        <>
+                          <span className="text-xs text-amber-700" title={blocked}>
+                            {ret.received_at ? 'Return received — inspect it' : ret.shipped_back_at ? 'Return in transit' : 'Awaiting return'}
+                          </span>
+                          {ret.received_at == null && ret.shipped_back_at != null && (
+                            <Button size="sm" variant="outline" loading={returnBusy === o.id}
+                              onClick={() => handleReturn(o, { action: 'receive', outcome: 'accepted' }, 'Received & inspected',
+                                'Record that the piece arrived and passed a reasonable inspection. This is what unblocks the refund.')}>
+                              Received &amp; accepted
+                            </Button>
+                          )}
+                          {ret.received_at != null && ret.inspection_outcome == null && (
+                            <Button size="sm" variant="outline" loading={returnBusy === o.id}
+                              onClick={() => handleReturn(o, { action: 'receive', outcome: 'accepted' }, 'Accept the inspection',
+                                'Record that the piece passed a reasonable inspection. This unblocks the refund.')}>
+                              Accept inspection
+                            </Button>
+                          )}
+                          {ret.inspection_outcome !== 'rejected' && (
+                            <Button size="sm" variant="ghost" loading={returnBusy === o.id}
+                              onClick={() => handleReturn(o, { action: 'waive', waived_reason: 'unnecessary' }, 'Waive the return',
+                                'Only on one of the documented grounds — unlawful, unsafe, impracticable or unnecessary. This records "unnecessary" and unblocks the refund without the piece coming back.')}>
+                              Waive return
+                            </Button>
+                          )}
+                        </>
+                      );
+                    })()}
                     {/* $750+ orders only, and only while it is unrecorded. */}
                     {o.signature_required && !o.signature_confirmed && (
                       <Button size="sm" variant="outline" loading={signing === o.id} onClick={() => handleRecordSignature(o)}>

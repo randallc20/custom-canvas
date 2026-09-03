@@ -3,6 +3,52 @@
 Deliberate choices with lasting consequences, recorded so they read as
 choices — not oversights. Newest first.
 
+## 2026-09-03 — D9/D10/D13: returns are an orthogonal record, admin-run at launch
+
+Terms of Sale §5, Shipping "Returning the artwork" and Artist Agreement §8 all
+make a refund conditionable on the piece coming back, with Custom Canvas
+providing the instructions, the address, a seven-calendar-day ship-by, tracking
+and an inspection before the money moves. Nothing existed: a refund settled the
+moment the artist approved it, so a change-of-mind buyer kept the artwork AND
+the money — the one outcome the documents are explicit about preventing.
+
+**Not new order statuses.** The status machine (paid/shipped/delivered/
+disputed/refunded), its guard, the one-live-order-per-listing index and the
+whole dispute lifecycle were hardened last week and every one of them keys on
+`status`. A return is orthogonal to where the order is, so `order_returns`
+(00064) is its own record with a unique order_id and touches none of that.
+
+The gate lives inside `settleRefund`, not in the admin route: the cron and the
+buyer's cancel path go through the same function, and a gate that guards one
+door is not a gate. Required-and-not-yet-accepted-or-waived means the money
+does not move. A REJECTED inspection also blocks, deliberately — the documents
+condition the refund on a *reasonable* inspection, and one that failed is a
+support conversation, not an automatic full refund.
+
+**D9 — the return address comes from the artist**, asked for at the moment they
+approve a change-of-mind refund (the only moment they are certainly present),
+or from Custom Canvas when we authorise a fault return. Stored on the return
+record, revealed to that buyer only after authorisation, and **never** taken
+from the artist's public profile — a studio address is not something an artist
+agreed to publish by listing a painting.
+
+**D10 — who pays return shipping is informational at launch.** The documents
+say "ordinarily bears"; the instructions say which party that is for the
+reason at hand, and no labels are bought. Nothing computes or charges it.
+
+**D13 — admin-run minimum for launch.** Built: the record, the settle gate,
+artist authorisation with the address, admin authorisation for fault returns,
+the buyer's "I've shipped it back" (the only client-reachable write, and it
+goes through a route so `shipped_back_at` is a server timestamp rather than a
+client's idea of one), admin receive-and-inspect, and admin waive on the four
+documented grounds. Deferred to before the public push, as the plan defines:
+an artist-side "mark received" for change-of-mind returns, a day-5-of-7
+reminder cron with a day-8 admin alert, and full return status on both cards
+through every step.
+
+Seven CALENDAR days, not business days — §5 says calendar, and it is the only
+window in the product that does.
+
 ## 2026-09-03 — D8: mature work is hidden by default, with a per-browser opt-in
 
 Listing Standards Part three: "Nudity and mature themes | Permitted as fine
