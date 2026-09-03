@@ -3,12 +3,25 @@ name: CI
 on:
   push:
     branches: [master]
+    paths-ignore: ["docs/**", "**.md"]
   pull_request:
     branches: [master]
+    paths-ignore: ["docs/**", "**.md"]
+  # The escape hatch for the opt-in E2E job below.
+  workflow_dispatch:
+
+# Runner minutes are a hard budget with no way to buy more (owner instruction 2026-09-03), so a
+# superseded run must die rather than finish. Without this, pushing three times to a branch pays
+# for three full pipelines and only the last one is ever read.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint-and-typecheck:
     runs-on: ubuntu-latest
+    # The default ceiling is 360 minutes; one hung job would eat a fifth of the month.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,6 +35,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: lint-and-typecheck
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +64,20 @@ jobs:
   # tests the deployed staging environment rather than the PR's own code.
   e2e:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    timeout-minutes: 25
+    # ------------------------------------------------------------------------------------
+    # OPT-IN. This job tests the DEPLOYED staging app, so it spent most of its life paying a
+    # runner to sleep: up to twelve minutes of `curl; sleep 15` waiting for Vercel to finish,
+    # before a single test ran. Minutes cannot be bought (owner instruction 2026-09-03), and
+    # a runner that is waiting is a runner being billed.
+    #
+    # Nothing is lost: the same suite runs nightly on the Mac against the same deployment,
+    # for free. Ask for a CI run by dispatching the workflow, or by labelling a PR `e2e`.
+    # ------------------------------------------------------------------------------------
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'e2e'))
     needs: build
     steps:
       - uses: actions/checkout@v4
