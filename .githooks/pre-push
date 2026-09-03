@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# The gate, before anything leaves this machine.
+#
+# CI is not going to catch it: GitHub Actions minutes are exhausted and cannot be bought, so
+# lint, types, unit tests and the build are checked here instead (~2 minutes).
+#
+# It checks the WORKING TREE, so with somebody else's edits in flight it can fail on code that
+# is not in your commits. Read the failure before reaching for the escape hatch — it is usually
+# real, and it is what CI would have said.
+#
+# Enabled by `git config core.hooksPath .githooks`. In an emergency: git push --no-verify
+exec ./gate.sh
