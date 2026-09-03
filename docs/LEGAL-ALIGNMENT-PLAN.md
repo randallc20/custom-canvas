@@ -588,5 +588,106 @@ sessions plus final testing.
 
 ## Addenda
 
-*(dated notes from the implementing sessions: rulings received, counsel's
-answers on A1–A4, deviations)*
+### 2026-09-03 — the arc, executed
+
+All twelve phases (L1–L12) built, verified and merged to master. Every ruling
+D7–D13 taken at the plan's default, each recorded as a dated entry in
+`DECISIONS.md`. Migrations 00058–00065 applied to DEV; **none applied to prod
+yet** — that is Section D step 4.
+
+#### Rulings applied (all defaults — Chris can overturn any of them)
+
+| # | Taken as | Where it lives if you want it back |
+|---|---|---|
+| D7 | Signature confirmation restored as protection requirement 4, recorded by an admin from the carrier's record | `SIGNATURE_CONFIRMATION_AVAILABLE` in `evaluateProtection.ts`; the waiver path is kept and tested |
+| D8 | Mature work **hidden by default**, per-browser opt-in | `MatureGate` + the `showMature` default in `runFeedQuery` |
+| D9 | The **artist** supplies the return address at approval; Custom Canvas for fault returns | `authorizeReturn` in `src/lib/orderReturns.ts` |
+| D10 | Return shipping is **informational** — no labels bought | `returnShippingBearer`, used only in instruction text |
+| D11 | Existing accounts re-accept through a **dismissible** interstitial; enforcement is the 403 in 13 write routes | `AcceptanceInterstitial` + `acceptanceGate` |
+| D12 | Age attestation rides on the acceptance checkbox; **no date of birth** | registration checkbox + interstitial label |
+| D13 | Returns are the **admin-run minimum** at launch | L8 below lists what is deferred |
+
+**Two flagged back to Chris as product calls rather than legal ones**, as the
+plan asked: **D8** (hide-by-default versus blur-only — a judgement about how a
+first-time visitor meets this work) and **D11** (a blocking interstitial for
+existing accounts; taken as dismissible-plus-hard-403, which is the spirit of
+the default without locking people out of a marketplace they are still
+deciding to trust).
+
+#### Deviations from the plan, and why
+
+1. **Migration numbering shifted.** The plan assigned 00063 to L8 and 00064 to
+   L11. An L2 defect found by the e2e suite needed its own migration and took
+   00063, so L8 became **00064** and L11 **00065**. Final set: 00058 L2,
+   00059 L4, 00060 L5+L12, 00061 L6, 00062 L7, 00063 the L2 fix, 00064 L8,
+   00065 L11.
+2. **One acceptance route, not two.** The plan specified
+   `POST /api/account/accept-terms`; it is `GET`+`POST /api/account/acceptance`
+   instead, because the browser also needs to ask what is outstanding and one
+   route with two verbs beat two routes sharing a definition.
+3. **Seller Protection acceptance is not separately recorded.** The plan had
+   `SELLER_PROTECTION_VERSION` "recorded alongside" the agreement version.
+   Artist Agreement §4 says the policy "is part of this agreement ... and is
+   versioned with it", so the stamped `agreement_version` already covers it
+   and a second column would be a second thing to keep in step. The constant
+   exists so the UI can name the version being accepted.
+4. **Branches, not worktrees.** The plan and the arc prompt called for a
+   worktree per phase. This ran as one sequential session, so it used a branch
+   per phase in the main tree — identical history, no node_modules symlinks to
+   go stale. Worktrees earn their keep when phases run in parallel; nothing
+   here did.
+5. **L8's e2e asserts the settle gate through the admin UI, not the API.** The
+   money spec never captured the full order id, only its 8-character prefix,
+   and inventing a lookup for it was worse than asserting the absence of the
+   settle control. The server refusal is pinned by the 15-case
+   `returnBlocksSettlement` matrix and by db-smoke §14.
+6. **No e2e for a real fault refund.** A fault refund and a change-of-mind
+   refund are mutually exclusive on one order, and the money spec buys one
+   piece. The spec asserts the fault split in the admin modal (switching the
+   reason offers the full $28.21 rather than $27.06) and Section D step 5
+   walks a real one by hand.
+
+#### Defects found and fixed during the arc
+
+Three of these were mine, introduced by this arc and caught before Chris saw
+them. That is the operating loop working, so they are recorded rather than
+quietly fixed:
+
+- **The acceptance interstitial opened for every newly registered buyer.** A
+  new buyer has the Terms of Sale outstanding *by design* — they accept those
+  at checkout — so the dialog appeared over the home feed and its overlay
+  swallowed every click. Broke `lover-social` 8.1 and `commissions` 11.1. Now
+  gated on the server's `blocks` answer rather than on "anything outstanding".
+- **`handle_new_user` broke every signup.** 00063 called
+  `current_terms_version()` unqualified; the trigger fires as GoTrue, whose
+  `search_path` excludes `public`. Every account creation failed with
+  "Database error creating new user". The e2e seeder caught it within the
+  hour. db-smoke §12 had *not* — it inserts as a superuser whose search_path
+  includes public, so it was pinning the environment rather than the
+  behaviour; it now clears search_path first, and that check was verified to
+  fail on the broken body.
+- **"Complete Setup" fell under the cookie banner.** L2's Seller Protection
+  disclosure made onboarding step 2 taller and pushed the primary action
+  beneath the fixed banner. An artist finishing onboarding is a first-time
+  visitor by definition, so the banner is always up: a genuine launch bug, not
+  a test artifact.
+- Also caught in review before shipping: the acceptance reminder banner was
+  `sticky top-0 z-40`, the same offset and layer as the navbar.
+
+#### What is deferred, deliberately
+
+- **L8's full return flow** (ruling D13): artist-side "mark received" for
+  change-of-mind returns, the day-5-of-7 reminder cron with a day-8 admin
+  alert, and full return status on both cards through every step. The plan
+  defines these as "before the public push"; the launch minimum is built.
+- **A1–A3 are counsel's**, collected in `docs/legal/COUNSEL-NOTE-A1-A4.md`.
+  Nothing in the product waits on them.
+- **A4 / L11 need Chris**: the Copyright Office designated-agent registration
+  (safe harbour depends on the registration, not the page) and the
+  `dmca@` mailbox. Until counsel's filled text lands in the markdown, `/dmca`
+  substitutes an interim block — keyed on the placeholders, so the real text
+  publishes with no deploy.
+- **Sentry's 90-day retention** is a project setting nobody can verify from
+  here. The Privacy Policy states it as fact, so it is on the runbook and the
+  go-live checklist.
+
