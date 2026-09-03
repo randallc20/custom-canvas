@@ -4,6 +4,7 @@ import type Stripe from 'stripe';
 import { getStripe, STRIPE_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET } from '@/lib/stripe';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { buildOrderRecord, detachParty, partyFromForeignKeyError } from '@/utils/orderRecord';
+import { classifyRead } from '@/utils/classifyRead';
 import {
   pickupHandoffConfirmed,
   evaluateProtection,
@@ -103,7 +104,11 @@ async function assessProtection(supabase: AdminClient, orderId: string) {
 }
 
 async function adminIds(supabase: AdminClient): Promise<string[]> {
-  const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+  const { data: admins, error } = await supabase.from('profiles').select('id').eq('role', 'admin');
+  // Best-effort by design (callers notify after the money has moved), but
+  // never silent: a failed read here skips every admin notification in the
+  // caller (04-r4 appendix).
+  if (error) Sentry.captureException(new Error(`Admin lookup failed: ${error.message}`));
   return (admins ?? []).map((a) => a.id as string);
 }
 
@@ -298,11 +303,22 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      const { data: listing } = await supabase
+      // Every lookup in this handler reads three ways — row, confirmed
+      // absent, failed — because supabase-js resolves an outage as
+      // `{ data: null, error }`, indistinguishable from "no row" to a `!data`
+      // check (04-r4 P2). A failed read is a 500 so Stripe redelivers; only a
+      // CONFIRMED absence may detach the order from its listing, and only two
+      // SUCCESSFUL order reads may call a payment an oversell.
+      const listingRead = await supabase
         .from('listings')
         .select('*, artist:artist_profiles(id)')
         .eq('id', listingId)
-        .single();
+        .maybeSingle();
+      if (classifyRead(listingRead) === 'failed') {
+        Sentry.captureException(new Error(`Listing read failed for paid session ${paymentIntentId}: ${listingRead.error?.message ?? 'unknown'}`));
+        return retryLater('Listing read failed');
+      }
+      const listing = listingRead.data;
 
       // Stripe delivers at-least-once. An already-recorded payment is a
       // redelivery — but if the listing is still on the market the first
@@ -314,9 +330,15 @@ export async function POST(request: NextRequest) {
       const resumeIfIncomplete = async (existing: { id: string; status: string }): Promise<NextResponse | null> => {
         if (existing.status !== 'paid') return null;
         const orderId = existing.id;
-        const { data: fresh } = await supabase
-          .from('listings').select('status').eq('id', listingId).single();
-        if (!listing || fresh?.status !== 'available') return null;
+        const freshRead = await supabase
+          .from('listings').select('status').eq('id', listingId).maybeSingle();
+        if (classifyRead(freshRead) === 'failed') {
+          // Acking here would leave a paid order on an available listing
+          // with nobody emailed, and nothing later notices.
+          Sentry.captureException(new Error(`Listing re-read failed while resuming order ${orderId}: ${freshRead.error?.message ?? 'unknown'}`));
+          return retryLater('Listing re-read failed');
+        }
+        if (!listing || freshRead.data?.status !== 'available') return null;
         const artistObj = listing.artist as unknown as { id: string };
         const order = buildOrderRecord(
           {
@@ -332,20 +354,26 @@ export async function POST(request: NextRequest) {
         return completeSale(supabase, { session, listingTitle: listing.title, order, orderId });
       };
 
-      const { data: existingOrder } = await supabase
+      const existingRead = await supabase
         .from('orders')
         .select('id, status')
         .eq('stripe_payment_intent_id', paymentIntentId)
         .maybeSingle();
+      if (classifyRead(existingRead) === 'failed') {
+        Sentry.captureException(new Error(`Order lookup failed for payment ${paymentIntentId}: ${existingRead.error?.message ?? 'unknown'}`));
+        return retryLater('Order lookup failed');
+      }
+      const existingOrder = existingRead.data;
       if (existingOrder) {
         const failed = await resumeIfIncomplete(existingOrder);
         if (failed) return failed;
         break;
       }
 
-      // The listing row vanished between session creation and webhook
-      // delivery: the artist deleted it, or deleted their account and it
-      // cascaded away (01-r2 P2). The buyer HAS been charged and the artist
+      // The listing row is CONFIRMED gone (the read above succeeded and
+      // returned nothing) between session creation and webhook delivery:
+      // the artist deleted it, or deleted their account and it cascaded
+      // away (01-r2 P2). The buyer HAS been charged and the artist
       // transfer HAS been created. Returning 500 here made Stripe retry into
       // the same missing row for three days and left no order for the
       // refund, the dispute handlers or the reconcile cron to attach to.
@@ -358,9 +386,13 @@ export async function POST(request: NextRequest) {
       } else {
         const metaArtist = session.metadata?.artist_id;
         if (metaArtist) {
-          const { data: artistRow } = await supabase
+          const artistRead = await supabase
             .from('artist_profiles').select('id').eq('id', metaArtist).maybeSingle();
-          artistId = (artistRow?.id as string | undefined) ?? null;
+          if (classifyRead(artistRead) === 'failed') {
+            Sentry.captureException(new Error(`Artist read failed for paid session ${paymentIntentId}: ${artistRead.error?.message ?? 'unknown'}`));
+            return retryLater('Artist read failed');
+          }
+          artistId = (artistRead.data?.id as string | undefined) ?? null;
         }
         Sentry.captureMessage(
           `Paid session ${paymentIntentId} for missing listing ${listingId} — recording the order without it`,
@@ -413,12 +445,21 @@ export async function POST(request: NextRequest) {
       if (insertError) {
         if (insertError.code === '23505') {
           // Either a redelivery of this same payment (already recorded) or an
-          // oversell (another live order holds this listing). Distinguish:
-          const { data: samePayment } = await supabase
+          // oversell (another live order holds this listing). Distinguish —
+          // and only on a read that SUCCEEDED: Stripe redelivers exactly when
+          // the previous attempt failed, so a database blip and the retry are
+          // correlated, and a failed read here would refund a real,
+          // already-recorded sale as an "oversell".
+          const sameRead = await supabase
             .from('orders')
             .select('id, status')
             .eq('stripe_payment_intent_id', paymentIntentId)
             .maybeSingle();
+          if (classifyRead(sameRead) === 'failed') {
+            Sentry.captureException(new Error(`Order lookup failed after unique violation for ${paymentIntentId}: ${sameRead.error?.message ?? 'unknown'}`));
+            return retryLater('Order lookup failed');
+          }
+          const samePayment = sameRead.data;
           if (samePayment) {
             const failed = await resumeIfIncomplete(samePayment);
             if (failed) return failed;
@@ -447,11 +488,16 @@ export async function POST(request: NextRequest) {
           // Record the refunded order for the buyer's history / audit trail.
           // charge.refunded for this refund matches THIS row (409 until it
           // exists), so the refund event can never be dropped as an orphan.
+          // Without the row, charge.refunded for this refund 409-loops for
+          // days and the reconcile cron reports no_order daily (04-r4
+          // appendix). Retrying is safe: the refund is idempotency-keyed and
+          // charge_already_refunded is treated as done above.
           const { error: auditError } = await supabase.from('orders').insert({ ...order, status: 'refunded' });
           if (auditError) {
             Sentry.captureException(
               new Error(`Oversell audit insert failed for ${paymentIntentId}: ${auditError.message}`)
             );
+            return retryLater('Oversell audit insert failed');
           }
           Sentry.captureMessage(
             `Oversell auto-refunded: listing ${listingId}, payment ${paymentIntentId}`,
@@ -523,11 +569,17 @@ export async function POST(request: NextRequest) {
       if (!paymentIntentId) break;
       if (charge.amount_refunded < charge.amount) break;
 
-      const { data: order } = await supabase
+      const { data: order, error: refundOrderReadError } = await supabase
         .from('orders')
-        .select('id, listing_id, status, artist_payout_cents')
+        .select('id, listing_id, status, artist_payout_cents, shipped_at, delivered_at, pre_dispute_status')
         .eq('stripe_payment_intent_id', paymentIntentId)
         .maybeSingle();
+      if (refundOrderReadError) {
+        // Our side failed — 500, retry now; not the 409 "no row yet" answer
+        // that puts a real order's refund on the multi-day schedule.
+        Sentry.captureException(new Error(`Order read failed for refunded payment ${paymentIntentId}: ${refundOrderReadError.message}`));
+        return retryLater('Order read failed');
+      }
       if (!order) {
         // No order (and no oversell audit row — that is an orders row too)
         // for this payment yet: events retry independently, so the refund
@@ -537,7 +589,17 @@ export async function POST(request: NextRequest) {
       }
       if (order.status === 'refunded') break; // already reconciled
 
-      const wasShipped = order.status === 'shipped' || order.status === 'delivered';
+      // From the evidence, not the status: a chargeback freezes the status at
+      // `disputed`, so a full refund landing out of order on a frozen,
+      // delivered piece read as "never shipped" and put a piece the buyer
+      // already has back in the feed (04-r4 P3). shipped_at/delivered_at
+      // are stamped by the order guard and frozen; pre_dispute_status is the
+      // belt for a row frozen before the stamps existed.
+      const wasShipped =
+        !!order.shipped_at ||
+        !!order.delivered_at ||
+        order.pre_dispute_status === 'shipped' ||
+        order.pre_dispute_status === 'delivered';
 
       // A dashboard-initiated full refund may have skipped the artist
       // transfer reversal (it's a checkbox an admin can forget), or reversed
@@ -569,7 +631,13 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const { error: refundedError } = await supabase.from('orders').update({ status: 'refunded' }).eq('id', order.id);
+      // pre_dispute_status only means something while the order is frozen;
+      // a refund that closes a disputed order clears it so nothing later
+      // "restores" the row to it.
+      const { error: refundedError } = await supabase
+        .from('orders')
+        .update({ status: 'refunded', pre_dispute_status: null })
+        .eq('id', order.id);
       if (refundedError) {
         Sentry.captureException(new Error(`Order ${order.id} refunded-update failed: ${refundedError.message}`));
         return retryLater('Order refunded-update failed');
@@ -801,6 +869,9 @@ export async function POST(request: NextRequest) {
           ...disputeRecord,
           protection_status: protectionStatus,
           pre_dispute_status: order.status,
+          // A NEW dispute: an earlier one's verdict no longer describes this
+          // row (04-r4 appendix — `disputed` with `dispute_outcome = won`).
+          dispute_outcome: null,
         })
         .eq('id', order.id)
         .neq('status', 'disputed')
@@ -1019,8 +1090,18 @@ export async function POST(request: NextRequest) {
           Sentry.captureException(new Error(`Inquiry close ${dispute.id} record failed on order ${order.id}: ${inquiryCloseError.message}`));
           return retryLater('Inquiry close record failed');
         }
-        artistTitle = 'Bank inquiry closed';
-        artistBody = `The bank closed its inquiry about "${title}" without a chargeback. Nothing changes on this order.`;
+        // `charge_refunded` is a status Stripe delivers but the SDK's Status
+        // union omits (utils/disputeOutcome types it as string for the same
+        // reason).
+        if ((dispute.status as string) === 'charge_refunded') {
+          // A chargeback Stripe closed because the payment was refunded —
+          // it was never an inquiry (04-r4 appendix).
+          artistTitle = 'Dispute closed';
+          artistBody = `The bank closed the chargeback on "${title}" because the payment had already been refunded. Nothing further changes on this order.`;
+        } else {
+          artistTitle = 'Bank inquiry closed';
+          artistBody = `The bank closed its inquiry about "${title}" without a chargeback. Nothing changes on this order.`;
+        }
       } else {
         // Money stays. Put the order back where it was. Compare-and-swap on
         // `disputed`: a refund settled between the ruling and this delivery
@@ -1110,21 +1191,37 @@ export async function POST(request: NextRequest) {
       // falls out of good standing flips back off and checkout blocks with
       // the clean "hasn't finished setting up payments" error instead of an
       // opaque transfer failure.
+      //
+      // Derived from the LIVE account, not the event payload. Stripe does not
+      // order deliveries (a stale payouts_enabled=false arriving after a
+      // newer true flipped a ready artist off — 01-r2 appendix), and
+      // `event.created` has one-second resolution: onboarding completion can
+      // emit a "not ready" and a "ready" event in the same second, and the
+      // strict newer-than gate R14 added dropped whichever landed second —
+      // with nothing left to flip stripe_onboarded if that was the ready one
+      // (04-r4 P2). Retrieving the account makes the ordering moot; the
+      // timestamp gate below is now only an optimisation that discards
+      // events strictly OLDER than the last one recorded (lte: an equal
+      // second is written, and what is written is the live truth).
+      let live: Stripe.Account;
+      try {
+        live = await getStripe().accounts.retrieve(account.id);
+      } catch (err) {
+        Sentry.captureException(err);
+        return retryLater('Account retrieve failed');
+      }
       const ready =
-        account.payouts_enabled === true &&
-        account.capabilities?.transfers === 'active';
-      // Stripe does not order deliveries: a stale payouts_enabled=false that
-      // arrives after a newer true flipped a ready artist off until their
-      // next account change (01-r2 appendix). Write only when this event is
-      // newer than the last one recorded — the compare is in the WHERE, so
-      // two deliveries racing cannot both win. Zero rows = stale or unknown
-      // account; both are acks.
+        live.payouts_enabled === true &&
+        live.capabilities?.transfers === 'active';
+      // The compare is in the WHERE, so two deliveries racing cannot both
+      // win. Zero rows = older than recorded, or unknown account; both are
+      // acks.
       const eventAt = new Date(event.created * 1000).toISOString();
       const { data: artistRow, error: accountError } = await supabase
         .from('artist_profiles')
         .update({ stripe_onboarded: ready, stripe_account_updated_at: eventAt })
         .eq('stripe_account_id', account.id)
-        .or(`stripe_account_updated_at.is.null,stripe_account_updated_at.lt."${eventAt}"`)
+        .or(`stripe_account_updated_at.is.null,stripe_account_updated_at.lte."${eventAt}"`)
         .select('id')
         .maybeSingle();
       if (accountError) {
@@ -1136,7 +1233,7 @@ export async function POST(request: NextRequest) {
         await supabase.rpc('refresh_completeness_score', { p_artist_id: artistRow.id });
       } else {
         Sentry.captureMessage(
-          `account.updated ${event.id} for ${account.id} (created ${eventAt}) skipped: no artist row, or a newer event is already recorded`,
+          `account.updated ${event.id} for ${account.id} (created ${eventAt}) skipped: no artist row, or a strictly newer event is already recorded`,
           'info'
         );
       }
