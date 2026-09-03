@@ -94,6 +94,8 @@ export function ProtectionBadge({ order }: { order: Order }) {
 
       {open && (
         <div className="mt-2 rounded-md border border-line bg-sand/40 px-3 py-2 text-xs leading-relaxed">
+          {/* L9: the policy that decides this is a click away, wherever the
+              artist is looking at the verdict. */}
           {covered ? (
             <p className="text-muted">
               {settled
@@ -154,6 +156,16 @@ export function ProtectionBadge({ order }: { order: Order }) {
               )}
             </>
           )}
+          <p className="mt-2 border-t border-line pt-2 text-muted">
+            <a
+              href="/seller-protection"
+              target="_blank"
+              className="font-medium text-terraText underline underline-offset-2"
+            >
+              Read the Seller Protection Policy
+            </a>{' '}
+            — it decides who bears a chargeback.
+          </p>
         </div>
       )}
     </div>

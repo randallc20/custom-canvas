@@ -220,6 +220,16 @@ export function SalesSection() {
           <div className="rounded-md bg-sand/50 px-3 py-2 text-xs leading-relaxed text-ink">
             <span className="font-medium">Seller protection:</span> a supported carrier and a
             tracking number are required for Custom Canvas to cover a chargeback on this order.
+            {/* L9: §7 is where the shipping obligations and the coverage
+                requirement actually live. */}{' '}
+            <a
+              href="/artist-agreement"
+              target="_blank"
+              className="font-medium text-terraText underline underline-offset-2"
+            >
+              Artist Agreement §7
+            </a>{' '}
+            covers packing, coverage and signature confirmation.
             {/* A requirement again (ruling D7, DECISIONS.md 2026-09-03):
                 Artist Agreement §7 obliges it and Seller Protection makes it
                 requirement 4. The artist buys it; Custom Canvas reads the
