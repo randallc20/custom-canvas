@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { withSessionRetry, isRlsDenial } from '@/lib/sessionRetry';
 import { ArtistProfile } from '@/types/artist';
 import { ARTIST_PROFILE_EMBED, ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
 
@@ -16,20 +17,26 @@ export async function getFollowedArtists(profileId: string): Promise<FollowedArt
 }
 
 export async function followArtist(profileId: string, artistId: string): Promise<void> {
-  const { error } = await supabase
-    .from('follows')
-    .insert({ follower_id: profileId, artist_id: artistId });
+  // Near signup the session cookie may not be attached yet (CONVENTIONS
+  // rule 3): re-sync and retry once on an RLS refusal.
+  const { error } = await withSessionRetry(
+    () => supabase.from('follows').insert({ follower_id: profileId, artist_id: artistId }),
+    (r) => isRlsDenial(r.error)
+  );
 
   if (error) throw error;
 }
 
 export async function unfollowArtist(profileId: string, artistId: string): Promise<void> {
-  const { data, error } = await supabase
-    .from('follows')
-    .delete()
-    .eq('follower_id', profileId)
-    .eq('artist_id', artistId)
-    .select('artist_id');
+  const { data, error } = await withSessionRetry(
+    () => supabase
+      .from('follows')
+      .delete()
+      .eq('follower_id', profileId)
+      .eq('artist_id', artistId)
+      .select('artist_id'),
+    (r) => !r.error && !r.data?.length
+  );
 
   if (error) throw error;
   // Zero rows = RLS refused the delete — the button would flip to "Follow"

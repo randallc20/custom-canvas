@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { withSessionRetry, isRlsDenial } from '@/lib/sessionRetry';
 import { ListingWithImages } from '@/types/listing';
 
 export async function getSavedListings(profileId: string): Promise<ListingWithImages[]> {
@@ -20,20 +21,27 @@ export async function getSavedListings(profileId: string): Promise<ListingWithIm
 }
 
 export async function saveListing(profileId: string, listingId: string): Promise<void> {
-  const { error } = await supabase
-    .from('saved_listings')
-    .insert({ profile_id: profileId, listing_id: listingId });
+  // A heart is often the first write a brand-new account makes; near signup
+  // the session cookie may not be attached yet and RLS refuses the insert
+  // (CONVENTIONS rule 3), so re-sync the session and retry once.
+  const { error } = await withSessionRetry(
+    () => supabase.from('saved_listings').insert({ profile_id: profileId, listing_id: listingId }),
+    (r) => isRlsDenial(r.error)
+  );
 
   if (error) throw error;
 }
 
 export async function unsaveListing(profileId: string, listingId: string): Promise<void> {
-  const { data, error } = await supabase
-    .from('saved_listings')
-    .delete()
-    .eq('profile_id', profileId)
-    .eq('listing_id', listingId)
-    .select('listing_id');
+  const { data, error } = await withSessionRetry(
+    () => supabase
+      .from('saved_listings')
+      .delete()
+      .eq('profile_id', profileId)
+      .eq('listing_id', listingId)
+      .select('listing_id'),
+    (r) => !r.error && !r.data?.length
+  );
 
   if (error) throw error;
   // Zero rows = RLS refused the delete (or state is stale) — the heart would
