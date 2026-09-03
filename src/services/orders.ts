@@ -51,11 +51,18 @@ export async function getArtistSalesTotals(artistId: string): Promise<ArtistSale
   }));
 }
 
+export interface UpdateOrderStatusResult {
+  order: Order;
+  /** Set when the order was updated but the buyer's "shipped" email could
+   *  not be sent — the caller shows it; the status change itself stood. */
+  notifyShippedError: string | null;
+}
+
 export async function updateOrderStatus(
   id: string,
   status: string,
   updates?: Record<string, unknown>
-): Promise<Order> {
+): Promise<UpdateOrderStatusResult> {
   const { data, error } = await supabase
     .from('orders')
     .update({ status, ...updates })
@@ -65,13 +72,27 @@ export async function updateOrderStatus(
 
   if (error) throw error;
 
+  // The order is shipped either way; the buyer's email is a second step
+  // whose failure the artist must hear about (04 appendix: the HTTP status
+  // was ignored, so a 401/500 meant no email and no toast).
+  let notifyShippedError: string | null = null;
   if (status === 'shipped') {
     // Server-side send — Resend can't run in the browser (the old inline call
     // here silently never sent) and buyer email is service-role-only (00031).
-    fetch(`/api/orders/${id}/notify-shipped`, { method: 'POST' }).catch((e) => captureException(e, { where: 'orders.notifyShipped' }));
+    try {
+      const res = await fetch(`/api/orders/${id}/notify-shipped`, { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        notifyShippedError = (body as { error?: string }).error || `HTTP ${res.status}`;
+        captureException(new Error(`notify-shipped ${res.status} for order ${id}: ${notifyShippedError}`), { where: 'orders.notifyShipped' });
+      }
+    } catch (e) {
+      notifyShippedError = e instanceof Error ? e.message : 'network error';
+      captureException(e, { where: 'orders.notifyShipped' });
+    }
   }
 
-  return data;
+  return { order: data, notifyShippedError };
 }
 
 export async function getOrderById(id: string): Promise<Order | null> {
