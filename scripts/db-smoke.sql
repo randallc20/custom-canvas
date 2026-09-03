@@ -55,8 +55,10 @@ INSERT INTO expected_functions VALUES
   -- trigger functions (exercised via their tables' writes)
   ('artist_search_update'), ('enforce_featured_cap'), ('enforce_partner_picks_cap'),
   ('guard_artist_profiles_insert'), ('guard_artist_profiles_update'),
-  ('guard_conversations_update'), ('guard_gallery_profile_update'),
-  ('guard_listing_alert_stamps'), ('guard_messages_update'),
+  ('guard_commissions_insert'), ('guard_conversations_update'),
+  ('guard_gallery_profile_update'), ('guard_listing_alert_stamps'),
+  ('guard_message_attachments_insert'), ('guard_message_attachments_update'),
+  ('guard_messages_insert'), ('guard_messages_update'),
   ('guard_orders_update'), ('guard_profiles_update'), ('handle_new_user'),
   ('listing_tags_touch_listing'), ('listings_search_update'),
   ('notify_admins_new_application'), ('notify_artist_new_follower'),
@@ -300,7 +302,9 @@ INSERT INTO expected_update_grants
     'away_mode','away_message','away_until','commissions_open_before_away',
     'last_listing_alert_at','application_status','rejection_reason',
     'reviewed_by','reviewed_at','agreement_accepted_at','agreement_version',
-    'search_vector']),
+    'search_vector',
+    -- 00056: table-level grant, frozen by guard_artist_profiles_update.
+    'stripe_account_updated_at']),
     ARRAY['anon','authenticated'];
 
 DO $$
@@ -344,7 +348,8 @@ BEGIN
       AND privilege_type = 'SELECT'
       AND ((table_name = 'profiles' AND column_name IN ('email','unsubscribe_token'))
         OR (table_name = 'artist_profiles' AND column_name IN
-            ('rejection_reason','reviewed_by','reviewed_at','stripe_account_id')));
+            ('rejection_reason','reviewed_by','reviewed_at','stripe_account_id',
+             'stripe_account_updated_at')));
   IF bad IS NOT NULL THEN
     RAISE EXCEPTION E'PRIVATE column granted to a client role:\n%', bad;
   END IF;
@@ -520,11 +525,14 @@ BEGIN
 
   -- Frozen stamps: the write is silently discarded, never applied.
   UPDATE orders SET delivered_at = now(), pre_dispute_status = 'paid', shipped_email_sent_at = now(),
-                    shipped_at = now() - interval '30 days'
+                    shipped_at = now() - interval '30 days', review_requested_at = now()
     WHERE id = o;
   SELECT * INTO row_after FROM orders WHERE id = o;
   IF row_after.delivered_at IS NOT NULL THEN
     RAISE EXCEPTION 'transition matrix: delivered_at must be frozen for the artist';
+  END IF;
+  IF row_after.review_requested_at IS NOT NULL THEN
+    RAISE EXCEPTION 'transition matrix: review_requested_at must be frozen for the artist (00056)';
   END IF;
   IF row_after.pre_dispute_status IS NOT NULL THEN
     RAISE EXCEPTION 'transition matrix: pre_dispute_status must be frozen for the artist';
@@ -798,5 +806,265 @@ BEGIN
     RAISE EXCEPTION 'reports INSERT policy does not pin status/admin_notes/resolved_by: %', expr;
   END IF;
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- 7. Storage policy matrix (00056, R14 / 01-r2 P2). The exact set of
+--    (verb, policy) rows on storage.objects is pinned: the five public
+--    buckets must carry NO SELECT policy (public-URL GETs need none; a
+--    SELECT policy is what lets the anon key list every uploader's folder),
+--    and the private chat bucket keeps its participant-scoped read. Then the
+--    behaviour: anon and a signed-in non-owner see zero rows in each public
+--    bucket. Buckets with no objects on this database are vacuous for the
+--    count check but still pinned by the matrix.
+-- ---------------------------------------------------------------------------
+BEGIN;
+CREATE TEMP TABLE expected_storage_policies(cmd text, pol text) ON COMMIT DROP;
+INSERT INTO expected_storage_policies VALUES
+  ('a','Artists can upload own photos'),
+  ('a','Artists can upload own videos'),
+  ('a','Authenticated users can upload chat attachments'),
+  ('a','Authenticated users can upload listing images'),
+  ('a','Users can upload own avatar'),
+  ('a','Users can upload own banner'),
+  ('d','Artists can delete own photos'),
+  ('d','Artists can delete own videos'),
+  ('d','Users can delete own avatar'),
+  ('d','Users can delete own banner'),
+  ('d','Users can delete own listing images'),
+  ('r','Participants view chat attachments'),
+  ('w','Users can update own avatar'),
+  ('w','Users can update own banner');
+
+DO $$
+DECLARE diff text;
+BEGIN
+  SELECT string_agg(marker || ' ' || row, E'\n' ORDER BY marker, row) INTO diff FROM (
+    SELECT 'UNEXPECTED storage policy:' AS marker,
+           p.polcmd::text || ' | ' || p.polname AS row
+      FROM pg_policy p
+      WHERE p.polrelid = 'storage.objects'::regclass
+        AND (p.polcmd::text, p.polname) NOT IN (SELECT cmd, pol FROM expected_storage_policies)
+    UNION ALL
+    SELECT 'MISSING storage policy (dropped or renamed):', e.cmd || ' | ' || e.pol
+      FROM expected_storage_policies e
+      WHERE (e.cmd, e.pol) NOT IN (
+        SELECT p.polcmd::text, p.polname FROM pg_policy p
+        WHERE p.polrelid = 'storage.objects'::regclass)
+  ) d;
+  IF diff IS NOT NULL THEN
+    RAISE EXCEPTION E'storage policy drift:\n%', diff;
+  END IF;
+  -- Belt and braces: whatever the names, no SELECT policy may name a public
+  -- bucket, and every SELECT policy must be scoped beyond bucket_id alone.
+  SELECT string_agg(p.polname, ', ') INTO diff
+    FROM pg_policy p
+    WHERE p.polrelid = 'storage.objects'::regclass AND p.polcmd = 'r'
+      AND pg_get_expr(p.polqual, p.polrelid) ~ '(listing-images|avatars|banners|artist-photos|artist-videos)';
+  IF diff IS NOT NULL THEN
+    RAISE EXCEPTION 'storage: SELECT policy on a public bucket (anon can list it): %', diff;
+  END IF;
+END $$;
+
+DO $$
+DECLARE
+  bucket text;
+  seen bigint;
+  total bigint;
+  non_owner uuid;
+BEGIN
+  SELECT id INTO non_owner FROM profiles WHERE role <> 'admin' LIMIT 1;
+  FOREACH bucket IN ARRAY ARRAY['listing-images','avatars','banners','artist-photos','artist-videos'] LOOP
+    SELECT count(*) INTO total FROM storage.objects WHERE bucket_id = bucket;
+    IF total = 0 THEN
+      RAISE NOTICE 'storage: bucket % has no objects; the anon-list check is vacuous', bucket;
+    END IF;
+
+    PERFORM set_config('request.jwt.claims', '{"role":"anon"}', true);
+    PERFORM set_config('role', 'anon', true);
+    SELECT count(*) INTO seen FROM storage.objects WHERE bucket_id = bucket;
+    PERFORM set_config('role', 'none', true);
+    IF seen <> 0 THEN
+      RAISE EXCEPTION 'storage: anon can list % objects in bucket % (01-r2 P2)', seen, bucket;
+    END IF;
+
+    IF non_owner IS NOT NULL THEN
+      PERFORM set_config('request.jwt.claims',
+                         json_build_object('sub', non_owner, 'role', 'authenticated')::text, true);
+      PERFORM set_config('role', 'authenticated', true);
+      SELECT count(*) INTO seen FROM storage.objects
+        WHERE bucket_id = bucket AND (storage.foldername(name))[1] <> non_owner::text;
+      PERFORM set_config('role', 'none', true);
+      IF seen <> 0 THEN
+        RAISE EXCEPTION 'storage: a signed-in user can list % other people''s objects in bucket %', seen, bucket;
+      END IF;
+    END IF;
+  END LOOP;
+  PERFORM set_config('request.jwt.claims', '', true);
+END $$;
+ROLLBACK;
+
+-- ---------------------------------------------------------------------------
+-- 8. Chat type guards (00056, R14 / 01-r2 P2). A participant may post
+--    text/image/file/listing_card; `system` and `quote_card` (message and
+--    attachment) are platform-only. The privileged path (service role: no
+--    claims) must still post them — the webhook's pickup notice and the
+--    commission accept route depend on it. Attachment metadata is frozen for
+--    non-privileged UPDATE. Fixture: a fresh conversation between two
+--    profiles, rolled back.
+-- ---------------------------------------------------------------------------
+BEGIN;
+DO $$
+DECLARE
+  p1 uuid;
+  p2 uuid;
+  conv uuid;
+  msg uuid;
+  att uuid;
+  denied boolean;
+  meta_after jsonb;
+  as_user text;
+BEGIN
+  SELECT id INTO p1 FROM profiles WHERE role <> 'admin' ORDER BY created_at LIMIT 1;
+  SELECT id INTO p2 FROM profiles WHERE role <> 'admin' AND id <> p1 ORDER BY created_at LIMIT 1;
+  IF p1 IS NULL OR p2 IS NULL THEN
+    RAISE EXCEPTION 'chat guards: need two non-admin profiles to build the fixture';
+  END IF;
+  INSERT INTO conversations (participant_one, participant_two, context_type)
+    VALUES (p1, p2, 'listing') RETURNING id INTO conv;
+  as_user := json_build_object('sub', p1, 'role', 'authenticated')::text;
+
+  -- Non-privileged: text passes, system and quote_card raise.
+  PERFORM set_config('request.jwt.claims', as_user, true);
+  INSERT INTO messages (conversation_id, sender_id, content, message_type)
+    VALUES (conv, p1, 'smoke text', 'text') RETURNING id INTO msg;
+
+  denied := false;
+  BEGIN
+    INSERT INTO messages (conversation_id, sender_id, content, message_type)
+      VALUES (conv, p1, 'Custom Canvas: re-enter your bank details', 'system');
+  EXCEPTION WHEN raise_exception THEN denied := true;
+  END;
+  IF NOT denied THEN
+    RAISE EXCEPTION 'chat guards: a participant posted a system message';
+  END IF;
+
+  denied := false;
+  BEGIN
+    INSERT INTO messages (conversation_id, sender_id, content, message_type)
+      VALUES (conv, p1, 'Sent a commission quote', 'quote_card');
+  EXCEPTION WHEN raise_exception THEN denied := true;
+  END;
+  IF NOT denied THEN
+    RAISE EXCEPTION 'chat guards: a participant posted a quote_card message';
+  END IF;
+
+  -- Attachments: image on the text message passes; quote_card raises.
+  INSERT INTO message_attachments (message_id, attachment_type, url, metadata)
+    VALUES (msg, 'image', p1::text || '/smoke.jpg', '{}') RETURNING id INTO att;
+  denied := false;
+  BEGIN
+    INSERT INTO message_attachments (message_id, attachment_type, url, metadata)
+      VALUES (msg, 'quote_card', NULL, '{"quoted_price_cents": 100}');
+  EXCEPTION WHEN raise_exception THEN denied := true;
+  END;
+  IF NOT denied THEN
+    RAISE EXCEPTION 'chat guards: a participant attached a quote_card';
+  END IF;
+
+  -- Non-privileged UPDATE cannot rewrite attachment metadata or type.
+  UPDATE message_attachments SET metadata = '{"quoted_price_cents": 1}', attachment_type = 'file'
+    WHERE id = att;
+  SELECT metadata INTO meta_after FROM message_attachments WHERE id = att;
+  IF meta_after <> '{}'::jsonb THEN
+    RAISE EXCEPTION 'chat guards: attachment metadata was rewritten by a non-privileged UPDATE';
+  END IF;
+
+  -- Privileged (service role): system and quote_card still post.
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  INSERT INTO messages (conversation_id, sender_id, content, message_type)
+    VALUES (conv, p1, 'Order is ready to coordinate for local pickup.', 'system');
+  INSERT INTO messages (conversation_id, sender_id, content, message_type)
+    VALUES (conv, p1, 'Sent a commission quote', 'quote_card') RETURNING id INTO msg;
+  INSERT INTO message_attachments (message_id, attachment_type, url, metadata)
+    VALUES (msg, 'quote_card', NULL, '{"quoted_price_cents": 100000}');
+  PERFORM set_config('request.jwt.claims', '', true);
+END $$;
+ROLLBACK;
+
+-- ---------------------------------------------------------------------------
+-- 9. commissions INSERT guard (00056, R14 / 01-r2 P3). A client-created
+--    commission is always `pending` with every artist/admin-owned column
+--    null, and only a live artist can be its target. The privileged path
+--    keeps what it is given (admin tooling / seeds).
+-- ---------------------------------------------------------------------------
+BEGIN;
+DO $$
+DECLARE
+  live_artist uuid;
+  dark_artist uuid;
+  requester uuid;
+  c commissions%ROWTYPE;
+  denied boolean;
+BEGIN
+  SELECT id INTO live_artist FROM artist_profiles WHERE is_live LIMIT 1;
+  IF live_artist IS NULL THEN
+    RAISE EXCEPTION 'commissions guard: no live artist to build the fixture from';
+  END IF;
+  SELECT ap.id INTO dark_artist FROM artist_profiles ap WHERE NOT ap.is_live LIMIT 1;
+  IF dark_artist IS NULL THEN
+    -- Darken one inside this rolled-back transaction (privileged: no claims).
+    SELECT id INTO dark_artist FROM artist_profiles WHERE id <> live_artist LIMIT 1;
+    IF dark_artist IS NULL THEN
+      RAISE EXCEPTION 'commissions guard: need a second artist_profiles row';
+    END IF;
+    UPDATE artist_profiles SET is_live = false WHERE id = dark_artist;
+  END IF;
+  SELECT p.id INTO requester FROM profiles p
+    WHERE p.role <> 'admin'
+      AND p.id NOT IN (SELECT profile_id FROM artist_profiles WHERE id IN (live_artist, dark_artist))
+    LIMIT 1;
+  IF requester IS NULL THEN
+    RAISE EXCEPTION 'commissions guard: no requester profile';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', requester, 'role', 'authenticated')::text, true);
+
+  -- Every artist/admin-owned value is discarded; status is forced to pending.
+  INSERT INTO commissions (artist_id, requester_id, title, description, budget_min_cents, budget_max_cents,
+                           status, quoted_price_cents, estimated_completion, artist_notes,
+                           closed_by, closed_reason, dispute_reason, pre_dispute_status, last_nudge_at)
+    VALUES (live_artist, requester, 'smoke', 'smoke description', 10000, 20000,
+            'disputed', 999999, 'tomorrow', 'forged', 'admin', 'forged', 'forged', 'in_progress', now())
+    RETURNING * INTO c;
+  IF c.status <> 'pending' OR c.quoted_price_cents IS NOT NULL OR c.estimated_completion IS NOT NULL
+     OR c.artist_notes IS NOT NULL OR c.closed_by IS NOT NULL OR c.closed_reason IS NOT NULL
+     OR c.dispute_reason IS NOT NULL OR c.pre_dispute_status IS NOT NULL OR c.last_nudge_at IS NOT NULL THEN
+    RAISE EXCEPTION 'commissions guard: a client-set status/quote/close/dispute column survived the insert';
+  END IF;
+
+  -- A non-live artist cannot be targeted.
+  denied := false;
+  BEGIN
+    INSERT INTO commissions (artist_id, requester_id, title, description, budget_min_cents, budget_max_cents)
+      VALUES (dark_artist, requester, 'smoke', 'smoke description', 10000, 20000);
+  EXCEPTION WHEN raise_exception THEN denied := true;
+  END;
+  IF NOT denied THEN
+    RAISE EXCEPTION 'commissions guard: a commission was created for a non-live artist';
+  END IF;
+
+  -- Privileged: values are kept.
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  INSERT INTO commissions (artist_id, requester_id, title, description, budget_min_cents, budget_max_cents,
+                           status, quoted_price_cents)
+    VALUES (live_artist, requester, 'smoke', 'smoke description', 10000, 20000, 'quoted', 15000)
+    RETURNING * INTO c;
+  IF c.status <> 'quoted' OR c.quoted_price_cents <> 15000 THEN
+    RAISE EXCEPTION 'commissions guard: the privileged path lost its values';
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+END $$;
+ROLLBACK;
 
 \echo 'db-smoke: all checks passed'
