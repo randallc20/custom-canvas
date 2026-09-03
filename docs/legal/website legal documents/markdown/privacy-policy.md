@@ -1,12 +1,10 @@
 # Custom Canvas Privacy Policy
 
-**DRAFT v3 — complete draft for counsel review.** Rewritten 2026-08-25 against the actual code: the
-previous version named three processors where the platform uses eight, and omitted
-geolocation entirely. The separate Cookie Policy is now §10 of this document, next to
-the processor table it describes.
-
 Custom Canvas LLC · 3120 Southwest Freeway, Ste 101 #991985, Houston TX 77098
-support@customcanvas.shop · Last updated: [DATE]
+support@customcanvas.shop · Version 2.0 · Effective: September 3, 2026
+
+This policy explains what information Custom Canvas collects, why, who processes it,
+how long we keep it, and the choices you have. It covers cookies too, in §10.
 
 ---
 
@@ -14,7 +12,7 @@ support@customcanvas.shop · Last updated: [DATE]
 
 **You give us:**
 - Name, email address, password (stored hashed by our auth provider)
-- Profile details — avatar, bio, artist story, mediums, neighbourhood, education, links
+- Profile details — avatar, bio, artist story, mediums, neighborhood, education, links
 - Listings — titles, descriptions, prices, photographs, tags
 - **Order details, including the recipient name and shipping address** you enter at
   checkout
@@ -29,19 +27,40 @@ never see or store your full bank details or card number.
 - Standard request data — IP address, browser type, pages requested
 - Error diagnostics when something breaks
 
-**Location.** If you use the location picker, your **device coordinates are sent to a
-third-party geocoding service** (BigDataCloud) to turn them into a city name, or your
-ZIP code is sent to zippopotam.us. This is disclosed in the picker itself. **Your chosen
-location is stored only in your browser** — it is never attached to your account or sent
-to our database.
+**Location information.** If you choose to use a location feature, your browser or
+device may provide coordinates, ZIP code, city, or similar location information to
+Custom Canvas or a geocoding provider (BigDataCloud for coordinates, zippopotam.us for
+ZIP codes) for the purpose of identifying nearby communities and artwork.
+
+We do not request background location access. The Platform is intended to use location
+only when you actively use the feature. Depending on the implementation, location
+information may be transmitted temporarily even if it is not stored in your account.
+
+Your selected community is stored in your browser as described in the location picker
+itself. You can decline device location and enter a city or ZIP code manually.
+
+**In summary**, depending on how you use Custom Canvas, we may process identifiers,
+account credentials, profile information, commercial and transaction records,
+communications, uploaded content, approximate or device-provided location information,
+internet or device activity, fraud and security signals, and inferences regarding
+marketplace preferences.
 
 ## 2. Why we use it
 
-To run the marketplace: accounts and sign-in, listings and search, orders and payouts,
-messaging, notifications, and transactional email about your account, orders and
-commissions. To keep the platform safe: fraud prevention, rate limiting, CAPTCHA,
-dispute evidence, and enforcement. To improve it: understanding which pieces are viewed
-and saved. To meet legal obligations: tax, accounting, and lawful requests.
+We use this information to:
+
+- create and administer accounts;
+- operate listings, search, messaging, purchases, pickup, shipping, payouts, and
+  refunds;
+- process payments and applicable taxes;
+- prevent fraud, abuse, infringement, and security incidents, including through rate
+  limiting and CAPTCHA;
+- investigate disputes and enforce agreements;
+- communicate transactional and optional marketing messages;
+- analyze and improve the Platform, including understanding which pieces are viewed
+  and saved;
+- comply with legal, tax, accounting, and reporting obligations; and
+- establish, exercise, or defend legal claims.
 
 **We do not sell personal data.** We do not use it for advertising or share it with
 advertisers.
@@ -59,11 +78,29 @@ advertisers.
 | **BigDataCloud** | Reverse-geocoding for the location picker | **Device coordinates** |
 | **zippopotam.us** | ZIP-to-city lookup | ZIP code |
 
-Each acts on our instructions. Stripe is an independent controller for payment data —
-see Stripe's own privacy policy.
+These providers process information under their own terms and applicable
+data-protection roles. Some act primarily as service providers or processors on our
+behalf, while others, including payment, tax, fraud-prevention, geolocation, and
+infrastructure providers, may process certain information as independent controllers
+or businesses for their own compliance, security, or operational purposes.
 
-We also share data when the law requires it, to investigate fraud or abuse, or in
-connection with a merger or sale of the business (in which case we would tell you).
+Their handling of information may also be governed by their respective privacy notices.
+Custom Canvas does not control independent processing performed by a provider outside
+the services it supplies to us.
+
+**Between buyers and artists.** When necessary to complete a transaction, we disclose
+relevant buyer information to the selling artist and relevant artist information to the
+buyer. Each user receiving that information may use it only to complete the
+transaction, communicate about the order, comply with law, or resolve a related
+dispute. Users may not use transaction information for unrelated marketing or disclose
+it publicly.
+
+**Legal and corporate.** We also share data when the law requires it and to investigate
+fraud or abuse. We may disclose information as part of a merger, financing,
+acquisition, reorganization, bankruptcy, sale of assets, or due-diligence process,
+subject to appropriate confidentiality protections where practicable. Any successor may
+continue to use the information as described in this Policy unless it provides notice
+of a materially different practice.
 
 ## 4. What other people can see
 
@@ -100,15 +137,10 @@ switched off in your account settings or by the unsubscribe link in any such mes
 **How deletion interacts with records we must keep.** If you ask us to delete your
 account we remove your profile, listings, saved items and preferences, and disconnect
 your identity from analytics. **We cannot delete a completed sale.** Tax law, accounting
-obligations and dispute defence require us to keep the transaction record — order
+obligations and dispute defense require us to keep the transaction record — order
 amount, date, tax collected, and the shipping address the piece went to — for seven
 years. What we do is reduce it to what those obligations need and detach it from your
 active account.
-
-*[Counsel: confirm the seven-year figure against Texas and federal record-keeping
-requirements, and confirm that retaining a shipping address inside a closed order is
-the right call — it is needed to defend a chargeback, which can arrive long after
-account closure.]*
 
 ## 7. Your rights
 
@@ -119,20 +151,28 @@ preferences, or ask us to delete your account by writing to support@customcanvas
 rights to access, correct, delete and port their personal data, and to opt out of
 targeted advertising, the sale of personal data, and certain profiling.
 
-The TDPSA is unusual in having no revenue or headcount threshold: it applies to anyone
-doing business in Texas **unless they are a "small business" as defined by the U.S.
-Small Business Administration**. Custom Canvas is a small business by that definition,
-so most of the Act's obligations do not currently apply to us. One does regardless of
-size: **we will not sell sensitive personal data without your consent** — and we do not
-sell personal data at all.
+The TDPSA applies to businesses operating in Texas other than a "small business" as
+defined by the U.S. Small Business Administration. Custom Canvas currently qualifies as
+a small business, so most of the Act's obligations do not apply to us. One does
+regardless of size: **we will not sell sensitive personal data without your consent**,
+and we do not sell personal data at all.
 
-**We honour these rights anyway.** Being exempt is not a reason to behave differently,
-and we would rather not rebuild our practices the day we outgrow the exemption. Write to
-support@customcanvas.shop.
+**We honor these rights anyway.** Being exempt is not a reason to behave differently.
+Write to support@customcanvas.shop.
 
-**If we turn a request down**, we will tell you why within 45 days, and you may **appeal**
-by replying to that decision. We will answer an appeal within 60 days, and if we refuse
-it again we will tell you how to complain to the **Texas Attorney General**.
+**Verifying your request.** To protect account security, we may take reasonable steps
+to verify your identity before completing an access, correction, deletion, or
+portability request. Verification may require confirmation through the email address
+associated with the account or additional information reasonably related to the
+request. An authorized agent may submit a request where permitted by law, but we may
+require proof of authorization and may separately verify your identity.
+
+**If we turn a request down.** We may deny or limit a request where permitted by law,
+including when we cannot verify identity, must retain information for legal or security
+purposes, or the request would adversely affect another person's rights. We will
+explain any denial within 45 days, and you may **appeal** by replying to that decision.
+We will answer an appeal within 60 days, and if we refuse it again we will tell you how
+to complain to the **Texas Attorney General**.
 
 **Browser signals.** Where your browser sends a Global Privacy Control signal, we treat
 it as an opt-out of any sale or sharing of personal data. We do not sell or share
@@ -140,12 +180,8 @@ personal data in any case.
 
 **California residents.** We do not currently meet the CCPA/CPRA applicability
 thresholds. We extend the same rights described above to California residents
-voluntarily, and we do not sell or share personal data for cross-context behavioural
+voluntarily, and we do not sell or share personal data for cross-context behavioral
 advertising.
-
-*[Counsel: confirm the SBA size-standard analysis for our NAICS code, and confirm you
-are comfortable with the voluntary extension — offering rights we are not required to
-offer is a commitment, and withdrawing it later reads badly.]*
 
 We will not discriminate against you for exercising any of these rights.
 
@@ -159,21 +195,14 @@ provider. Rate limiting and CAPTCHA on sensitive endpoints.
 No system is perfectly secure, and we will not claim otherwise.
 
 **If a breach affects your personal data**, we will notify you without unreasonable
-delay once we have determined what happened and what data was involved. Texas law sets
-two different deadlines, and they are easy to confuse: affected individuals must be
-notified **within 60 days** of determining that a breach occurred, while the **Texas
-Attorney General must be notified within 30 days** where **250 or more** Texas residents
-are affected. We will meet both and aim to tell you sooner where we can do so
-usefully.
+delay once we have determined what happened and what data was involved. Texas law
+requires that affected individuals be notified **within 60 days** of determining that a
+breach occurred, and that the **Texas Attorney General be notified within 30 days**
+where **250 or more** Texas residents are affected. We will meet both and aim to tell
+you sooner where we can do so usefully.
 
 Our notice will describe what happened, what data was involved, what we have done, and
 what you can do.
-
-*[Counsel: confirm both deadlines and the threshold against the current text of Tex.
-Bus. & Com. Code §521.053. The previous draft gave 60 days for both and described the
-threshold as "more than 250"; the AG deadline was shortened to 30 days by amendment and
-the threshold is expressed as "at or over" 250. Worth being exact: these are the two
-numbers someone will be reading off this page at the worst possible moment.]*
 
 ## 9. Age
 
@@ -181,10 +210,6 @@ You must be **18 or over** to hold a Custom Canvas account, whether you buy or s
 We do not knowingly collect personal information from anyone under 18. If we learn that
 an account holder is under 18 we close the account and delete the information, and if
 you believe a minor has given us information, write to us and we will do the same.
-
-*[Counsel: this follows the change to Terms of Service §2. If you overrule that change
-and the account minimum stays at 13, this section has to come back to a COPPA-shaped
-under-13 clause and the Texas SCOPE Act analysis becomes live.]*
 
 ## 10. Cookies and similar technologies
 
@@ -207,16 +232,10 @@ networks.
 **Your choices.** Most browsers let you refuse or delete cookies. Refusing strictly
 necessary cookies will prevent you from signing in.
 
-*[Counsel: because the only cookies we set are strictly necessary — session
-authentication and the sign-in CAPTCHA — and analytics is cookieless, the consent banner
-currently shown may not be required at all. Worth confirming: an unnecessary banner is
-friction on every first visit, and a banner that implies choices it does not actually
-offer is its own small problem.]*
-
 ## 11. Changes
 
-We will post any update here and change the date above. Material changes will be
-notified.
+We will post any update here and change the effective date above. Material changes
+will be notified, and we will tell you what changed.
 
 ---
 

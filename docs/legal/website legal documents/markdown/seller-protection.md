@@ -1,14 +1,10 @@
-# Custom Canvas Seller Protection
+# Custom Canvas Seller Protection Policy
 
-**DRAFT — complete draft for counsel review.** The system described here is **live in production** as
-of 2026-08-25; this is the artist-facing document for it, which does not yet exist.
-
----
+Custom Canvas LLC · support@customcanvas.shop · Version 1.0 · Effective: September 3, 2026
 
 **This policy is part of the Artist Agreement**, incorporated into §4 by reference and
 versioned with it. It is kept as a separate document because it decides who bears a
-chargeback, which is the single term most worth reading properly, and because it is the
-term most likely to change as the platform's evidence handling improves.
+chargeback, which is the single term most worth reading properly.
 
 ---
 
@@ -18,8 +14,22 @@ Protection is a **bargain, not a benefit**. You bear a chargeback by default. Cu
 Canvas covers it instead when you did the things that would have won the dispute.
 
 Every dispute — won or lost — counts against **Custom Canvas's** standing with the card
-networks, not yours. One careless sale can jeopardise processing for every artist on the
-platform. That is why the requirements are what they are.
+networks. One careless sale can jeopardize processing for every artist on the Platform.
+That is why the requirements are what they are.
+
+## Scope of protection
+
+Seller Protection applies only to an eligible card chargeback that Custom Canvas
+contests and ultimately loses. For a Protected order, Custom Canvas will not recover
+from you the protected portion of the artwork price and ordinary outbound shipping
+included in your payout.
+
+Unless Custom Canvas expressly agrees otherwise, Seller Protection does not cover taxes,
+the buyer service fee, processing fees, dispute fees, penalties, consequential losses,
+insurance deductibles, or amounts exceeding the original transaction.
+
+Seller Protection is a contractual platform benefit, not insurance, a bank guarantee, or
+a promise that any dispute will be won.
 
 ## When Custom Canvas covers a chargeback
 
@@ -36,13 +46,27 @@ An order is **Protected** when all of the following are true:
 6. **No buyer message about the order left unanswered** for more than 3 business days,
    between the sale and confirmed delivery and for any later message about that order
 
+## How eligibility is determined
+
+Custom Canvas determines protection eligibility reasonably and in good faith based on
+the order record, payment-processor information, carrier records, communications, and
+other relevant evidence.
+
+Meeting the listed requirements does not guarantee that a chargeback will be won.
+Custom Canvas may request additional evidence reasonably required by the payment
+processor or card network.
+
+A technical error by Custom Canvas will not automatically disqualify an otherwise
+eligible order if you can provide reliable alternative evidence demonstrating
+compliance.
+
 **Two limits to know about before you rely on this:**
 
 **Delivery confirmation is your attestation, not the carrier's.** We do not yet read
 tracking from carrier APIs, so marking an order delivered is something you record. It
-still has to be true. A false attestation is a breach of the Artist Agreement and
-forfeits protection. Carrier verification is coming, and we will tell you before it
-changes.
+still has to be true, and we may check it against carrier records. A false attestation
+is a breach of the Artist Agreement and forfeits protection. Carrier verification is
+coming, and we will tell you before it changes.
 
 **Local pickup is not eligible today.** The rule is that pickup is Protected when both
 parties confirm handoff in the message thread, but **that confirmation feature is not
@@ -54,7 +78,7 @@ in writing in the thread. It remains the best evidence available to you.
 
 They are not arbitrary — each is a piece of evidence a card network actually weighs:
 
-- **Tracking and delivery** are the single strongest defence against "I never received
+- **Tracking and delivery** are the single strongest defense against "I never received
   it", which is the most common dispute.
 - **Signature at $750** matches the card networks' own evidence rules for higher-value
   goods.
@@ -71,14 +95,23 @@ protect that order — it protects the *next* one.
 
 ## Seeing where you stand
 
-Every order in **Studio → Sales** shows its protection standing **before** any dispute
+Every order in **Studio > Sales** shows its protection standing **before** any dispute
 exists, and expands to list precisely what is missing. Anything still fixable is listed
 separately from anything already fixed at the point of sale.
 
-## Conceding is free
+## Accepting a dispute
 
-If a dispute arrives and you would rather accept it than fight it, you pay no penalty
-and your record stays clean. Fighting a dispute you will lose costs everyone.
+You may tell Custom Canvas that you do not wish to contest a dispute. If accepted before
+Custom Canvas incurs a dispute-response fee or other processor cost, Custom Canvas will
+ordinarily not impose an additional platform penalty solely because you declined to
+contest it. Fighting a dispute you will lose costs everyone.
+
+The transaction, refund, or dispute may nevertheless remain part of Custom Canvas's and
+the payment processor's records and may be considered in future risk, reserve, payout,
+or account decisions.
+
+Custom Canvas may contest a dispute notwithstanding your preference when necessary to
+prevent fraud, protect the Platform, or comply with processor requirements.
 
 ## What happens when a dispute arrives
 
@@ -94,11 +127,12 @@ A reversal can push your Stripe balance negative. That is why payouts run on a 1
 delay — so the money is usually still in your Stripe balance rather than already spent
 out of your bank account.
 
-**If your balance will not cover a reversal**, the shortfall is a debt to Custom Canvas
-and we recover it by setting it off against your future payouts. We will tell you the
-amount and how it is being recovered. We may also hold a payout or place a reserve
-while we investigate a dispute or a claim about a piece, for no longer than the
-investigation reasonably needs. See Artist Agreement §4.
+**If your balance will not cover a reversal**, the shortfall is an amount you owe
+Custom Canvas, and we may recover it by reversing or adjusting an unsettled transfer,
+deducting it from current or future payouts, applying an account reserve, or requesting
+direct reimbursement. We may also hold a payout or place a reserve while a dispute or a
+claim about a piece is investigated. The full terms are in Artist Agreement §4, under
+*Payout holds, reserves, and amounts owed*.
 
 ## What this does not cover
 
@@ -111,5 +145,32 @@ was never shipped, or one we make because we substantiated that a piece arrived 
 or was materially not as your listing described it. Protection is about defending
 against a bank; it is not a guarantee against the consequences of a sale that went
 wrong.
+
+Protection does not apply when:
+
+- you, a related party, or someone acting with you participated in fraud or collusion;
+- the artwork or transaction violated the Artist Agreement or Listing Standards;
+- the listing contained a material inaccuracy or omitted a required disclosure;
+- you provided false, altered, or misleading evidence;
+- the shipment was redirected or delivered to an address different from the Custom
+  Canvas order without written approval;
+- the transaction was split, duplicated, or conducted partly outside the Platform;
+- you failed to provide requested evidence within the stated response period; or
+- the claim concerns a refund, safety issue, infringement claim, counterfeit work, or
+  other matter outside the card-chargeback protection described here.
+
+## Changes to protection requirements
+
+Custom Canvas may prospectively modify supported carriers, documentation requirements,
+signature thresholds, response periods, payout timing, or other protection criteria to
+address fraud trends, processor requirements, card-network rules, or operational
+changes.
+
+A change will not retroactively remove protection from an order that qualified under
+the policy in effect when the order was placed, except where you engaged in fraud,
+supplied false information, or were never eligible under that version.
+
+Material changes will be disclosed to artists and may require renewed acceptance before
+additional listings or sales.
 
 *Questions: support@customcanvas.shop*

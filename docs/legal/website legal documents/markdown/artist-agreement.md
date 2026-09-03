@@ -1,36 +1,42 @@
 # Custom Canvas Artist Agreement
 
-**DRAFT v2 — complete draft for counsel review. Not yet in force.**
-All provisions are drafted; passages marked *[Counsel: …]* flag a business decision
-embedded in the draft, not a gap in it.
-Version in force today: v1.0. Adopting this text requires a version bump, which forces
-every existing artist to re-accept.
+Custom Canvas LLC · 3120 Southwest Freeway, Ste 101 #991985, Houston TX 77098
+support@customcanvas.shop · Version 2.0 · Effective: September 3, 2026
 
 This agreement is between you (the "Artist") and Custom Canvas LLC, a Texas limited
-liability company ("Custom Canvas", "we", "us"). You accept it when you create an
-artist account. Your acceptance and its date are recorded.
+liability company ("Custom Canvas", "we", "us"), and governs selling on customcanvas.shop
+(the "Platform"). You accept it when you create an artist account. Your acceptance and its date are recorded.
 
 ---
 
-## 1. What Custom Canvas is, and what it is not
+## 1. Relationship of the parties
 
-Custom Canvas is an online marketplace where you list original artwork for sale and
-ship it directly to buyers. **We never take possession of your work.** We are not your
-agent, your dealer, your gallery, or your consignee, and we do not hold your artwork on
-consignment.
+You are the independent seller of every artwork you list. When a buyer purchases your
+artwork, the sale of the artwork is between you and the buyer, subject to this
+Agreement and the buyer-facing terms.
 
-For payment purposes only, **Custom Canvas is the merchant of record**. Buyers contract
-with, and are charged by, Custom Canvas; we then pay you. This is what lets us collect
-and remit sales tax on your behalf and put a single name on the buyer's statement.
+Custom Canvas operates the marketplace and facilitates payment, communications,
+applicable marketplace tax administration, refunds, and disputes. Custom Canvas does not
+purchase, own, manufacture, create, possess, consign, appraise, authenticate, pack, or
+ship your artwork.
+
+Custom Canvas is not your agent, gallery, dealer, employer, partner, joint venturer,
+franchisee, or fiduciary. Neither party may bind the other except as expressly provided
+in this Agreement.
+
+You appoint Custom Canvas on a limited basis to facilitate payment and administer
+authorized refunds, reversals, taxes, and adjustments arising from transactions
+conducted through the Platform. Buyers are charged through Custom Canvas, and the charge
+appears on their statement under the Custom Canvas name; that payment arrangement does
+not make Custom Canvas the seller of your artwork.
 
 ## 2. Commission and what you are paid
 
 Custom Canvas keeps a commission of **15% of your artwork price**. You receive **85% of
 your price, plus 100% of any shipping you charge**.
 
-Buyers separately pay a service fee that covers card processing. That fee is not
-revenue to Custom Canvas and is not deducted from you — it is added to what the buyer
-pays.
+Buyers separately pay a service fee to Custom Canvas for operating and supporting the
+marketplace. It is added to what the buyer pays and is not deducted from you.
 
 On a $1,000 piece with $40 shipping: you receive **$890**, we keep **$150**, and the
 buyer additionally pays a service fee and applicable sales tax.
@@ -57,8 +63,9 @@ delay protects you as much as us.
 ## 4. Seller protection — who bears a chargeback
 
 If a buyer disputes a charge with their bank, the amount is **deducted from your
-payout by default**. Custom Canvas covers the loss instead when the order was
-**Protected** at the time of sale and shipment.
+payout by default**. Custom Canvas absorbs the loss instead, to the extent described in
+the Seller Protection Policy, when the order was **Protected** at the time of sale and
+shipment.
 
 The **Seller Protection Policy** is part of this agreement and is incorporated into it
 by reference. It is versioned with this agreement, so a change to it asks you to
@@ -91,32 +98,49 @@ but that confirmation feature is not yet built. Until it ships, treat every pick
 as unprotected and get the buyer's written confirmation in the thread anyway, because
 it is still the best evidence you will have.
 
-You can see the protection standing of every order in Studio → Sales **before** any
+You can see the protection standing of every order in Studio > Sales **before** any
 dispute exists, including exactly what is missing.
 
-**Conceding a dispute is free.** If you accept a dispute rather than fight it, you pay
-no penalty and your record stays clean. Fighting a dispute you will lose costs
-everyone, and every dispute — won or lost — counts against Custom Canvas's standing
-with the card networks, not yours.
+**Accepting a dispute.** You may tell us that you do not wish to contest a dispute. If
+you do so before we incur a dispute-response fee or other processor cost, we will
+ordinarily not impose an additional platform penalty solely because you declined to
+contest it. The dispute may nevertheless remain part of our and the payment processor's
+records and may be considered in future risk, reserve, payout, or account decisions.
+We may contest a dispute notwithstanding your preference when necessary to prevent
+fraud, protect the Platform, or comply with processor requirements. Every dispute, won
+or lost, also counts against Custom Canvas's standing with the card networks.
 
 **Why the bargain works this way:** the six requirements are the evidence that wins a
 dispute. When you produce them, we can defend the charge, so we can afford to absorb
 the loss when we lose anyway. When they are missing, the dispute is unwinnable and the
 loss sits with the sale it came from.
 
-**Recovering an unprotected loss.** Where an unprotected order is reversed, the amount
-comes out of your Stripe balance. If your balance will not cover it, you owe us the
-shortfall, and you authorise us to recover it by **setting it off against your future
-payouts** on this platform. We will tell you the amount and how it is being recovered.
-We may also **hold a payout, or place a reserve on your account**, while we investigate
-a dispute, a suspected misdescription, or a claim that work is not yours, for no longer
-than the investigation reasonably requires.
+### Payout holds, reserves, and amounts owed
 
-*[Counsel: this clause and the reserve right are new. The platform can already reverse
-a payout in code, but nothing in v1.0 gives us a contractual route to a shortfall once
-the artist's Stripe balance is empty, which is precisely the case where recovery
-matters. Confirm the set-off language and whether it needs a stated cap or notice
-period.]*
+Custom Canvas or its payment processor may delay, withhold, reverse, or offset a payout
+when reasonably necessary to address a refund, chargeback, suspected fraud,
+payment-processing error, prohibited transaction, ownership claim, legal requirement, or
+material breach of this Agreement.
+
+Custom Canvas may establish a reasonable rolling or transaction-specific reserve based
+on factors including transaction value, delivery status, dispute history, account age,
+suspected fraud, or anticipated refund exposure. We will provide notice of a reserve and
+release it when the applicable risk has reasonably passed, subject to processor
+restrictions and legal requirements.
+
+You authorize Custom Canvas to recover amounts you owe by:
+
+- reversing or adjusting an unsettled transfer;
+- deducting the amount from current or future payouts;
+- applying an authorized account reserve; or
+- requesting direct reimbursement.
+
+Amounts recoverable may include refunds, chargebacks, chargeback fees, duplicate or
+erroneous payments, taxes, penalties caused by inaccurate seller information, and other
+losses attributable to your transaction or breach.
+
+This Section does not authorize a debit from your bank account unless you separately
+provide any authorization required by law and the payment processor.
 
 ## 5. Your work: originality, rights and authenticity
 
@@ -129,51 +153,67 @@ You warrant, for every piece you list, that:
   rights, and breaches no other agreement (including gallery exclusivity).
 - It is not stolen, forged, misattributed, or subject to any undisclosed lien.
 
-**AI-generated work.** Custom Canvas sells work made by people.
+You further represent and warrant that:
 
-- **Wholly AI-generated work is not permitted.** If the piece is essentially the output
-  of a generative system, it does not belong here.
-- **AI-assisted work is permitted, with disclosure.** If you used a generative tool as
-  one step inside a piece you authored — reference, ideation, an element you then
-  painted, printed, cut or worked over — say so in the description, and say what you
-  contributed.
+- you have full legal authority to sell and transfer possession of the artwork;
+- the artwork is free of undisclosed liens, security interests, ownership disputes, and
+  contractual restrictions;
+- the listing contains all warnings reasonably necessary for safe display, handling,
+  installation, storage, and disposal;
+- the artwork complies with laws governing restricted wildlife materials, hazardous
+  substances, electrical components, children's products, weapons, and other regulated
+  materials;
+- any certificate of authenticity, edition statement, signature, provenance statement,
+  or appraisal information you provide is accurate and not misleading; and
+- you will promptly cooperate with any safety notice, recall, ownership claim, or lawful
+  investigation concerning the artwork.
 
-Two reasons this line is drawn here rather than elsewhere. Under U.S. law copyright
-requires **human authorship**, so material generated by an AI system is not protected by
-copyright and you cannot pass to a buyer rights you do not hold. And separately from
-copyright, **failing to tell a buyer that work is AI-generated may be actionable
-misrepresentation**. Disclosure protects you as much as the buyer.
+Custom Canvas may require additional information, insurance, packaging, professional
+installation, or shipping arrangements for unusually valuable, fragile, hazardous,
+oversized, or regulated artwork.
 
-*[Counsel: confirm this position. The alternatives were an outright ban on any AI
-involvement, or permitting generated work with disclosure. This middle line was chosen
-because it is enforceable, it matches a "local original art" marketplace, and it does
-not force artists to disavow ordinary digital tools.]*
+**AI-generated and AI-assisted work.** Custom Canvas does not permit artwork that Custom
+Canvas reasonably determines was primarily generated by an artificial-intelligence
+system without sufficient human creative contribution. This is a marketplace
+eligibility rule and is not a legal determination regarding copyrightability.
+
+Material use of generative artificial intelligence must be clearly disclosed in the
+listing. The disclosure must identify the general nature of the AI use and describe
+your human creative contribution.
+
+You remain responsible for ensuring that prompts, inputs, training materials supplied
+by you, outputs, incorporated elements, and the resulting artwork do not infringe or
+misuse another person's rights.
+
+Custom Canvas may request reasonable supporting information and may remove artwork when
+the human contribution, disclosure, or ownership rights cannot be adequately
+established.
 
 You keep every right in your work. Selling a physical piece transfers the object, not
 the copyright, unless you separately agree otherwise in writing with the buyer.
 
-## 6. Licence to display and promote
+## 6. License to display and promote
 
-You grant Custom Canvas a **non-exclusive, royalty-free licence** to display, reproduce
+You grant Custom Canvas a **non-exclusive, royalty-free license** to display, reproduce
 and distribute images of your work and your artist profile **solely to operate,
 promote and market Custom Canvas and your work on it** — the site, email to buyers and
 followers, social media, and press.
 
-This licence is deliberately **narrow**. It does not include: producing or selling
+This license is deliberately **narrow**. It does not include: producing or selling
 reproductions, prints, merchandise or digital editions of your work; sublicensing to
-third parties for their own purposes; or minting, tokenising or otherwise creating
+third parties for their own purposes; or minting, tokenizing or otherwise creating
 digital assets representing your work.
 
 We may resize, crop or compress images **for presentation only**. Nothing in this
-licence waives your rights of attribution or integrity under the Visual Artists Rights
-Act, and we will not modify your work in a manner prejudicial to your honour or
+license waives your rights of attribution or integrity under the Visual Artists Rights
+Act, and we will not modify your work in a manner prejudicial to your honor or
 reputation. We credit you by the name on your profile.
 
-The licence ends when you remove a listing or close your shop, except that we may
+The license ends when you remove a listing or close your shop, except that we may
 retain copies in archives, backups and records of completed sales, and material already
 distributed (an email already sent) cannot be recalled.
 
-## 7. Shipping and fulfilment
+## 7. Shipping and fulfillment
 
 You are responsible for packing, shipping and insuring your work. You must:
 
@@ -185,98 +225,101 @@ You are responsible for packing, shipping and insuring your work. You must:
 **If you cannot meet the window.** Tell the buyer in Messages before it expires and
 offer them the choice of a new date or a cancellation. If the buyer does not agree to
 the new date, they may cancel for a full refund and we will settle it whether or not
-you approve. This is not a house rule: federal law governing mail and internet orders
-requires a seller who cannot ship in the promised time to obtain the buyer's consent to
-a delay or refund them promptly, and Custom Canvas is the merchant of record on the
-sale.
+you approve. Federal law governing mail and internet orders requires a seller who
+cannot ship in the promised time to obtain the buyer's consent to a delay or refund
+them promptly, and the shipping window shown on your listing is that promise.
 
-*[Counsel: confirm this tracks 16 C.F.R. Part 435. The 5-business-day window is a
-promise made on every listing page, so it is the "promised time" the rule attaches to.
-This is currently the largest compliance gap in the live product: today a late shipment
-is handled as a conversation, not as a refund right.]*
+**Risk of loss stays with you until the piece is delivered.** For a shipped order,
+risk of loss remains with you until carrier records show delivery to the address stated
+in the Custom Canvas order; for an order requiring signature confirmation, risk does not
+transfer until the required signature or other approved delivery confirmation is
+obtained. For local pickup, risk transfers when the buyer or the buyer's authorized
+recipient takes possession and confirms the handoff. If a work is lost, stolen or
+damaged before that point, it is your loss, not the buyer's, and the buyer is entitled
+to a refund.
 
-**Risk of loss stays with you until the piece is delivered.** If a work is lost,
-stolen or damaged in transit, that is your loss, not the buyer's, and the buyer is
-entitled to a refund.
+**Shipping coverage.** You must purchase commercially reasonable shipping coverage for
+the artwork price when such coverage is reasonably available, and build the cost into
+your shipping charge. If full coverage is unavailable because of carrier exclusions,
+value limits, artwork type, or destination, you must disclose that to Custom Canvas
+before shipping and follow any alternative shipping instructions we give you.
 
-**You must insure every shipment for the artwork price, to the extent cover is
-available for the piece.** Build the cost into your shipping charge.
-
-Check the limits before you ship. Carriers restrict cover on artwork more than most
+Check the limits before you ship. Carriers restrict coverage on artwork more than most
 sellers expect: declared-value limits, exclusions for one-of-a-kind or hand-made
 objects, and packaging conditions that void a claim are all common, and the usual
 carrier maximum sits well below the price of a significant piece. Where a carrier will
-not cover the full price, use a fine-art shipper or a third-party transit policy, or
-tell us before listing so we can look at the piece with you. What we require is that
-the shipment is insured to the price where that is possible, and that you do not
+not cover the full price, use a fine-art shipper or a third-party transit policy. Do not
 represent a piece as insured when it is not.
 
-*[Counsel: v1.0 required insurance "for at least the artwork price" without
-qualification, which for higher-value work asks artists to buy cover the major carriers
-will not sell. An obligation that cannot be performed is worse than a softer one that
-can.]*
+The buyer's right to a refund for non-delivery or transit damage does not depend on
+whether you recover from a carrier or insurer. Shipping coverage is maintained for your
+benefit and does not make Custom Canvas an insurer, carrier, or guarantor of the
+shipment.
 
-This is deliberately stricter than the default rule for shipment contracts, and it is
-set this way because it matches what actually happens: a buyer whose piece never
-arrives will dispute the charge, the card network will decide for them in the absence
-of delivery confirmation, and the money comes back regardless of what this agreement
-says. Stating it plainly means you insure for it rather than discover it.
-
-It is also why delivery confirmation is one of the seller-protection requirements in
-§4 — the same record that protects you against a dispute is the record that ends your
-risk.
+This is stricter than the default rule for shipment contracts, and it is set this way
+because it matches what actually happens: a buyer whose piece never arrives will
+dispute the charge, the card network will decide for them in the absence of delivery
+confirmation, and the money comes back regardless of what this agreement says. It is
+also why delivery confirmation is one of the seller-protection requirements in §4: the
+same record that protects you against a dispute is the record that ends your risk.
 
 ## 8. Refunds
 
 Refunds are artist-mediated. A buyer requests one in the message thread; you decide.
 If you approve, Custom Canvas settles it: the buyer receives the artwork price,
-shipping, and the sales tax on those amounts. The **service fee and its tax are not
-refunded**. Your payout is reversed exactly and our commission is returned.
+shipping, and the sales tax on those amounts. On a change-of-mind refund the **service
+fee and its tax are not refunded**. Your payout is reversed exactly and our commission
+is returned.
+
+**Returns.** A refund may be conditioned on the buyer returning the artwork, unless
+Custom Canvas determines that a return is unlawful, unsafe, impracticable, or
+unnecessary. Where a return is required, Custom Canvas provides the return instructions
+and the refund may be issued after the artwork is returned and reasonably inspected. You
+ordinarily bear reasonable return-shipping costs and return-transit risk where the
+artwork was damaged, materially misdescribed, or incorrectly supplied; the buyer
+ordinarily bears them on an approved change-of-mind return.
 
 Approving a refund is your decision, not ours — with four exceptions. We will refund a
 buyer without your approval where a card network determines the dispute against us,
 where the law requires it, where **we substantiate that the piece arrived damaged or
 was materially not as your listing described it**, or where **the piece was never
 shipped**. Your discretion covers a buyer who changed their mind; it does not cover a
-misdescription, and it does not cover a sale you did not fulfil.
+misdescription, and it does not cover a sale you did not fulfill. Where we refund a
+buyer on one of those grounds, we also refund the buyer's service fee.
 
 **Unfulfilled and abandoned orders.** If you have not shipped within the window and
 have not answered the buyer or us within **five business days** of our asking, we will
 cancel the order and refund the buyer in full. The payout is reversed. Repeated
-non-fulfilment is grounds for closing your shop.
+non-fulfillment is grounds for closing your shop.
 
-*[Counsel: the fourth exception and the abandoned-order path are new. Without them a
-buyer whose piece never ships has no route except a chargeback, which is the worst
-outcome for everyone including the artist.]*
+## 9. Taxes and seller information
 
-## 9. Taxes
+Custom Canvas will calculate, collect, report, and remit sales or similar transaction
+taxes where Custom Canvas determines that applicable marketplace-facilitator law
+requires it to do so. Tax treatment may depend on the buyer's location, seller's
+location, type of artwork, delivery method, and applicable law.
 
-**Sales tax.** Custom Canvas is a **marketplace provider** under Texas law. **We
-certify to you that we assume the obligation to collect and remit Texas sales and use
-tax on sales made through Custom Canvas on your behalf.** Because of that, you
-generally do not need your own Texas sales tax permit for sales made here. You must
-give us any information we reasonably need to calculate tax correctly.
+You remain responsible for taxes arising from:
 
-**Income tax.** You are an independent seller, not an employee, partner or agent of
-Custom Canvas. Nothing here creates an employment or partnership relationship. You are
-responsible for your own income and self-employment taxes. **Form 1099-K** is issued
-for payments to your connected account; because card payments are reportable without a
-minimum threshold, you may receive one even for a small amount. Keep your tax details
-current in Stripe, or reporting and payouts can be held.
+- income you receive;
+- transactions completed outside Custom Canvas;
+- jurisdictions or obligations not legally assumed by Custom Canvas; and
+- inaccurate or incomplete information you provide.
 
-*[Counsel and accountant: confirm who actually files. Charges are created on the Custom
-Canvas account and transferred out, so Custom Canvas may itself be the payment
-settlement entity for these transactions rather than a passive beneficiary of Stripe's
-filing. Stripe files on behalf of Connect platforms in most configurations, but the
-obligation is worth confirming in writing rather than assuming, and the artist-facing
-sentence should name whoever it turns out to be.]*
+You must provide accurate legal, tax, identity, and address information and promptly
+update it. Custom Canvas or its payment processor may withhold payouts or apply legally
+required backup withholding if required information is missing or invalid.
+
+Custom Canvas or its payment processor may issue Form 1099-K or another information
+return when required under then-applicable law. Receipt or nonreceipt of an information
+return does not determine whether income is taxable.
 
 ## 10. Your responsibilities
 
 - Keep your listings, prices, availability and profile accurate.
 - Answer buyer messages within three business days.
-- Do not transact around the platform to avoid commission on a buyer you met here.
-  **Commissioned work is the exception**: at launch, commissions are arranged and paid
+- Do not transact around the Platform to avoid commission on a buyer you met here.
+  **Commissioned work is the exception**: currently, commissions are arranged and paid
   off-platform by design, and doing so is not a breach. Sales of listed, finished work
   to a buyer you met here must go through Custom Canvas.
 - Do not list prohibited items, and describe every piece as the **Listing Standards**
@@ -294,7 +337,7 @@ enough to threaten Custom Canvas's card-network standing, or if we are required 
 Where practical we tell you why and give you a chance to respond first.
 
 You may close your shop at any time. Closing does not affect orders already placed:
-you must still fulfil them, and refunds and disputes on past sales are still governed
+you must still fulfill them, and refunds and disputes on past sales are still governed
 by this agreement.
 
 ## 12. Changes to this agreement
@@ -310,7 +353,7 @@ employment, partnership, joint venture or agency relationship between you and Cu
 Canvas, and neither of us may bind the other.
 
 **13.2 Disclaimer.** Custom Canvas is provided "as is" and "as available". We do not
-warrant that the platform will be uninterrupted or error-free, that any piece will
+warrant that the Platform will be uninterrupted or error-free, that any piece will
 sell, or that any particular volume of sales, traffic or income will result. We
 disclaim all implied warranties to the fullest extent the law allows.
 
@@ -332,7 +375,7 @@ members, officers and contractors from any third-party claim, demand, loss or ex
 description of it; any claim that it infringes copyright, trademark, publicity or moral
 rights; your breach of this agreement; or your acts or omissions in fulfilling an order.
 
-We will tell you promptly of any such claim, let you control the defence with counsel of
+We will tell you promptly of any such claim, let you control the defense with counsel of
 your choosing (subject to our reasonable approval), and cooperate at your expense. You
 may not settle a claim in a way that imposes an obligation on us without our consent.
 
@@ -355,7 +398,7 @@ election. Judgment on the award may be entered in any court of competent jurisdi
 
 *What is carved out.* Either of us may bring a claim in **small claims court**, and
 either of us may seek **injunctive relief** in court to protect intellectual property or
-stop misuse of the platform.
+stop misuse of the Platform.
 
 *Class-action waiver.* Disputes will be arbitrated **only on an individual basis**. You
 and Custom Canvas each waive any right to bring or participate in a class, collective,
@@ -369,12 +412,6 @@ fees** exceeding what a court filing would have cost.
 *Opting out.* You may reject this §13.6 by emailing support@customcanvas.shop with the
 subject "Arbitration opt-out" within **30 days** of first accepting this agreement.
 Opting out costs you nothing and affects nothing else in this agreement.
-
-*[Counsel: confirm you want arbitration at all. It limits class exposure, but
-mass-arbitration campaigns have made filing fees a real risk for small platforms, and
-with 15–25 artists the class risk is currently theoretical. The clause is drafted to be
-enforceable — informal-resolution period, small-claims and injunctive carve-outs,
-opt-out window, fee-shifting — but the decision to include it is a business one.]*
 
 **13.7 Assignment.** You may not assign this agreement without our written consent. We
 may assign it to an affiliate or in connection with a merger, acquisition or sale of
@@ -396,10 +433,12 @@ enforce a provision is not a waiver of it.
 **13.11 Survival.** Sections 5 (warranties), 8 (refunds), 9 (taxes), 13.3 (limitation),
 13.4 (indemnity), 13.5–13.6 (law and disputes) and this §13.11 survive termination.
 
-**13.12 Entire agreement.** This agreement, together with the policies it references —
-Seller Protection, Listing Standards, and the Privacy Policy — is the entire agreement
-between us about selling on Custom Canvas, and replaces any earlier understanding. Where this agreement and a
-referenced policy conflict, **this agreement controls**.
+**13.12 Entire agreement.** This agreement, together with the Terms of Service and the
+policies it references — the Seller Protection Policy, the Listing Standards, the
+Shipping, Returns & Refunds Policy, and the Privacy Policy — is the entire agreement
+between us about selling on Custom Canvas, and replaces any earlier understanding.
+Where this agreement and a referenced policy conflict on a matter of selling, **this
+agreement controls**.
 
 Your Stripe Connected Account Agreement is a separate contract between you and Stripe.
 
