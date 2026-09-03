@@ -36,7 +36,16 @@ test.describe('acceptance interstitial (L2, D11)', () => {
   test.skip(!creds, 'E2E_STALE_TERMS_EMAIL/PASSWORD not set — run through scripts/run-e2e.sh');
 
   test('a stale account is asked, can defer, is refused a gated write, then accepts', async ({ page }) => {
+    // Long journey: dialog, deferral, a refused API write, a refused UI send,
+    // accepting, and a successful resend.
+    test.setTimeout(150_000);
+
     await login(page, creds!.email, creds!.password);
+
+    // The cookie banner is `fixed bottom-0` and sits over the message
+    // composer — it swallowed the send click for the full 30s budget the
+    // first time this ran, the same way it hid onboarding's Complete Setup.
+    await page.getByRole('button', { name: 'Accept', exact: true }).click({ timeout: 10_000 }).catch(() => {});
 
     // --- 1. the interstitial appears, unprompted -----------------------
     const dialog = page.getByRole('dialog', { name: /updated our terms/i });
@@ -108,7 +117,7 @@ test.describe('acceptance interstitial (L2, D11)', () => {
     const composer = page.locator('textarea[placeholder="Type a message..."]');
     await composer.waitFor({ state: 'visible', timeout: 20_000 });
     await composer.fill('Testing the acceptance gate.');
-    await page.locator('div.flex.items-end.gap-2 button.bg-terra').click();
+    await composer.press('Enter');
 
     // The toast must say what the SERVER said, not "please try again".
     const toast = page.locator('[class*="fixed"][class*="bottom-4"], [role="status"]');
@@ -131,12 +140,16 @@ test.describe('acceptance interstitial (L2, D11)', () => {
     // …and the thing they were blocked from now works. This is the half that
     // proves the fix rather than the diagnosis: the tester could see the
     // reason, act on it, and carry on.
-    await page.goBack();
+    // Still on the thread — the dialog was over it, not instead of it.
     const composer2 = page.locator('textarea[placeholder="Type a message..."]');
     await composer2.waitFor({ state: 'visible', timeout: 20_000 });
     await composer2.fill('Sent after accepting the terms.');
-    await page.locator('div.flex.items-end.gap-2 button.bg-terra').click();
-    await expect(page.getByText('Sent after accepting the terms.')).toBeVisible({ timeout: 20_000 });
+    // Enter, not the button: the "acceptance recorded" toast is
+    // `fixed bottom-4 right-4` and sits over the send button for its four
+    // seconds, so a click here waits it out or fails. Enter is also how
+    // people actually send chat messages.
+    await composer2.press('Enter');
+    await expect(page.getByText('Sent after accepting the terms.').first()).toBeVisible({ timeout: 20_000 });
 
     // The record is on the row, not in the tab.
     await page.reload();
