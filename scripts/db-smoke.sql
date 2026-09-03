@@ -993,7 +993,20 @@ BEGIN
   SELECT id INTO p1 FROM profiles WHERE role <> 'admin' ORDER BY created_at LIMIT 1;
   SELECT id INTO p2 FROM profiles WHERE role <> 'admin' AND id <> p1 ORDER BY created_at LIMIT 1;
   IF p1 IS NULL OR p2 IS NULL THEN
-    RAISE EXCEPTION 'chat guards: need two non-admin profiles to build the fixture';
+    -- A fresh database (prod before launch) has no two non-admin profiles;
+    -- mint throwaway users inside this rolled-back transaction. The
+    -- handle_new_user trigger creates their profiles rows.
+    INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+      VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+              'smoke.chat1.' || gen_random_uuid() || '@customcanvas.dev', '{"full_name":"Smoke One"}'::jsonb);
+    INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+      VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+              'smoke.chat2.' || gen_random_uuid() || '@customcanvas.dev', '{"full_name":"Smoke Two"}'::jsonb);
+    SELECT id INTO p1 FROM profiles WHERE email LIKE 'smoke.chat1.%' LIMIT 1;
+    SELECT id INTO p2 FROM profiles WHERE email LIKE 'smoke.chat2.%' LIMIT 1;
+    IF p1 IS NULL OR p2 IS NULL THEN
+      RAISE EXCEPTION 'chat guards: could not mint throwaway profiles for the fixture';
+    END IF;
   END IF;
   INSERT INTO conversations (participant_one, participant_two, context_type)
     VALUES (p1, p2, 'listing') RETURNING id INTO conv;
@@ -1081,7 +1094,14 @@ BEGIN
     -- Darken one inside this rolled-back transaction (privileged: no claims).
     SELECT id INTO dark_artist FROM artist_profiles WHERE id <> live_artist LIMIT 1;
     IF dark_artist IS NULL THEN
-      RAISE EXCEPTION 'commissions guard: need a second artist_profiles row';
+      -- Mint a throwaway dark artist inside this rolled-back transaction.
+    INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+      VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+              'smoke.darkartist.' || gen_random_uuid() || '@customcanvas.dev', '{"full_name":"Smoke Dark Artist"}'::jsonb);
+      INSERT INTO artist_profiles (profile_id, slug, display_name, is_live)
+        SELECT id, 'smoke-dark-' || substr(id::text, 1, 8), 'Smoke Dark Artist', false
+        FROM profiles WHERE email LIKE 'smoke.darkartist.%' LIMIT 1
+        RETURNING id INTO dark_artist;
     END IF;
     UPDATE artist_profiles SET is_live = false WHERE id = dark_artist;
   END IF;
@@ -1090,7 +1110,14 @@ BEGIN
       AND p.id NOT IN (SELECT profile_id FROM artist_profiles WHERE id IN (live_artist, dark_artist))
     LIMIT 1;
   IF requester IS NULL THEN
-    RAISE EXCEPTION 'commissions guard: no requester profile';
+    -- Mint a throwaway requester inside this rolled-back transaction.
+    INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+      VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+              'smoke.requester.' || gen_random_uuid() || '@customcanvas.dev', '{"full_name":"Smoke Requester"}'::jsonb);
+    SELECT id INTO requester FROM profiles WHERE email LIKE 'smoke.requester.%' LIMIT 1;
+    IF requester IS NULL THEN
+      RAISE EXCEPTION 'commissions guard: could not mint a throwaway requester';
+    END IF;
   END IF;
 
   PERFORM set_config('request.jwt.claims',
