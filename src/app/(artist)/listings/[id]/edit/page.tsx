@@ -248,15 +248,16 @@ export default function EditListingPage() {
             order is live). Offering Available here was one click from
             reselling a piece another collector had paid for. */}
         <Select label="Status" {...register('status')} error={errors.status?.message}>
-          {!isSold && <option value="available">Available</option>}
+          <option value="available">Available</option>
           <option value="hidden">Hidden</option>
-          {!isSold && <option value="commission_only">Commission Only</option>}
+          <option value="commission_only">Commission Only</option>
           {isSold && <option value="sold">Sold</option>}
           {listing?.status === 'draft' && <option value="draft">Draft</option>}
         </Select>
         {isSold && (
           <p className="-mt-2 text-xs text-muted">
-            Sold pieces go back on sale automatically if the order is refunded.
+            A sold piece can go back on sale only once its order is refunded or
+            a chargeback on it is closed; until then saving Available is refused.
           </p>
         )}
         <Button type="submit" loading={isSubmitting} className="w-full">Save Changes</Button>
