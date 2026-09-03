@@ -35,8 +35,13 @@ export async function POST(_request: Request, { params }: { params: { id: string
     .eq('id', params.id)
     .eq('status', commission.status)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Lost the compare-and-swap (the other party moved it in between):
+  // .single() turned that into a 500 with a raw PostgREST message.
+  if (!data) {
+    return NextResponse.json({ error: 'This commission just changed — reload and try again.' }, { status: 409 });
+  }
   return NextResponse.json(data);
 }

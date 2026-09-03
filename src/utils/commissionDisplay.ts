@@ -11,9 +11,10 @@ export interface CommissionDisplay {
 // protections); users see five. Display-only mapping — no schema change.
 // For 'cancelled', closed_by (00048) distinguishes an artist decline from a
 // requester cancel; rows closed before 00048 have neither and stay "Closed".
+// 'admin' (00053) is a dispute an admin resolved, either way.
 export function commissionDisplayStatus(
   status: CommissionStatus,
-  opts?: { closedBy?: 'artist' | 'requester' | null; viewerIsRequester?: boolean }
+  opts?: { closedBy?: 'artist' | 'requester' | 'admin' | null; viewerIsRequester?: boolean }
 ): CommissionDisplay {
   switch (status) {
     case 'pending':
@@ -27,9 +28,11 @@ export function commissionDisplayStatus(
     case 'delivered':
       return { label: 'Delivered', variant: 'success' };
     case 'confirmed':
+      if (opts?.closedBy === 'admin') return { label: 'Closed', variant: 'success', sub: 'dispute resolved' };
       return { label: 'Closed', variant: 'success', sub: 'completed' };
     case 'cancelled':
       if (opts?.closedBy === 'artist') return { label: 'Declined by artist', variant: 'default' };
+      if (opts?.closedBy === 'admin') return { label: 'Closed', variant: 'default', sub: 'dispute resolved' };
       if (opts?.closedBy === 'requester') {
         return {
           label: opts.viewerIsRequester ? 'Cancelled by you' : 'Cancelled by requester',

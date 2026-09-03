@@ -132,6 +132,16 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
     void performAction('decline');
   };
 
+  const handleWithdrawDispute = async () => {
+    const ok = await confirm({
+      title: 'Withdraw this dispute?',
+      message: 'The commission goes back to where it was before you reported the issue, and the artist is told.',
+      confirmLabel: 'Withdraw dispute',
+    });
+    if (!ok) return;
+    void performAction('withdraw-dispute');
+  };
+
   const handleDispute = () => {
     if (!disputeReason.trim()) {
       toast('Please describe the issue.', 'error');
@@ -228,8 +238,17 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
         </div>
       )}
 
+      {/* The requester's own account of what went wrong, kept on the row
+          since 00053 (it used to overwrite the artist's quote note). */}
+      {status === 'disputed' && commission.dispute_reason && (
+        <div className="rounded-xl border border-terra/40 bg-terraSoft/60 p-3">
+          <h3 className="text-sm font-medium text-ink">Reported issue</h3>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-muted">{commission.dispute_reason}</p>
+        </div>
+      )}
+
       {/* Requester actions */}
-      {isRequester && (status === 'quoted' || status === 'delivered' || status === 'pending') && (
+      {isRequester && (status === 'quoted' || status === 'delivered' || status === 'pending' || status === 'disputed') && (
         <div className="border-t border-line pt-4">
           <h3 className="mb-3 text-sm font-medium text-ink">Actions</h3>
           <div className="flex flex-wrap gap-2">
@@ -256,6 +275,14 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
             {status === 'pending' && (
               <Button size="sm" variant="outline" onClick={handleCancelRequest} loading={actionLoading}>
                 Cancel Request
+              </Button>
+            )}
+            {/* Ruling D5: a dispute used to be a one-way door for both
+                sides. The requester who raised it can take it back, which
+                restores the status the dispute froze. */}
+            {status === 'disputed' && (
+              <Button size="sm" variant="outline" onClick={handleWithdrawDispute} loading={actionLoading}>
+                Withdraw dispute
               </Button>
             )}
           </div>

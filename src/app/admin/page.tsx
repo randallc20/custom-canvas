@@ -45,6 +45,7 @@ const NAV_LINKS = [
   { href: '/admin/listings', label: 'Listings', desc: 'Review content' },
   { href: '/admin/orders', label: 'Orders', desc: 'Track transactions' },
   { href: '/admin/disputes', label: 'Disputes', desc: 'Resolve reports' },
+  { href: '/admin/commissions', label: 'Commissions', desc: 'Resolve disputed commissions' },
   { href: '/admin/verifications', label: 'Verifications', desc: 'Local Verified queue' },
   { href: '/admin/applications', label: 'Applications', desc: 'Approve new artists' },
   { href: '/admin/services', label: 'Services', desc: 'Curate artist services' },
