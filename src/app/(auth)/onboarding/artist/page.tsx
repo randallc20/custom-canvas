@@ -105,7 +105,6 @@ export default function ArtistOnboardingPage() {
       .eq('profile_id', user.id)
       .maybeSingle();
     if (existing) {
-      await queryClient.invalidateQueries({ queryKey: ['artist-profile-exists', user.id] });
       await queryClient.invalidateQueries({ queryKey: ['own-artist-profile', user.id] });
       router.push('/studio');
       return;
@@ -140,7 +139,6 @@ export default function ArtistOnboardingPage() {
     // The Studio's shared profile query is React Query-cached; without this the
     // freshly-created artist can land on a Studio that still believes it has no
     // profile row.
-    await queryClient.invalidateQueries({ queryKey: ['artist-profile-exists', user.id] });
     await queryClient.invalidateQueries({ queryKey: ['own-artist-profile', user.id] });
     router.push('/studio');
   };

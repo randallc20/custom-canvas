@@ -22,22 +22,20 @@ import { PersonalPhotoUploader } from '@/components/profile/PersonalPhotoUploade
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { ArtistProfile } from '@/types/artist';
 import { calculateCompletenessScore } from '@/utils/completenessScore';
 import { useToast } from '@/components/ui/Toast';
 import { useEducation, usePersonalPhotos, useSaveEducation } from '@/hooks/useArtistContent';
 import { numberOrNull } from '@/utils/formNumber';
-import { ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
+import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 
 export function ArtistProfileEdit() {
   const { user } = useAuth();
   const updateProfile = useUpdateArtistProfile();
-  const [artist, setArtist] = useState<ArtistProfile | null>(null);
+  // One shared, cached read of the own-artist row (00033's granted columns),
+  // not a seventh hand-rolled copy of it.
+  const { artist, loading, isError: loadError, refetch } = useOwnArtistProfile();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasListings, setHasListings] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [loadAttempt, setLoadAttempt] = useState(0);
   const [educationDrafts, setEducationDrafts] = useState<EducationDraft[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -72,33 +70,30 @@ export function ArtistProfileEdit() {
     } : undefined,
   });
 
+  // avatar_url lives on profiles, not artist_profiles, so it stays its own
+  // read; the listing count only feeds the local completeness bar.
   useEffect(() => {
     if (!user) return;
-    Promise.all([
-      supabase.from('artist_profiles').select(ARTIST_PUBLIC_COLS).eq('profile_id', user.id).maybeSingle<import('@/types/artist').ArtistProfile>(),
-      supabase.from('profiles').select('avatar_url').eq('id', user.id).maybeSingle(),
-    ]).then(async ([{ data: artistData, error: artistError }, { data: profileData }]) => {
-      // A transient error here used to render "Artist profile not found"
-      // over a profile that exists — distinguish it and offer a retry.
-      if (artistError) {
-        captureException(artistError, { where: 'ArtistProfileEdit.load' });
-        setLoadError(true);
-        setLoading(false);
-        return;
-      }
-      setLoadError(false);
-      setArtist(artistData);
-      setAvatarUrl(profileData?.avatar_url ?? null);
-      if (artistData) {
-        const { count } = await supabase
-          .from('listings')
-          .select('id', { count: 'exact', head: true })
-          .eq('artist_id', artistData.id);
-        setHasListings((count ?? 0) > 0);
-      }
-      setLoading(false);
-    });
-  }, [user, loadAttempt]);
+    let cancelled = false;
+    void supabase.from('profiles').select('avatar_url').eq('id', user.id).maybeSingle()
+      .then(({ data, error }) => {
+        if (error) captureException(error, { where: 'ArtistProfileEdit.avatarLoad' });
+        if (!cancelled) setAvatarUrl(data?.avatar_url ?? null);
+      });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const artistId = artist?.id;
+  useEffect(() => {
+    if (!artistId) return;
+    let cancelled = false;
+    void supabase
+      .from('listings')
+      .select('id', { count: 'exact', head: true })
+      .eq('artist_id', artistId)
+      .then(({ count }) => { if (!cancelled) setHasListings((count ?? 0) > 0); });
+    return () => { cancelled = true; };
+  }, [artistId]);
 
   useEffect(() => {
     if (educationData) setEducationDrafts(educationData);
@@ -124,7 +119,7 @@ export function ArtistProfileEdit() {
         <Button
           type="button"
           className="mt-4"
-          onClick={() => { setLoading(true); setLoadAttempt((n) => n + 1); }}
+          onClick={() => refetch()}
         >
           Try again
         </Button>
@@ -153,7 +148,6 @@ export function ArtistProfileEdit() {
       .from('artist_profiles').update({ banner_image_url: url }).eq('id', artist.id).select('id').maybeSingle();
     if (error || !updated) { captureException(error ?? new Error('banner save matched zero rows'), { where: 'ArtistProfileEdit.banner' }); toast('Failed to save banner', 'error'); }
     else {
-      setArtist((a) => (a ? { ...a, banner_image_url: url } : a));
       toast('Banner updated', 'success');
       supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
       queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] }); // checklist row

@@ -6,19 +6,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { listingSchema, ListingFormData, toCents } from '@/schemas/listingSchema';
 import { useListing, useUpdateListing } from '@/hooks/useListings';
 import { setListingTags } from '@/services/listings';
-import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { Spinner } from '@/components/ui/Spinner';
-import { useEffect, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useEffect, useRef } from 'react';
 import { TagPicker } from '@/components/listing/TagPicker';
 import { numberOrNull } from '@/utils/formNumber';
 import { cmToIn } from '@/utils/dimensions';
 import { DimensionsFieldset, useDimensionUnit } from '@/components/listing/DimensionsFieldset';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
+import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 import { useSeries } from '@/hooks/useArtistContent';
 import { ListingImagesManager } from '@/components/listing/ListingImagesManager';
 import { PhotoTipsPanel } from '@/components/upload/PhotoTipsPanel';
@@ -26,21 +25,11 @@ import { PhotoTipsPanel } from '@/components/upload/PhotoTipsPanel';
 export default function EditListingPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useAuth();
   const { data: listing, isLoading } = useListing(id);
   const updateListing = useUpdateListing();
-  const [isPickupOnly, setIsPickupOnly] = useState(false);
-  const [artistId, setArtistId] = useState('');
-  const { data: seriesOptions = [] } = useSeries(artistId);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from('artist_profiles').select('id, fulfillment_pref').eq('profile_id', user.id).single()
-      .then(({ data }) => {
-        if (data) setArtistId(data.id);
-        setIsPickupOnly(isPickupPref(data?.fulfillment_pref));
-      });
-  }, [user]);
+  const { artist } = useOwnArtistProfile();
+  const isPickupOnly = isPickupPref(artist?.fulfillment_pref);
+  const { data: seriesOptions = [] } = useSeries(artist?.id ?? '');
 
   const { register, handleSubmit, watch, setValue, getValues, reset, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
     resolver: zodResolver(listingSchema),

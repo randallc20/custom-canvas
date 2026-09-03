@@ -2,9 +2,8 @@
 
 import { ReactNode, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 import { Spinner } from '@/components/ui/Spinner';
 
 /**
@@ -15,53 +14,33 @@ import { Spinner } from '@/components/ui/Spinner';
  * landed on a bare Studio: no checklist, no banner, stat cards reading zero, and
  * nothing telling them what to do. Send them to the wizard instead.
  *
- * Cached with staleTime: Infinity and keyed on the user id: the answer never
- * changes after onboarding, so an established artist pays the existence check
- * once per session — not on every Studio entry, and not again on each hourly
- * token refresh (which re-creates the `user` object identity). The wizard
- * invalidates this key after its insert.
- *
- * Deliberately its own query rather than useOwnArtistProfile: that hook
- * swallows errors and returns null, which here is indistinguishable from "no
- * profile" and would bounce an established artist into a wizard whose insert
- * then fails. This queryFn THROWS on error, and errors render the Studio —
- * a transient blip must never trap someone in onboarding. (The wizard itself
- * backstops the residual silent-empty edge: it re-checks for an existing row
- * before inserting.)
+ * Shares useOwnArtistProfile's cached read (keyed on the user id, invalidated
+ * by the wizard after its insert) rather than hand-rolling a seventh copy of
+ * the lookup. That hook now THROWS on a read error instead of degrading to
+ * null, which is what this guard needs: "no row" and "the read failed" are
+ * different answers, and only the first may redirect. Errors render the
+ * Studio — a transient blip must never trap someone in onboarding. (The
+ * wizard itself backstops the residual silent-empty edge: it re-checks for an
+ * existing row before inserting.)
  */
 export function ArtistSetupGuard({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const isArtist = !!user && user.role === 'artist';
 
-  const { data, isLoading, isFetching, isError } = useQuery({
-    queryKey: ['artist-profile-exists', user?.id],
-    queryFn: async () => {
-      const { data: row, error } = await supabase
-        .from('artist_profiles')
-        .select('id')
-        .eq('profile_id', user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return row ? 'exists' : 'missing';
-    },
-    enabled: isArtist,
-    staleTime: Infinity,
-    gcTime: Infinity,
-    retry: 1,
-  });
+  const { artist, loading: isLoading, isFetching, isError } = useOwnArtistProfile();
 
   // Never redirect on stale data: right after the wizard finishes it
   // invalidates this key, and the cache still says 'missing' while the
   // refetch is in flight — redirecting then bounces the artist straight back
   // into the wizard they just completed.
-  const shouldRedirect = isArtist && data === 'missing' && !isFetching;
+  const shouldRedirect = isArtist && !artist && !isError && !isLoading && !isFetching;
   useEffect(() => {
     if (shouldRedirect) router.replace('/onboarding/artist');
   }, [shouldRedirect, router]);
 
   // Non-artists are AuthGuard's problem; errors fail open to the Studio.
-  const ready = !isArtist || data === 'exists' || isError;
+  const ready = !isArtist || !!artist || isError;
 
   if (authLoading || (!ready && (isLoading || isFetching || shouldRedirect))) {
     return (

@@ -5,13 +5,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { listingSchema, ListingFormData, toCents } from '@/schemas/listingSchema';
 import { useCreateListing } from '@/hooks/useListings';
-import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 import { numberOrNull } from '@/utils/formNumber';
 import { DimensionsFieldset, useDimensionUnit } from '@/components/listing/DimensionsFieldset';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
@@ -25,10 +25,10 @@ import { addListingImages, setListingTags } from '@/services/listings';
 
 export default function NewListingPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const createListing = useCreateListing();
-  const [artistId, setArtistId] = useState('');
-  const [isPickupOnly, setIsPickupOnly] = useState(false);
+  const { artist } = useOwnArtistProfile();
+  const artistId = artist?.id ?? '';
+  const isPickupOnly = isPickupPref(artist?.fulfillment_pref);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
 
   const moveImage = (i: number, dir: -1 | 1) => {
@@ -38,17 +38,6 @@ export default function NewListingPage() {
       return next;
     });
   };
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from('artist_profiles').select('id, fulfillment_pref').eq('profile_id', user.id).single()
-      .then(({ data }) => {
-        if (data) {
-          setArtistId(data.id);
-          setIsPickupOnly(isPickupPref(data.fulfillment_pref));
-        }
-      });
-  }, [user]);
 
   const { data: seriesOptions = [] } = useSeries(artistId);
 
