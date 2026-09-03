@@ -176,7 +176,13 @@ export default function NewListingPage() {
         </fieldset>
 
         <fieldset className="space-y-3 rounded-xl border border-line p-4">
-          <legend className="px-1 text-sm font-semibold text-ink">How it was made</legend>
+          <legend className="px-1 text-sm font-semibold text-ink">How it was made{' '}
+            {/* L9: Part two of the standards is the AI rule; the link
+                belongs beside the question it governs. */}
+            <a href="/listing-standards" target="_blank" className="font-normal text-terraText underline underline-offset-2">
+              Listing Standards
+            </a>
+          </legend>
           <p className="text-xs leading-relaxed text-muted">
             Custom Canvas sells work made by people. Wholly AI-generated work isn&apos;t
             permitted. If a generative tool was one step inside a piece you authored, say so

@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ReviewForm } from '@/components/review/ReviewForm';
 import { useToast } from '@/components/ui/Toast';
+import Link from 'next/link';
 import { formatPrice } from '@/utils/formatPrice';
 import { refundReasonLabel } from '@/utils/refundSplit';
 import type { Order, OrderStatus } from '@/types/order';
@@ -198,6 +199,36 @@ export default function OrdersPage() {
                       </Button>
                     ) : null}
                   </div>
+                )}
+                {/* L9 — the timing the Shipping policy actually sets, on the
+                    card where the buyer would act on it. None of this was on
+                    the product: the 48-hour and 7-day claim windows, the fact
+                    that cancelling is asked of the artist before it ships, and
+                    the 7-day pickup window. A window nobody is told about is
+                    not a window. */}
+                {order.status === 'delivered' && (
+                  <p className="mt-3 text-xs leading-relaxed text-muted">
+                    Something wrong? Report visible shipping damage within{' '}
+                    <span className="font-medium text-ink">48 hours</span> of delivery, and any
+                    other material problem within{' '}
+                    <span className="font-medium text-ink">7 days</span> — keep the packaging and
+                    photograph everything, including the box. &ldquo;Request a refund&rdquo; below
+                    opens the thread with the artist.{' '}
+                    <Link href="/shipping-returns" target="_blank" className="text-terraText underline underline-offset-2">
+                      Shipping, Returns &amp; Refunds
+                    </Link>
+                  </p>
+                )}
+                {order.status === 'paid' && !order.is_pickup && (
+                  <p className="mt-3 text-xs leading-relaxed text-muted">
+                    Need to cancel? Ask the artist in Messages before it ships.
+                  </p>
+                )}
+                {order.is_pickup && order.status !== 'delivered' && order.status !== 'refunded' && (
+                  <p className="mt-3 text-xs leading-relaxed text-muted">
+                    Arrange pickup within <span className="font-medium text-ink">7 days</span> of
+                    the artist&apos;s ready message. Can&apos;t make it? Tell them in Messages.
+                  </p>
                 )}
                 {['paid', 'shipped', 'delivered'].includes(order.status) && (
                   <div className="mt-3">
