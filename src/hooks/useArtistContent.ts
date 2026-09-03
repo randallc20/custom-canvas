@@ -29,14 +29,6 @@ export function usePersonalPhotos(artistId: string) {
   });
 }
 
-export function useVideos(artistId: string) {
-  return useQuery({
-    queryKey: ['artist-videos', artistId],
-    queryFn: () => content.getVideos(artistId),
-    enabled: !!artistId,
-  });
-}
-
 export function useSeries(artistId: string) {
   return useQuery({
     queryKey: ['series', artistId],
@@ -45,14 +37,14 @@ export function useSeries(artistId: string) {
   });
 }
 
-type ContentResource = 'personal-photos' | 'artist-videos' | 'series' | 'education';
+type ContentResource = 'personal-photos' | 'series' | 'education';
 
 export function useInvalidateArtistContent() {
   const queryClient = useQueryClient();
   return (artistId: string, resource?: ContentResource) => {
     const resources: ContentResource[] = resource
       ? [resource]
-      : ['personal-photos', 'artist-videos', 'series', 'education'];
+      : ['personal-photos', 'series', 'education'];
     for (const key of resources) {
       queryClient.invalidateQueries({ queryKey: [key, artistId] });
     }

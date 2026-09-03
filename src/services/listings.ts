@@ -115,14 +115,3 @@ export async function deleteListingImage(id: string): Promise<void> {
   // Zero rows = RLS refused — the image would vanish from the UI but survive.
   if (!data) throw new Error('Could not remove the image — please refresh and try again.');
 }
-
-export async function getListingImages(listingId: string) {
-  const { data, error } = await supabase
-    .from('listing_images')
-    .select('*')
-    .eq('listing_id', listingId)
-    .order('display_order');
-
-  if (error) throw error;
-  return data;
-}

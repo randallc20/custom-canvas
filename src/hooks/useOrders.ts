@@ -1,13 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getOrdersByBuyer, getOrdersByArtist, getArtistSalesTotals, updateOrderStatus, getOrderById } from '@/services/orders';
-
-export function useOrder(id: string) {
-  return useQuery({
-    queryKey: ['order', id],
-    queryFn: () => getOrderById(id),
-    enabled: !!id,
-  });
-}
+import { getOrdersByBuyer, getOrdersByArtist, getArtistSalesTotals, updateOrderStatus } from '@/services/orders';
 
 export function useBuyerOrders(buyerId: string) {
   return useQuery({

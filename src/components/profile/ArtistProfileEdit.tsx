@@ -313,10 +313,6 @@ export function ArtistProfileEdit() {
         </fieldset>
 
         <fieldset className="space-y-4">
-          <legend className="text-lg font-semibold text-ink">Videos</legend>
-        </fieldset>
-
-        <fieldset className="space-y-4">
           <legend className="text-lg font-semibold text-ink">Location</legend>
           <Input label="City" {...register('city')} error={errors.city?.message} />
           <Input label="Neighborhood" {...register('neighborhood')} error={errors.neighborhood?.message} />
