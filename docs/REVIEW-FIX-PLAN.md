@@ -566,3 +566,46 @@ post-merge run is the one that counts. Firefox was not tested for the
 - A lost dispute after a dashboard-initiated refund that already reversed
   the transfer will hit a Stripe error on the second reversal and 500 (Stripe
   retries); the reconcile cron will report it. Rare; not handled.
+
+### 2026-09-02 (late) — R12 re-reviews and the fix rounds they triggered
+
+R12 ran the money pass three times and the auth pass twice; each pass was a
+fresh session reading the merged code. Every pass found less, and the last
+money pass is the gate.
+
+- **Money pass 2** (`04-money-r2.md`): 1 P1, 4 P2, 3 P3 — all in the dispute
+  handlers' assumption that `created` runs once, before `closed`, and the
+  reconcile window keyed on payment date. **R13** fixed all of it: assess
+  before reversing when `protection_status` is still `pending`; closed
+  statuses never re-freeze; refund evidence outranks `pre_dispute_status`;
+  restore is compare-and-swapped; the cron also sweeps refunds, disputes and
+  every `disputed` row by event time; `disputed` holds the one-live-order
+  slot (00055).
+- **Money pass 3** (`04-money-r3.md`): 1 P1, 2 P2, 3 P3 — the single
+  `dispute_id`/`dispute_outcome` slot. **R15** added `orders.dispute_status`
+  (00057) so an inquiry that escalates after a platform refund is notified,
+  a second dispute on the same payment reverses the remainder, resent open
+  events are recognised by outcome, listings with a live order cannot go
+  back on sale, oversold buyers are told, `shipping_address` is frozen and
+  `tracking_number`/`carrier` freeze after delivery, and `delivered_at` is
+  never re-stamped.
+- **Auth pass 2** (`01-auth-access-r2.md`): 3 P2, 1 P3. **R14** (00056)
+  dropped the unconditional SELECT policies on the five public buckets
+  (anonymous listing verified before and after), records a payment whose
+  buyer/listing/artist was deleted mid-Checkout with null parties instead of
+  retrying forever, guards `messages`/`message_attachments` inserts against
+  platform-only types and stamps quote cards from the row, guards
+  `commissions` inserts, and made the admin reset link a POST confirmation
+  so mail scanners cannot consume it.
+- **e2e fallout fixed on master:** hearts and follow buttons wait for the
+  shared id set (a click before it loaded posted a duplicate save); saves
+  and follows retry once on an RLS refusal near signup (rule 3); error toasts
+  moved bottom-right because a persistent one covered the account menu;
+  three spec selectors updated for R9's confirm dialog, badge name and
+  palette class.
+
+**Follow-ups added by these passes (not taken):** the r3 appendix items not
+in files R15 touched; the r2 auth appendix lines on `register` copy under
+autoconfirm and `profiles.role` not being the artist authorization
+primitive; an `order_disputes` table if disputes ever need per-dispute
+exactness; the partially-reversed-transfer edge on a lost dispute.
