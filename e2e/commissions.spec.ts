@@ -198,7 +198,7 @@ test.describe.serial('part 11 — commissions', () => {
     await page.getByLabel('Email').fill(loverEmail);
     await page.getByLabel('Password').fill(loverPassword);
     await page.getByRole('button', { name: 'Art Lover' }).click();
-    await page.getByText(/I agree to the/).locator('..').locator('input[type=checkbox]').check();
+    await page.getByText(/18 or older and agree to the/).locator('..').locator('input[type=checkbox]').check();
     await page.getByRole('button', { name: /create account/i }).click();
     // Autoconfirm: the session lands immediately (no dead confirmation screen).
     await expect(page).not.toHaveURL(/\/register/, { timeout: 20_000 });

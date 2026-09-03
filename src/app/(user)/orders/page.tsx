@@ -140,7 +140,10 @@ export default function OrdersPage() {
                       <p className="mt-1 text-sm text-ink">
                         {order.listing?.title && <span className="font-medium">{order.listing.title}</span>}
                         {order.listing?.title && order.artist?.display_name && <span className="text-muted"> · </span>}
-                        {order.artist?.display_name && <span className="text-muted">by {order.artist.display_name}</span>}
+                        {/* "Sold by", not "by": the artist is the seller of
+                            record, and the buyer must see that after the
+                            purchase as well as before it (Terms of Sale §1). */}
+                        {order.artist?.display_name && <span className="text-muted">sold by {order.artist.display_name}</span>}
                       </p>
                     )}
                     <p className="mt-1 font-medium text-ink">{formatPrice(order.amount_cents)}</p>

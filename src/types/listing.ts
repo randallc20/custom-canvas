@@ -47,6 +47,8 @@ export type ListingWithImages = Listing & {
   tags: Tag[];
   artist?: {
     slug: string;
+    /** Seller of record — see PurchasePanel's artistName (L3). */
+    display_name: string;
     fulfillment_pref: string | null;
   } | null;
 };

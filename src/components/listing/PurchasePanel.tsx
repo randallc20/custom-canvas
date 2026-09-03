@@ -19,12 +19,17 @@ import { useToast } from '@/components/ui/Toast';
 interface PurchasePanelProps {
   listing: Listing;
   artistProfileId?: string;
+  /** Seller of record (L3). Terms of Sale §1 and Artist Agreement §1: the
+   *  artist is the seller, and "the artist identified in the applicable
+   *  listing" has to actually identify someone. The name was on the page as
+   *  authorship; this is the same name in its legal role. */
+  artistName?: string | null;
   fulfillmentPref?: string | null;
   awayMode?: boolean;
   awayUntil?: string | null;
 }
 
-export function PurchasePanel({ listing, artistProfileId, fulfillmentPref, awayMode, awayUntil }: PurchasePanelProps) {
+export function PurchasePanel({ listing, artistProfileId, artistName, fulfillmentPref, awayMode, awayUntil }: PurchasePanelProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -68,12 +73,18 @@ export function PurchasePanel({ listing, artistProfileId, fulfillmentPref, awayM
 
   return (
     <div className="rounded-xl border border-line bg-surface p-6 shadow-card">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between">
         <span className="text-2xl font-bold text-ink">{listingPriceLabel(listing)}</span>
         <Badge variant={listing.status === 'available' ? 'success' : 'default'}>
           {listing.status === 'available' ? 'Available' : listing.status}
         </Badge>
       </div>
+      {artistName && (
+        <p className="mb-4 text-xs text-muted">
+          Sold by <span className="font-medium text-ink">{artistName}</span> · Custom Canvas
+          facilitates payment
+        </p>
+      )}
 
       {listing.status !== 'available' ? (
         <p className="text-sm text-muted">This piece is no longer available for purchase.</p>

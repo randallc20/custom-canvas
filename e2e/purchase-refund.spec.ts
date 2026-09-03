@@ -102,11 +102,18 @@ test.describe.serial('purchase and refund (Stripe test mode)', () => {
     await page.getByLabel('Email').fill(buyerEmail);
     await page.getByLabel('Password').fill(buyerPassword);
     await page.getByRole('button', { name: 'Art Lover' }).click();
-    await page.getByText(/I agree to the/).locator('..').locator('input[type=checkbox]').check();
+    await page.getByText(/18 or older and agree to the/).locator('..').locator('input[type=checkbox]').check();
     await page.getByRole('button', { name: /create account/i }).click();
     await expect(page).not.toHaveURL(/\/register/, { timeout: 20_000 });
 
     await page.goto(`/listing/${listingId}`);
+    // L3: the seller of record is named on the listing before the buyer ever
+    // reaches checkout (ToSale §1, ToS §4, AA §1). Harvest the name here and
+    // assert checkout agrees, rather than hardcoding the seed artist's.
+    const soldBy = await page.getByText(/Sold by/).first().innerText();
+    const sellerName = soldBy.replace(/^Sold by\s*/i, '').split('·')[0].trim();
+    expect(sellerName.length).toBeGreaterThan(0);
+
     await page.getByRole('button', { name: /buy now/i }).click();
     await expect(page).toHaveURL(/\/checkout\//, { timeout: 20_000 });
 
@@ -117,9 +124,17 @@ test.describe.serial('purchase and refund (Stripe test mode)', () => {
     await expect(page.getByText('$1.06')).toBeVisible();
     await expect(row('Total')).toContainText('$26.06');
     await expect(page.getByText(/service fee covers payment processing/i)).toBeVisible();
-    // Part 9.3 — the small print.
-    await expect(page.getByRole('link', { name: /terms of sale/i })).toHaveAttribute('href', '/terms');
+    // L3 — the seller of record is named before the buyer pays (ToSale §1).
+    await expect(row('Seller')).toContainText(sellerName);
+
+    // Part 9.3 — the small print. L1 gave the Terms of Sale their own page;
+    // this link pointed at the Terms of Service until then.
+    await expect(page.getByRole('link', { name: /^terms of sale$/i })).toHaveAttribute('href', '/terms-of-sale');
+    await expect(page.getByRole('link', { name: /shipping, returns/i })).toHaveAttribute('href', '/shipping-returns');
     await expect(page.getByText('CUSTOM CANVAS', { exact: true })).toBeVisible();
+    // L6's rule, disclosed at the point of sale rather than the old flat
+    // "non-refundable service fee".
+    await expect(page.getByText(/service fee is not refunded on a\s+change-of-mind return/i)).toBeVisible();
   });
 
   test('buyer pays with the Stripe test card', async () => {

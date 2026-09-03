@@ -117,6 +117,14 @@ function CheckoutContent() {
         <h2 className="font-medium text-ink">{listing.title}</h2>
         <p className="text-sm text-muted">{listing.medium}</p>
         <div className="mt-3 space-y-1 text-sm">
+          {/* Terms of Sale §1: the buyer must know who they are buying from,
+              by name, before they pay (L3). */}
+          {listing.artist?.display_name && (
+            <div className="flex justify-between border-b border-line pb-2">
+              <span className="text-muted">Seller</span>
+              <span className="font-medium text-ink">{listing.artist.display_name}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-muted">Price</span>
             <span>{formatPrice(listing.price_cents)}</span>
