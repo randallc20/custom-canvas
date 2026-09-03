@@ -4,6 +4,7 @@ import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe';
 import { calculateRefundSplit, isFaultRefund, type RefundReason } from '@/utils/refundSplit';
 import { returnBlocksSettlement, type ReturnRecord } from '@/utils/orderReturns';
+import { buyerTookPossession } from '@/utils/fulfillment';
 
 type AdminClient = ReturnType<typeof createAdminSupabaseClient>;
 
@@ -61,7 +62,7 @@ export async function settleRefund(
   const { data: order } = await admin
     .from('orders')
     .select(
-      'id, status, stripe_payment_intent_id, amount_cents, shipping_cents, buyer_fee_cents, amount_tax_cents, artist_payout_cents, listing_id, stripe_refund_id, stripe_reversal_id, refund_approved_at, refund_reason, shipped_at, is_pickup',
+      'id, status, stripe_payment_intent_id, amount_cents, shipping_cents, buyer_fee_cents, amount_tax_cents, artist_payout_cents, listing_id, stripe_refund_id, stripe_reversal_id, refund_approved_at, refund_reason, shipped_at, is_pickup, delivered_at, pickup_confirmed_by_buyer_at, pickup_confirmed_by_artist_at',
     )
     .eq('id', opts.orderId)
     .single();
@@ -126,11 +127,22 @@ export async function settleRefund(
   // Checked HERE rather than in the admin route so it cannot be walked
   // around: the cron and the buyer's cancel path go through this function
   // too, and a gate that only guards one door is not a gate.
-  const { data: ret } = await admin
+  const { data: ret, error: retError } = await admin
     .from('order_returns')
     .select('*')
     .eq('order_id', order.id)
     .maybeSingle();
+  // Fail CLOSED. Discarding this error opened the one gate that stops the
+  // buyer keeping the piece AND the money, on a transient read failure
+  // (r8 money pass, P2).
+  if (retError) {
+    Sentry.captureException(retError, { extra: { where: 'settleRefund.returnGate', orderId: order.id } });
+    return {
+      ok: false,
+      status: 503,
+      error: 'Could not check whether a return is required on this order. Nothing was refunded — try again.',
+    };
+  }
   const blocked = returnBlocksSettlement((ret as ReturnRecord | null) ?? null);
   if (blocked) return { ok: false, status: 409, error: blocked };
 
@@ -207,7 +219,12 @@ export async function settleRefund(
   // Stripe idempotency keys already made their money ops no-ops). The write
   // is asserted: the money has moved at Stripe, so a close that silently
   // fails leaves a `paid` order the artist can still ship.
-  const wasShipped = order.status === 'shipped' || order.status === 'delivered';
+  // "Does the buyer have the piece", not "what does the status say". A
+  // collected LOCAL PICKUP order sits at `paid` with no shipped_at until BOTH
+  // parties confirm, so a status check relisted a painting that was already in
+  // the buyer's house (r8 money / r6 auth, P0). One predicate, shared with the
+  // return gate, so the two cannot disagree about the same fact.
+  const wasShipped = buyerTookPossession(order);
   const { data: closed, error: closeError } = await admin
     .from('orders')
     .update({ status: 'refunded' })

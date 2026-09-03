@@ -172,3 +172,29 @@ describe('the Artist Agreement follows the artist PROFILE, not the role', () => 
     expect(out).toEqual([]);
   });
 });
+
+/**
+ * r6 auth pass, P3. supabase-js returns { data: null, error } rather than
+ * throwing, so a statement timeout used to read as "owes nothing" — the POST
+ * answered 200, the dialog closed, and the person was thanked for an
+ * acceptance that was never written.
+ */
+describe('a failed lookup is not "owes nothing"', () => {
+  function failingClient(): SupabaseClient {
+    return {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: null, error: { message: 'statement timeout' } }),
+          }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+  }
+
+  it('throws rather than reporting an empty outstanding set', async () => {
+    await expect(outstandingAcceptances(failingClient(), 'u1')).rejects.toMatchObject({
+      message: 'statement timeout',
+    });
+  });
+});

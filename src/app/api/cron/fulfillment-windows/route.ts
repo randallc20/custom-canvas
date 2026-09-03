@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   const { data: orders, error } = await supabase
     .from('orders')
     .select(
-      'id, created_at, shipped_at, is_pickup, buyer_id, listing_id, fulfillment_window_days, proposed_ship_by, agreed_ship_by, window_missed_at, platform_nudged_at, artist:artist_profiles(profile_id, display_name), listing:listings(title)',
+      'id, created_at, shipped_at, is_pickup, refund_approved_at, buyer_id, listing_id, fulfillment_window_days, proposed_ship_by, agreed_ship_by, window_missed_at, platform_nudged_at, artist:artist_profiles(profile_id, display_name), listing:listings(title)',
     )
     .eq('status', 'paid')
     .is('shipped_at', null)
@@ -60,6 +60,12 @@ export async function GET(request: NextRequest) {
     // this refunded a collected painting in full and relisted it (r6 money
     // pass, P0). A pickup no-show is a support process.
     .eq('is_pickup', false)
+    // A refund the artist has already approved is in flight and belongs to
+    // the admin settle queue. Without this the cron cancelled it as
+    // `not_shipped`, which is a FAULT reason — so it returned the service fee
+    // the change-of-mind split retains, and told both parties the artist had
+    // been unreachable when the artist had in fact agreed (r8 money pass, P1).
+    .is('refund_approved_at', null)
     .order('created_at', { ascending: true })
     .limit(200);
 

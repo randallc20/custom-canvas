@@ -1529,9 +1529,13 @@ BEGIN
            (subject, 'Smoke Claimant', 'smoke@example.com', 'withdrawn'),
            (subject, 'Smoke Claimant', 'smoke@example.com', 'defective'),
            (subject, 'Smoke Claimant', 'smoke@example.com', 'restored');
+  -- received + material_removed count; withdrawn, defective, restored and
+  -- counter_received do not. The last of those is 00069: a user who disputed
+  -- a notice in good faith must not be counted toward termination while the
+  -- counter-notice is still open, which is what 00065's own comment promised.
   SELECT dmca_substantiated_count(subject) INTO n;
-  IF n <> 3 THEN
-    RAISE EXCEPTION 'dmca: substantiated count is %, expected 3 (withdrawn/defective/restored must not count)', n;
+  IF n <> 2 THEN
+    RAISE EXCEPTION 'dmca: substantiated count is %, expected 2 (withdrawn/defective/restored/counter_received must not count)', n;
   END IF;
 
   -- 00067: even a privileged delete must not orphan the notice.
@@ -1543,7 +1547,7 @@ BEGIN
   INSERT INTO dmca_notices (subject_profile_id, claimant_name, claimant_email, status, received_at)
     VALUES (subject, 'Smoke Claimant', 'smoke@example.com', 'received', now() - interval '13 months');
   SELECT dmca_substantiated_count(subject) INTO n;
-  IF n <> 3 THEN
+  IF n <> 2 THEN
     RAISE EXCEPTION 'dmca: a notice older than 12 months was counted (got %)', n;
   END IF;
 

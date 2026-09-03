@@ -86,11 +86,18 @@ export async function outstandingAcceptances(
   admin: SupabaseClient,
   userId: string,
 ): Promise<OutstandingAcceptance[]> {
-  const { data: profile } = await admin
+  // supabase-js does not throw on a failed query — it returns { data: null,
+  // error }. Treating that as "owes nothing" made a statement timeout during
+  // the POST answer 200 with an empty list, close the dialog and tell the
+  // person "your acceptance is recorded" when nothing had been stamped (r6
+  // auth pass, P3). Throw instead: the read endpoint catches and fails open
+  // by design, the write endpoint and the gate both fail closed.
+  const { data: profile, error: profileError } = await admin
     .from('profiles')
     .select('role, terms_version, terms_of_sale_version')
     .eq('id', userId)
     .maybeSingle();
+  if (profileError) throw profileError;
   if (!profile) return [];
 
   const outstanding: AcceptanceDocument[] = [];
@@ -106,11 +113,12 @@ export async function outstandingAcceptances(
   //
   // No artist profile yet means onboarding has not run, and onboarding is
   // where the agreement is accepted — nothing to chase.
-  const { data: artist } = await admin
+  const { data: artist, error: artistError } = await admin
     .from('artist_profiles')
     .select('agreement_version')
     .eq('profile_id', userId)
     .maybeSingle();
+  if (artistError) throw artistError;
   if (artist && artist.agreement_version !== ARTIST_AGREEMENT_VERSION) {
     outstanding.push('artist_agreement');
   }

@@ -6,6 +6,7 @@ import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { buildOrderRecord, detachParty, partyFromForeignKeyError } from '@/utils/orderRecord';
 import { classifyRead } from '@/utils/classifyRead';
 import { assessProtection } from '@/lib/assessProtection';
+import { buyerTookPossession } from '@/utils/fulfillment';
 import { selectDisputeOpenAction, selectDisputeCloseOutcome } from '@/utils/disputeOutcome';
 import { sendOrderConfirmationEmail, sendNewSaleEmail, sendOversoldRefundEmail } from '@/services/email';
 import { formatPrice } from '@/utils/formatPrice';
@@ -490,7 +491,7 @@ export async function POST(request: NextRequest) {
 
       const { data: order, error: refundOrderReadError } = await supabase
         .from('orders')
-        .select('id, listing_id, status, artist_payout_cents, shipped_at, delivered_at, pre_dispute_status')
+        .select('id, listing_id, status, artist_payout_cents, shipped_at, delivered_at, pre_dispute_status, is_pickup, pickup_confirmed_by_buyer_at, pickup_confirmed_by_artist_at')
         .eq('stripe_payment_intent_id', paymentIntentId)
         .maybeSingle();
       if (refundOrderReadError) {
@@ -514,8 +515,12 @@ export async function POST(request: NextRequest) {
       // already has back in the feed (04-r4 P3). shipped_at/delivered_at
       // are stamped by the order guard and frozen; pre_dispute_status is the
       // belt for a row frozen before the stamps existed.
+      // Plus the pickup handoff: a collected pickup order has no shipped_at
+      // and no delivered_at until BOTH parties confirm, so without
+      // buyerTookPossession this relisted a painting already in the buyer's
+      // house (r6 auth pass, P0).
       const wasShipped =
-        !!order.shipped_at ||
+        buyerTookPossession(order) ||
         !!order.delivered_at ||
         order.pre_dispute_status === 'shipped' ||
         order.pre_dispute_status === 'delivered';

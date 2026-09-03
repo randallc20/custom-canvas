@@ -6,6 +6,7 @@ import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -83,6 +84,9 @@ function OrdersContent() {
   const [refundReason, setRefundReason] = useState<RefundReason>('change_of_mind');
   const [returns, setReturns] = useState<Record<string, ReturnRecord>>({});
   const [returnBusy, setReturnBusy] = useState<string | null>(null);
+  const [authorizeOrder, setAuthorizeOrder] = useState<AdminOrder | null>(null);
+  const [authorizeReason, setAuthorizeReason] = useState<RefundReason>('damaged');
+  const [authorizeAddress, setAuthorizeAddress] = useState({ name: '', street: '', city: '', state: '', zip: '' });
   const [settling, setSettling] = useState<string | null>(null);
   const { toast } = useToast();
   const confirm = useConfirm();
@@ -293,6 +297,23 @@ function OrdersContent() {
                     {o.status === 'refunded' && o.refund_reason && (
                       <span className="text-xs text-muted">{refundReasonLabel(o.refund_reason)}</span>
                     )}
+                    {/* L8 — require a return on a FAULT refund. The route
+                        has always supported this; nothing called it, so in
+                        practice a return could only ever be required on the
+                        artist's change-of-mind path (r8 money pass, P1). */}
+                    {!returns[o.id] && o.status !== 'refunded' && o.status !== 'pending' && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setAuthorizeReason('damaged');
+                          setAuthorizeAddress({ name: '', street: '', city: '', state: '', zip: '' });
+                          setAuthorizeOrder(o);
+                        }}
+                      >
+                        Require a return…
+                      </Button>
+                    )}
                     {/* L8 — the return the settle gate is waiting on. */}
                     {(() => {
                       const ret = returns[o.id];
@@ -354,6 +375,69 @@ function OrdersContent() {
           </tbody>
         </table>
       </div>
+
+      <Modal
+        isOpen={!!authorizeOrder}
+        onClose={() => setAuthorizeOrder(null)}
+        title="Require the piece back"
+      >
+        <div className="space-y-4">
+          <p className="text-sm leading-relaxed text-muted">
+            Terms of Sale §5: a refund may be conditioned on the artwork being returned. Once this
+            is set the refund will not settle until the piece arrives and is inspected, or the
+            return is waived.
+          </p>
+          <div>
+            <label htmlFor="auth-reason" className="mb-1 block text-sm font-medium text-ink">Reason</label>
+            <select
+              id="auth-reason"
+              className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink"
+              value={authorizeReason}
+              onChange={(e) => setAuthorizeReason(e.target.value as RefundReason)}
+            >
+              {REFUND_REASON_OPTIONS.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-ink">Where should the buyer send it?</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Shown only to this buyer, only after you authorise. Ask the artist for it — never use
+              their public profile.
+            </p>
+            <div className="mt-2 space-y-2">
+              <Input label="Name" value={authorizeAddress.name} onChange={(e) => setAuthorizeAddress({ ...authorizeAddress, name: e.target.value })} />
+              <Input label="Street" value={authorizeAddress.street} onChange={(e) => setAuthorizeAddress({ ...authorizeAddress, street: e.target.value })} />
+              <div className="grid grid-cols-3 gap-2">
+                <Input label="City" value={authorizeAddress.city} onChange={(e) => setAuthorizeAddress({ ...authorizeAddress, city: e.target.value })} />
+                <Input label="State" value={authorizeAddress.state} onChange={(e) => setAuthorizeAddress({ ...authorizeAddress, state: e.target.value })} />
+                <Input label="ZIP" value={authorizeAddress.zip} onChange={(e) => setAuthorizeAddress({ ...authorizeAddress, zip: e.target.value })} />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setAuthorizeOrder(null)}>Cancel</Button>
+            <Button
+              loading={returnBusy === authorizeOrder?.id}
+              disabled={!authorizeAddress.name || !authorizeAddress.street || !authorizeAddress.city || !authorizeAddress.state || !authorizeAddress.zip}
+              onClick={async () => {
+                const o = authorizeOrder;
+                if (!o) return;
+                await handleReturn(
+                  o,
+                  { action: 'authorize', reason: authorizeReason, required: true, return_address: authorizeAddress },
+                  'Require a return',
+                  'The buyer is told where to send the piece and has 7 calendar days to ship it. The refund will not settle until it arrives and is inspected, or you waive it.',
+                );
+                setAuthorizeOrder(null);
+              }}
+            >
+              Authorise the return
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={!!refundModal}

@@ -82,7 +82,19 @@ export async function POST(request: Request) {
     : null;
 
   const admin = createAdminSupabaseClient();
-  const all = await outstandingAcceptances(admin, user.id);
+  let all;
+  try {
+    all = await outstandingAcceptances(admin, user.id);
+  } catch (err) {
+    // Never answer 200 "recorded" for a stamp that did not happen: the dialog
+    // closes and the person is thanked for an acceptance the row does not
+    // carry, then their next gated write 403s (r6 auth pass, P3).
+    captureException(err, { where: 'acceptance.post.lookup' });
+    return NextResponse.json(
+      { error: 'We could not record your acceptance just now — please try again.' },
+      { status: 503 },
+    );
+  }
   const outstanding = requested ? all.filter((o) => requested.includes(o.document)) : all;
   if (outstanding.length === 0) return NextResponse.json({ accepted: [] });
 

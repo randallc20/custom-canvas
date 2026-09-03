@@ -431,7 +431,16 @@ export function SalesSection() {
                         size="sm"
                         variant="ghost"
                         loading={approvingRefund === order.id}
-                        onClick={() => setRefundOrder(order)}
+                        onClick={() => {
+                          // Reset with the modal: left set from a previous
+                          // order, the second pickup refund in a session
+                          // settled with no return and relisted the painting
+                          // (r8 money pass, P1).
+                          setPieceNotCollected(false);
+                          setReturnAddress({ name: '', street: '', city: '', state: '', zip: '' });
+                          setReturnInstructions('');
+                          setRefundOrder(order);
+                        }}
                       >
                         Approve refund
                       </Button>

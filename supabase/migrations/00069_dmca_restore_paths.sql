@@ -57,3 +57,21 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+-- The repeat-infringer count must not include a notice whose counter-notice is
+-- still open. 00065's own comment says the count excludes "those answered by
+-- an accepted counter-notice", but `counter_received` was still counted — so a
+-- user who disputed three notices in good faith hit the termination threshold
+-- while every one of them was unresolved (r6 auth pass, P2).
+CREATE OR REPLACE FUNCTION dmca_substantiated_count(p_profile_id UUID)
+RETURNS INT LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT COUNT(*)::int
+    FROM dmca_notices
+   WHERE subject_profile_id = p_profile_id
+     AND kind = 'notice'
+     AND received_at > now() - interval '12 months'
+     AND status NOT IN ('withdrawn', 'defective', 'restored', 'counter_received');
+$$;
+
+REVOKE ALL ON FUNCTION dmca_substantiated_count(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION dmca_substantiated_count(UUID) FROM anon, authenticated;

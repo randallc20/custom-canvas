@@ -286,9 +286,20 @@ export async function PATCH(request: NextRequest) {
     // Hiding the row is not "disabling access" while the file is still
     // served from a public bucket.
     const { moved, expected } = await quarantineImages(admin, notice.listing_id as string);
+    // MERGE, never overwrite. A second notice against the same piece finds
+    // the images already quarantined, moves nothing, and used to write an
+    // empty array over the first removal's record — after which those files
+    // could never be restored (r6 auth pass, P1).
+    const { data: listingNow } = await admin
+      .from('listings')
+      .select('dmca_quarantined_paths')
+      .eq('id', notice.listing_id)
+      .maybeSingle();
+    const existing = (listingNow?.dmca_quarantined_paths as string[] | null) ?? [];
+    const merged = Array.from(new Set([...existing, ...moved]));
     await admin
       .from('listings')
-      .update({ dmca_quarantined_paths: moved })
+      .update({ dmca_quarantined_paths: merged })
       .eq('id', notice.listing_id);
 
     await admin.from('dmca_notices').update(stamp('material_removed')).eq('id', id);
@@ -402,8 +413,31 @@ export async function PATCH(request: NextRequest) {
   // and support's own tool had no control that could help (r5 auth pass, P1).
   const status = parsed.data.action === 'withdraw' ? 'withdrawn' : 'defective';
   if (notice.listing_id && notice.status === 'material_removed') {
-    const undone = await undoRemoval(admin, notice.listing_id as string);
-    if (!undone.ok) return NextResponse.json({ error: undone.error }, { status: 500 });
+    // Only if THIS was the last live notice against the piece. Otherwise
+    // dismissing one claimant's notice as defective republished material a
+    // different, still-substantiated notice had taken down (r6 auth pass, P1).
+    const { count, error: othersError } = await admin
+      .from('dmca_notices')
+      .select('id', { count: 'exact', head: true })
+      .eq('listing_id', notice.listing_id)
+      .eq('kind', 'notice')
+      .in('status', ['received', 'material_removed', 'counter_received'])
+      .neq('id', id);
+    if (othersError) {
+      return NextResponse.json({ error: othersError.message }, { status: 500 });
+    }
+    if ((count ?? 0) === 0) {
+      const undone = await undoRemoval(admin, notice.listing_id as string);
+      if (!undone.ok) return NextResponse.json({ error: undone.error }, { status: 500 });
+    } else {
+      const { error } = await admin.from('dmca_notices').update(stamp(status)).eq('id', id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({
+        ok: true,
+        listing_restored: false,
+        warning: `Marked ${status}, but the listing stays down: ${count} other live notice(s) still stand against it.`,
+      });
+    }
   }
   const { error } = await admin.from('dmca_notices').update(stamp(status)).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
