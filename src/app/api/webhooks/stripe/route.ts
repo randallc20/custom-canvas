@@ -267,7 +267,12 @@ export async function POST(request: NextRequest) {
       // redelivery — but if the listing is still on the market the first
       // delivery died before completeSale ran, so resume it (the listing's
       // status is the idempotent check: sold means the steps happened).
-      const resumeIfIncomplete = async (orderId: string): Promise<NextResponse | null> => {
+      // Only while the order is still `paid`: a settled refund, a lost
+      // dispute or a manual relist also put the listing back on the market,
+      // and resuming then would re-sell the piece and re-send every email.
+      const resumeIfIncomplete = async (existing: { id: string; status: string }): Promise<NextResponse | null> => {
+        if (existing.status !== 'paid') return null;
+        const orderId = existing.id;
         const { data: fresh } = await supabase
           .from('listings').select('status').eq('id', listingId).single();
         if (!listing || fresh?.status !== 'available') return null;
@@ -290,11 +295,11 @@ export async function POST(request: NextRequest) {
 
       const { data: existingOrder } = await supabase
         .from('orders')
-        .select('id')
+        .select('id, status')
         .eq('stripe_payment_intent_id', paymentIntentId)
         .maybeSingle();
       if (existingOrder) {
-        const failed = await resumeIfIncomplete(existingOrder.id);
+        const failed = await resumeIfIncomplete(existingOrder);
         if (failed) return failed;
         break;
       }
@@ -342,11 +347,11 @@ export async function POST(request: NextRequest) {
           // oversell (another live order holds this listing). Distinguish:
           const { data: samePayment } = await supabase
             .from('orders')
-            .select('id')
+            .select('id, status')
             .eq('stripe_payment_intent_id', paymentIntentId)
             .maybeSingle();
           if (samePayment) {
-            const failed = await resumeIfIncomplete(samePayment.id);
+            const failed = await resumeIfIncomplete(samePayment);
             if (failed) return failed;
             break; // redelivery — already handled
           }
@@ -453,14 +458,16 @@ export async function POST(request: NextRequest) {
       // Return the piece to the market ONLY if (a) it was never shipped —
       // a delivered piece is physically with the buyer regardless of the
       // refund — (b) no OTHER live order still holds it (protects the
-      // legit buyer when an oversell refund arrives), and (c) it is still
-      // `sold`: an artist who hid the listing in the meantime keeps it hidden.
+      // legit buyer when an oversell refund arrives; the set matches
+      // orders_one_live_per_listing, 00055 — a disputed order holds the
+      // slot too), and (c) it is still `sold`: an artist who hid the
+      // listing in the meantime keeps it hidden.
       if (order.listing_id && !wasShipped) {
         const { count } = await supabase
           .from('orders')
           .select('id', { count: 'exact', head: true })
           .eq('listing_id', order.listing_id)
-          .in('status', ['paid', 'shipped', 'delivered'])
+          .in('status', ['paid', 'shipped', 'delivered', 'disputed'])
           .neq('id', order.id);
         if ((count ?? 0) === 0) {
           const { error: relistError } = await supabase
@@ -495,13 +502,25 @@ export async function POST(request: NextRequest) {
       const paymentIntentId = dispute.payment_intent as string | null;
       if (!paymentIntentId) break;
 
-      const { data: order } = await supabase
+      // A failed read is a 500 (our side; retry now), not the 409 "no row
+      // yet" answer: `.maybeSingle()` returns data null on an error too, and
+      // calling that "no order" put a real order's event on Stripe's multi-day
+      // retry schedule, to land long after the dispute had closed.
+      const { data: order, error: orderReadError } = await supabase
         .from('orders')
         .select('id, status, artist_id, stripe_refund_id, dispute_id, listing:listings(title)')
         .eq('stripe_payment_intent_id', paymentIntentId)
         .maybeSingle();
+      if (orderReadError) {
+        Sentry.captureException(new Error(`Order read failed for disputed payment ${paymentIntentId}: ${orderReadError.message}`));
+        return retryLater('Order read failed');
+      }
       if (!order) return retryLater(`No order for disputed payment ${paymentIntentId} yet`, 409);
 
+      // Includes an open event whose dispute is already over (won, lost,
+      // warning_closed, charge_refunded): late, resent, or emitted alongside
+      // `closed`. The closed handler owns those; re-freezing here would leave
+      // the order `disputed` with no closing event ever coming.
       const action = selectDisputeOpenAction(order, { id: dispute.id, status: dispute.status });
       if (action === 'already_recorded') break;
 
@@ -590,8 +609,14 @@ export async function POST(request: NextRequest) {
       // persist it. The artist must never have to work out whether they are
       // covered. The pre-dispute status is saved in the same write so the
       // closed handler can put the order back exactly where it was.
+      // A failed evidence read is a transient error (the row was read three
+      // statements ago), never a verdict: coercing it to 'ineligible' froze
+      // the worst case for good and reversed a compliant artist's payout
+      // months later. Retry — the evidence is frozen, the answer will be the
+      // same tomorrow.
       const assessment = await assessProtection(supabase, order.id);
-      const protectionStatus = assessment?.status ?? 'ineligible';
+      if (!assessment) return retryLater('Protection evidence read failed');
+      const protectionStatus = assessment.status;
 
       const { data: frozen, error: freezeError } = await supabase
         .from('orders')
@@ -614,7 +639,7 @@ export async function POST(request: NextRequest) {
       const covered = protectionStatus === 'protected';
       const artistLine = covered
         ? `Good news: this order was Protected, so Custom Canvas covers the loss — your payout is not affected.`
-        : `This order was not Protected, so the amount will be deducted from your payout. Reasons: ${(assessment?.failures ?? []).join(' ')}`;
+        : `This order was not Protected, so the amount will be deducted from your payout. Reasons: ${assessment.failures.join(' ')}`;
 
       if (artistUserId) {
         rows.push({
@@ -649,14 +674,57 @@ export async function POST(request: NextRequest) {
       const paymentIntentId = dispute.payment_intent as string | null;
       if (!paymentIntentId) break;
 
-      const { data: order } = await supabase
+      const CLOSE_COLUMNS =
+        'id, status, artist_id, artist_payout_cents, shipped_at, delivered_at, stripe_refund_id, stripe_reversal_id, protection_status, pre_dispute_status, dispute_outcome, listing:listings(title)';
+      const { data: firstRead, error: orderReadError } = await supabase
         .from('orders')
-        .select('id, status, artist_id, artist_payout_cents, shipped_at, delivered_at, stripe_refund_id, stripe_reversal_id, protection_status, pre_dispute_status, dispute_outcome, listing:listings(title)')
+        .select(CLOSE_COLUMNS)
         .eq('stripe_payment_intent_id', paymentIntentId)
         .maybeSingle();
-      if (!order) return retryLater(`No order for disputed payment ${paymentIntentId} yet`, 409);
+      if (orderReadError) {
+        Sentry.captureException(new Error(`Order read failed for closed dispute ${dispute.id} (${paymentIntentId}): ${orderReadError.message}`));
+        return retryLater('Order read failed');
+      }
+      if (!firstRead) return retryLater(`No order for disputed payment ${paymentIntentId} yet`, 409);
+      let order = firstRead;
 
-      const outcome = selectDisputeCloseOutcome(order, { status: dispute.status, amount: dispute.amount });
+      let outcome = selectDisputeCloseOutcome(order, { status: dispute.status, amount: dispute.amount });
+      if (outcome.kind === 'needs_assessment') {
+        // Lost, and protection was never assessed: this `closed` arrived
+        // before (or concurrently with) the `created` that would have done
+        // it — Stripe closes an unanswered inquiry that escalates in the same
+        // instant it escalates, and does not order deliveries. Assess now
+        // against the same frozen evidence, persist it only if nobody else
+        // has (the created handler may be running beside us), re-read, and
+        // decide on what the row says then.
+        const assessment = await assessProtection(supabase, order.id);
+        if (!assessment) return retryLater('Protection evidence read failed');
+        const { error: assessError } = await supabase
+          .from('orders')
+          .update({ protection_status: assessment.status })
+          .eq('id', order.id)
+          .eq('protection_status', 'pending');
+        if (assessError) {
+          Sentry.captureException(new Error(`Late protection assessment persist failed on order ${order.id}: ${assessError.message}`));
+          return retryLater('Protection assessment persist failed');
+        }
+        const { data: reread, error: rereadError } = await supabase
+          .from('orders')
+          .select(CLOSE_COLUMNS)
+          .eq('id', order.id)
+          .maybeSingle();
+        if (rereadError || !reread) {
+          Sentry.captureException(new Error(`Order re-read failed after late assessment on ${order.id}: ${rereadError?.message ?? 'no row'}`));
+          return retryLater('Order re-read failed');
+        }
+        order = reread;
+        Sentry.captureMessage(
+          `Dispute ${dispute.id} closed as lost before its open event was processed on order ${order.id}; protection assessed late as ${order.protection_status}.`,
+          'warning'
+        );
+        outcome = selectDisputeCloseOutcome(order, { status: dispute.status, amount: dispute.amount });
+        if (outcome.kind === 'needs_assessment') return retryLater('Protection still unassessed');
+      }
       if (outcome.kind === 'noop') break; // redelivery of a processed loss
 
       const title = (order.listing as unknown as { title: string } | null)?.title ?? 'an order';
@@ -672,10 +740,21 @@ export async function POST(request: NextRequest) {
         // double it, and skipped entirely when a settled refund already
         // reversed the payout.
         let reversedCents = 0;
+        let transferAlreadyReversed = false;
         if (outcome.reverseCents > 0) {
           try {
             const charge = await getStripe().charges.retrieve(dispute.charge as string);
             if (charge.transfer) {
+              const transferId = typeof charge.transfer === 'string' ? charge.transfer : charge.transfer.id;
+              // A dashboard refund with "reverse transfer" ticked leaves no
+              // stripe_reversal_id on the row (charge.refunded records none),
+              // so ask the transfer itself, as charge.refunded does: a second
+              // reversal on a fully reversed transfer fails at Stripe forever
+              // and the outcome was never recorded.
+              const transfer = await getStripe().transfers.retrieve(transferId);
+              transferAlreadyReversed = (transfer.amount_reversed ?? 0) >= transfer.amount;
+            }
+            if (charge.transfer && !transferAlreadyReversed) {
               const reversal = await getStripe().transfers.createReversal(
                 typeof charge.transfer === 'string' ? charge.transfer : charge.transfer.id,
                 { amount: outcome.reverseCents },
@@ -714,6 +793,8 @@ export async function POST(request: NextRequest) {
             ? `Dispute LOST on PROTECTED order ${order.id} — platform absorbs ${dispute.amount}c, payout NOT reversed.`
             : outcome.reversalAlreadyExists
             ? `Dispute LOST on order ${order.id} — payout was already reversed (${order.stripe_reversal_id}, refund settled earlier or prior delivery); nothing reversed now.`
+            : transferAlreadyReversed
+            ? `Dispute LOST on order ${order.id} — the transfer was already fully reversed at Stripe (dashboard refund); nothing reversed now.`
             : reversedCents > 0
             ? `Dispute LOST on ineligible order ${order.id} — ${reversedCents}c of the ${order.artist_payout_cents}c payout reversed.`
             : `Dispute LOST on order ${order.id} — no payout to reverse.`,
@@ -730,20 +811,43 @@ export async function POST(request: NextRequest) {
           artistTitle = 'Dispute lost';
           artistBody = `The bank sided with the buyer on "${title}". Your payout for this order had already been returned, so nothing further was deducted.`;
         }
+      } else if (order.status !== 'disputed') {
+        // Nothing is frozen. Either a closed inquiry that never escalated
+        // (an inquiry never touches status — tell the artist and stop) or a
+        // redelivery of a `won` after the restore already ran (say nothing
+        // twice). Never rebuild a status here: the row moved for a reason.
+        if (outcome.outcome === 'won') {
+          Sentry.captureMessage(`Dispute ${dispute.id} won; order ${order.id} is already '${order.status}' — nothing to restore.`, 'info');
+          break;
+        }
+        artistTitle = 'Bank inquiry closed';
+        artistBody = `The bank closed its inquiry about "${title}" without a chargeback. Nothing changes on this order.`;
       } else {
-        // Money stays. Put the order back where it was and clear the dispute.
-        const { error: restoreError } = await supabase
+        // Money stays. Put the order back where it was. Compare-and-swap on
+        // `disputed`: a refund settled between the ruling and this delivery
+        // (the first attempt failed and Stripe retried) has already moved the
+        // row, and rewriting it as paid handed the buyer their money twice.
+        // Zero rows = already handled; ack without re-notifying. dispute_id
+        // stays on the row so a late open event for this dispute is
+        // recognised as already recorded.
+        const { data: restored, error: restoreError } = await supabase
           .from('orders')
           .update({
             status: outcome.status,
             dispute_outcome: outcome.outcome,
-            dispute_id: null,
             pre_dispute_status: null,
           })
-          .eq('id', order.id);
+          .eq('id', order.id)
+          .eq('status', 'disputed')
+          .select('id')
+          .maybeSingle();
         if (restoreError) {
           Sentry.captureException(new Error(`Dispute restore to ${outcome.status} failed on order ${order.id}: ${restoreError.message}`));
           return retryLater('Dispute restore failed');
+        }
+        if (!restored) {
+          Sentry.captureMessage(`Dispute ${dispute.id} closed as ${dispute.status}; order ${order.id} was no longer disputed — already handled.`, 'info');
+          break;
         }
         Sentry.captureMessage(`Dispute ${dispute.id} closed as ${dispute.status}; order ${order.id} restored to ${outcome.status}.`, 'info');
 

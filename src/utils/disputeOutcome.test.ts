@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isInquiryDispute,
+  isClosedDisputeStatus,
   selectDisputeOpenAction,
   selectDisputeCloseOutcome,
   disputeReversalCents,
@@ -84,6 +85,26 @@ describe('selectDisputeOpenAction', () => {
     expect(selectDisputeOpenAction(openOrder({ status: 'disputed', dispute_id: DISPUTE_ID }), { id: DISPUTE_ID, status: 'needs_response' }))
       .toBe('already_recorded');
   });
+
+  it('a late or resent open event for a dispute that is already over never re-freezes (won/lost/warning_closed/charge_refunded)', () => {
+    for (const status of ['won', 'lost', 'warning_closed', 'charge_refunded']) {
+      expect(isClosedDisputeStatus(status)).toBe(true);
+      // After a won restore: back to shipped, dispute_id kept (R13 keeps it).
+      expect(selectDisputeOpenAction(openOrder({ status: 'shipped', dispute_id: DISPUTE_ID }), { id: DISPUTE_ID, status }))
+        .toBe('already_recorded');
+      // Even without the id on the row (orders restored before R13 nulled it).
+      expect(selectDisputeOpenAction(openOrder({ status: 'shipped' }), { id: DISPUTE_ID, status }))
+        .toBe('already_recorded');
+      // After a lost close.
+      expect(selectDisputeOpenAction(openOrder({ status: 'refunded', dispute_id: DISPUTE_ID }), { id: DISPUTE_ID, status }))
+        .toBe('already_recorded');
+      // A live order that was never frozen (closed outran created entirely).
+      expect(selectDisputeOpenAction(openOrder({ status: 'paid' }), { id: DISPUTE_ID, status }))
+        .toBe('already_recorded');
+    }
+    expect(isClosedDisputeStatus('needs_response')).toBe(false);
+    expect(isClosedDisputeStatus('warning_needs_response')).toBe(false);
+  });
 });
 
 describe('restoredStatus', () => {
@@ -95,6 +116,13 @@ describe('restoredStatus', () => {
   it('falls back to refunded when the money already went back', () => {
     expect(restoredStatus(closeOrder({ stripe_refund_id: 're_1', delivered_at: '2026-08-10T00:00:00Z' }))).toBe('refunded');
     expect(restoredStatus(closeOrder({ status: 'refunded' }))).toBe('refunded');
+  });
+
+  it('a refund settled while the order was frozen outranks the status saved at freeze time', () => {
+    // The created handler always writes pre_dispute_status; the admin settled
+    // the approved refund between the ruling and this event's delivery.
+    expect(restoredStatus(closeOrder({ pre_dispute_status: 'paid', stripe_refund_id: 're_1' }))).toBe('refunded');
+    expect(restoredStatus(closeOrder({ pre_dispute_status: 'shipped', status: 'refunded' }))).toBe('refunded');
   });
 
   it('falls back to shipped for a piece still in transit', () => {
@@ -115,11 +143,18 @@ describe('selectDisputeCloseOutcome', () => {
   });
 
   it('won after a settled refund restores to refunded, not paid', () => {
+    // Previously passed only because pre_dispute_status was null here; the
+    // created handler always writes it, so the real row carries 'paid'.
     const r = selectDisputeCloseOutcome(
-      closeOrder({ status: 'refunded', stripe_refund_id: 're_1', stripe_reversal_id: 'trr_1', delivered_at: '2026-08-10T00:00:00Z' }),
+      closeOrder({ status: 'refunded', pre_dispute_status: 'paid', stripe_refund_id: 're_1', stripe_reversal_id: 'trr_1', delivered_at: '2026-08-10T00:00:00Z' }),
       { status: 'won', amount: 10000 }
     );
     expect(r).toEqual({ kind: 'restored', status: 'refunded', outcome: 'won' });
+    // Settled mid-dispute: the row is still 'disputed' with the refund id on it.
+    expect(selectDisputeCloseOutcome(
+      closeOrder({ status: 'disputed', pre_dispute_status: 'paid', stripe_refund_id: 're_1', stripe_reversal_id: 'trr_1' }),
+      { status: 'won', amount: 10000 }
+    )).toEqual({ kind: 'restored', status: 'refunded', outcome: 'won' });
   });
 
   it('won while in transit restores to shipped, not paid', () => {
@@ -167,6 +202,27 @@ describe('selectDisputeCloseOutcome', () => {
   it('lost with a zero payout reverses nothing', () => {
     expect(selectDisputeCloseOutcome(closeOrder({ artist_payout_cents: 0 }), { status: 'lost', amount: 10000 }))
       .toMatchObject({ kind: 'lost', reverseCents: 0 });
+  });
+
+  it('lost on an order whose protection was never assessed asks for the assessment instead of reversing', () => {
+    // closed outran created: protection_status still at its 'pending' default.
+    for (const status of ['paid', 'shipped', 'delivered']) {
+      expect(selectDisputeCloseOutcome(closeOrder({ status, protection_status: 'pending' }), { status: 'lost', amount: 10000 }))
+        .toEqual({ kind: 'needs_assessment' });
+    }
+    // Same when the freeze committed concurrently but left 'pending' on the row.
+    expect(selectDisputeCloseOutcome(closeOrder({ status: 'disputed', protection_status: 'pending', pre_dispute_status: 'shipped' }), { status: 'lost', amount: 10000 }))
+      .toEqual({ kind: 'needs_assessment' });
+  });
+
+  it('after the assessment a protected order is absorbed by the platform', () => {
+    expect(selectDisputeCloseOutcome(closeOrder({ status: 'shipped', protection_status: 'protected' }), { status: 'lost', amount: 10000 }))
+      .toEqual({ kind: 'lost', status: 'refunded', reverseCents: 0, platformAbsorbs: true, reversalAlreadyExists: false });
+  });
+
+  it('after the assessment an ineligible order is reversed for the disputed amount', () => {
+    expect(selectDisputeCloseOutcome(closeOrder({ status: 'shipped', protection_status: 'ineligible' }), { status: 'lost', amount: 10000 }))
+      .toEqual({ kind: 'lost', status: 'refunded', reverseCents: 8500, platformAbsorbs: false, reversalAlreadyExists: false });
   });
 
   it('lost redelivery is a no-op', () => {

@@ -35,6 +35,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .single();
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (order.status === 'refunded') return NextResponse.json({ error: 'Already refunded' }, { status: 400 });
+  // Stripe refuses refunds while a chargeback is open, and a refund settled
+  // between the ruling and the closed event's delivery is exactly what the
+  // dispute restore must not overwrite. Wait for the dispute to close.
+  if (order.status === 'disputed') {
+    return NextResponse.json(
+      { error: 'This order is under an open chargeback. Stripe will not refund it until the dispute closes; settle it then.' },
+      { status: 409 }
+    );
+  }
 
   const stripe = getStripe();
 
@@ -94,25 +103,57 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   // Step 3 — close the order. CAS so concurrent settles resolve cleanly
   // (the Stripe idempotency keys already made their money ops no-ops).
+  // The write is asserted: the money has moved at Stripe, so a close that
+  // silently fails leaves a `paid` order the artist can still ship. Retry is
+  // idempotent — both Stripe ids are on the row, so it skips to this step.
   const wasShipped = order.status === 'shipped' || order.status === 'delivered';
-  await admin.from('orders').update({ status: 'refunded' }).neq('status', 'refunded').eq('id', order.id);
+  const RETRY_CLOSE = 'Refund done at Stripe but the order could not be closed — retry.';
+  const { data: closed, error: closeError } = await admin
+    .from('orders')
+    .update({ status: 'refunded' })
+    .neq('status', 'refunded')
+    .eq('id', order.id)
+    .select('id')
+    .maybeSingle();
+  if (closeError || !closed) {
+    Sentry.captureException(new Error(`Refund close failed on order ${order.id}: ${closeError?.message ?? 'zero rows'}`));
+    return NextResponse.json({ error: RETRY_CLOSE }, { status: 502 });
+  }
 
   // Relist ONLY a never-shipped piece — a shipped/delivered artwork is
   // physically with the buyer; the artist relists manually after return —
   // and only from `sold`: a listing the artist has since hidden stays hidden.
+  // No OTHER order may hold the slot: the set matches
+  // orders_one_live_per_listing (00055) — a disputed order holds it too.
   if (order.listing_id && !wasShipped) {
-    const { count } = await admin
+    const { count, error: countError } = await admin
       .from('orders')
       .select('id', { count: 'exact', head: true })
       .eq('listing_id', order.listing_id)
-      .in('status', ['paid', 'shipped', 'delivered'])
+      .in('status', ['paid', 'shipped', 'delivered', 'disputed'])
       .neq('id', order.id);
+    if (countError) {
+      Sentry.captureException(new Error(`Relist check failed for listing ${order.listing_id}: ${countError.message}`));
+      return NextResponse.json({ error: RETRY_CLOSE }, { status: 502 });
+    }
     if ((count ?? 0) === 0) {
-      await admin
+      const { data: relisted, error: relistError } = await admin
         .from('listings')
         .update({ status: 'available', sold_price_cents: null })
         .eq('id', order.listing_id)
-        .eq('status', 'sold');
+        .eq('status', 'sold')
+        .select('id')
+        .maybeSingle();
+      if (relistError) {
+        Sentry.captureException(new Error(`Relist of ${order.listing_id} failed after refund: ${relistError.message}`));
+        return NextResponse.json({ error: RETRY_CLOSE }, { status: 502 });
+      }
+      // Zero rows is legitimate here: the listing is not `sold` any more
+      // (the artist hid it, or a retry already relisted it) — that is the
+      // "stays hidden" rule above, not a refused write.
+      if (!relisted) {
+        Sentry.captureMessage(`Refund on order ${order.id}: listing ${order.listing_id} not relisted (no longer 'sold').`, 'info');
+      }
     }
   }
 

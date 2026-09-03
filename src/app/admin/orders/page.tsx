@@ -163,7 +163,9 @@ function OrdersContent() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <Badge variant={STATUS_VARIANT[o.status]}>{o.status}</Badge>
-                    {o.refund_approved_at && o.status !== 'refunded' && (
+                    {/* Not on a disputed order: Stripe refuses refunds while a
+                        chargeback is open, and the route answers 409. */}
+                    {o.refund_approved_at && o.status !== 'refunded' && o.status !== 'disputed' && (
                       <Button size="sm" variant="danger" loading={settling === o.id} onClick={() => handleSettleRefund(o)}>
                         Settle refund
                       </Button>
