@@ -1,0 +1,55 @@
+You are executing the last build arc for Custom Canvas before final testing and go-live: making the product match the counsel-reviewed legal documents. Work in ~/Projects/custom-canvas (branch master, currently at the commit that added docs/LEGAL-ALIGNMENT-PLAN.md). This is a Next.js 14 App Router app on Supabase with RLS, Stripe Connect, React Query and Tailwind, live in production at customcanvas.shop with payments enabled, live Stripe keys, two listings and zero orders so far.
+
+## The spec
+
+`docs/LEGAL-ALIGNMENT-PLAN.md` is the plan: sections A (text fixes counsel owns), B (already true, do not re-check), C (phases L1 to L12), D (final testing and go-live), E (traceability). Read it in full first.
+
+Then read the eight final documents in `docs/legal/website legal documents/markdown/` — terms-of-service, terms-of-sale, artist-agreement, seller-protection, listing-standards, shipping-returns-refunds, privacy-policy, dmca-policy. They are the authority. When the plan and a document disagree, the document wins and you say so. When a document and the code disagree, the code changes, except for the four items in section A, which are counsel's to fix.
+
+Also read `docs/CONVENTIONS.md` (house standard, non-negotiable), `docs/runbook.md`, and `DECISIONS.md`.
+
+Build every phase against the document text itself, not against the plan's summary of it. The plan tells you what to build and in what order; the documents tell you exactly what it has to say and do.
+
+## Environment facts, all of which cost real time when forgotten
+
+- node is not on PATH. Start every shell command with: export PATH=$HOME/.nvm/versions/node/v24.16.0/bin:$PATH
+- Never run pnpm in this repo. Use ./node_modules/.bin/* directly. npm is the package manager.
+- Work in a git worktree per phase, branch named legal/l1-publish-documents and so on. Symlink node_modules from the main tree and copy .env.local into each worktree; do not npm install in a worktree.
+- There is no migration history table. Migrations are plain SQL applied by hand with psql, DEV first, prod only in section D. DEV connection: host aws-1-us-east-2.pooler.supabase.com, user postgres.nlatruygmarojthfjzog, password from SUPABASE_DB_PASSWORD in .env.local. Never touch anything named PROD_* until section D. Migration numbers start at 00058 and the plan assigns them per phase; if you run phases in parallel, assign each one its own number up front so two branches never collide.
+- Every migration ships with its scripts/db-smoke.sql expectations in the same commit. Run ./scripts/db-smoke.sh after applying.
+- Staging is custom-canvas-chi.vercel.app and auto-deploys on push to master. Production is customcanvas.shop and deploys only by hand with: npx -y vercel@59.5.0 deploy --prod --yes — no --token, the CLI is logged in on this machine.
+- The e2e suite runs against staging with ./scripts/run-e2e.sh, one spec file at a time, workers=1, with a pause between files. Supabase auth throttles concurrent logins: do not run any other browser login, agent or script against DEV while the suite is running, or you will get a wave of false failures that all look like "stuck on /login".
+- After pushing, staging takes a couple of minutes to serve the new build. Wait for it before running e2e, or you will test the old code. Fingerprint the build by hashing the /_next/static script URLs on the homepage and waiting for that hash to change.
+- Two files reliably conflict when phases run in parallel: scripts/db-smoke.sql and DECISIONS.md. Resolve by keeping both sides.
+
+## The operating loop, which is the part that actually produces the quality
+
+**Per phase.** Read the cited documents. Build. Then the full verification bar: tsc --noEmit, next lint, vitest run, next build, and db-smoke if the phase has a migration — plus the phase's own Accept checks from the plan. A phase is not done until all of those are green. Include next build every time; a change that type-checks can still fail the production build, and that happened in the last arc.
+
+**Per merge.** Merge to master, then run the bar again on the merge result. Merges introduce defects that neither branch had; that also happened in the last arc, twice. Only then push.
+
+**Per group of phases.** Once staging is serving the new build, run the full e2e suite with E2E_MONEY=1. Fix every failure before moving on, and be precise about which kind each one is: a real product regression, or a test whose selector or assumption went stale because the product legitimately changed. Both need fixing. Only one is a defect. In the last arc a palette rename, a new confirmation dialog and a repositioned toast each broke a spec, and one of those three, the toast covering the account menu, was a genuine product bug that only surfaced because the suite ran.
+
+**Per arc, and this is the step people skip.** Run a fresh review pass over what changed, in a separate headless session so it reads the code cold. Fix what it finds. Then run the pass again. Keep going until a pass comes back with no P0 and no P1 findings. In the last arc the money slice took four passes: each one found less than the last, and the fourth being clean was the gate to deploy. Do not treat "I fixed the findings" as finished. Treat "a fresh pass found nothing serious" as finished.
+
+The prompts for those passes are in docs/reviews/prompts/. For this arc use pass-4-money.txt over the refund, cancellation and return changes, and pass-1-auth-access.txt over the acceptance, versioning and DMCA work. Edit the report path in the prompt so each run writes a new file rather than overwriting the last one. Run them with the Claude Code binary headless, from the repo directory, detached so a long run is not killed:
+
+nohup ~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude -p --model claude-opus-5 --dangerously-skip-permissions --output-format text "$(cat docs/reviews/prompts/pass-4-money.txt)" < /dev/null > /tmp/pass.log 2>&1 &
+
+Each pass takes ten to twenty minutes.
+
+## Rulings
+
+Section C of the plan lists seven rulings, D7 through D13, each with a default. Chris has not answered them. Apply every default, record each one as a dated entry in DECISIONS.md as you reach the phase that needs it, and list them plainly in your final report so he can overturn any of them. Two are worth flagging back to him as you go because they are product decisions rather than legal ones: D8, hiding mature work by default, and D11, showing a blocking acceptance interstitial to existing accounts.
+
+## What is not yours
+
+- The four items in section A are text fixes for counsel: two passages wrongly saying the pickup-confirmation feature is unbuilt, a missing Upstash row in the privacy processor table, and the DMCA designated-agent placeholders. Do not edit the legal documents to fix these. Collect them into a short note Chris can forward, and if updated documents arrive mid-arc, replace the files in docs/legal/website legal documents/ and re-check any phase that cited a changed passage.
+- Phase L11 needs Chris to register the DMCA agent with the Copyright Office and create the mailbox. Build everything else in that phase, and leave the page's agent block reading that details are being registered until the real ones exist.
+- Section D step 5, the first real purchase on production with a live card, is Chris's to perform. Prepare it: tell him exactly which account to use, which listing, and the sequence to walk.
+
+## What done looks like
+
+L1 through L12 merged to master and pushed. Every promise in section E's traceability table either implemented or explicitly deferred with a reason. Full e2e green twice, including the money loop. A money review pass and an auth review pass each returning no P0 and no P1. Migrations 00058 onward applied to DEV, then to prod with db-smoke.sh --prod green, then prod deployed and the eight legal pages verified live. An addenda section appended to docs/LEGAL-ALIGNMENT-PLAN.md recording the rulings you applied, anything you deviated from and why, and anything left open.
+
+Work autonomously. Do not stop to ask permission for reversible work that follows from the plan. Stop only for genuinely destructive actions or a decision the plan has no default for. When you finish, give a report that stands on its own: what shipped, what each review pass found and how many rounds it took, what needs Chris, and what is still open.
