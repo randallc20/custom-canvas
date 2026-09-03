@@ -237,6 +237,35 @@ export async function sendShippingUpdateEmail(
   });
 }
 
+/** The buyer's payment landed after another collector's order already held
+ *  the piece; the webhook refunded them in full. Until 04-r3 P2 they learned
+ *  of it only from a Refunded row on their Orders page. */
+export async function sendOversoldRefundEmail(
+  to: string,
+  buyerName: string,
+  listingTitle: string,
+  amount: string
+): Promise<boolean> {
+  return sendTemplate('oversold_refund', {
+    from: FROM_EMAIL,
+    replyTo: SUPPORT_EMAIL,
+    to,
+    subject: `Refunded: ${plain(listingTitle)} sold moments before your payment`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><img src="${APP_URL}/email-logo.png" width="180" height="32" alt="Custom Canvas" style="display:block;margin:0 0 20px" />
+        <h2 style="color:#111">We had to refund your order</h2>
+        <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, we're sorry — <strong>${escapeHtml(listingTitle)}</strong> was sold to another collector moments before your payment went through. Original artwork is one of a kind, so we can't fulfil a second order for it.</p>
+        <div style="background:#f9f9f9;padding:16px;border-radius:8px;margin:16px 0">
+          <p style="margin:0;color:#666">Refunded in full: <strong style="color:#111">${amount}</strong></p>
+          <p style="margin:4px 0 0;color:#999;font-size:13px">It can take a few days to appear on your statement.</p>
+        </div>
+        <p style="color:#666;font-size:14px;line-height:1.5">Nothing else is needed from you. If you'd like help finding something similar, just reply to this email.</p>
+        <a href="${APP_URL}/discover" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">Keep browsing</a>
+      </div>
+    `,
+  });
+}
+
 export async function sendReviewReceivedEmail(
   to: string,
   artistName: string,

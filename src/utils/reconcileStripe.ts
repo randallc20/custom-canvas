@@ -32,6 +32,8 @@ export interface ReconcileOrder {
   stripe_refund_id: string | null;
   stripe_reversal_id: string | null;
   dispute_id: string | null;
+  /** What the webhook recorded dispute_id as (00057); null before it. */
+  dispute_status: string | null;
   dispute_outcome: 'won' | 'lost' | 'accepted' | null;
 }
 
@@ -40,6 +42,10 @@ export type MismatchKind =
   | 'stripe_refunded_order_not_refunded'
   | 'order_refunded_stripe_not_refunded'
   | 'stripe_disputed_order_not_disputed'
+  /** An open chargeback on a refunded payment that the row only knows as an
+   *  inquiry (or not at all): the escalation the admin must answer before
+   *  the bank's deadline, and the one the webhook used to drop (04-r3 P1). */
+  | 'dispute_escalated_on_refunded_order'
   | 'dispute_lost_order_not_refunded'
   | 'dispute_closed_order_still_disputed';
 
@@ -110,9 +116,22 @@ export function diffPaymentAgainstOrder(
       }
     } else if (disputeStatus !== null && OPEN_DISPUTE.has(disputeStatus)) {
       // Open: the row must show it, unless the money already went back via a
-      // refund (a chargeback on a refunded order leaves status alone).
+      // refund (a chargeback on a refunded order leaves status alone) — and
+      // even then the row must know it as a CHARGEBACK. An inquiry recorded
+      // before the platform's own refund can still escalate (Stripe:
+      // "inquiries on partially refunded charges can still escalate to a
+      // chargeback"); if the webhook dropped that escalation, the recorded
+      // status is still warning_* (or null) while Stripe's is open.
       if (order.status !== 'disputed' && !(orderRefunded && stripeRefunded)) {
         push('stripe_disputed_order_not_disputed', `dispute '${disputeStatus}' open but order is '${order.status}'`);
+      } else if (
+        orderRefunded && stripeRefunded &&
+        (order.dispute_status === null || order.dispute_status.startsWith('warning_'))
+      ) {
+        push(
+          'dispute_escalated_on_refunded_order',
+          `dispute '${disputeStatus}' open on refunded order but the row records it as '${order.dispute_status ?? 'nothing'}' — respond in Stripe with the refund as evidence`
+        );
       }
     } else {
       // Dispute not expanded (id only) or an unknown status: accept any row

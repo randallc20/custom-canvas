@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
   for (let i = 0; i < ids.length; i += ORDER_LOOKUP_CHUNK) {
     const { data, error } = await supabase
       .from('orders')
-      .select('id, status, stripe_payment_intent_id, stripe_refund_id, stripe_reversal_id, dispute_id, dispute_outcome')
+      .select('id, status, stripe_payment_intent_id, stripe_refund_id, stripe_reversal_id, dispute_id, dispute_status, dispute_outcome')
       .in('stripe_payment_intent_id', ids.slice(i, i + ORDER_LOOKUP_CHUNK));
     if (error) {
       Sentry.captureException(new Error(`stripe-reconcile: orders lookup failed: ${error.message}`));

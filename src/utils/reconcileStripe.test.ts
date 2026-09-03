@@ -22,6 +22,7 @@ function order(over: Partial<ReconcileOrder> = {}): ReconcileOrder {
     stripe_refund_id: null,
     stripe_reversal_id: null,
     dispute_id: null,
+    dispute_status: null,
     dispute_outcome: null,
     ...over,
   };
@@ -82,8 +83,10 @@ describe('diffPaymentAgainstOrder — clean cases', () => {
 
   it('chargeback filed after a settled refund leaves the refunded row alone', () => {
     const c = charge({ amount_refunded: 11000, disputed: true, dispute: { id: 'dp_1', status: 'under_review' } });
-    const o = order({ status: 'refunded', stripe_refund_id: 're_1', dispute_id: 'dp_1' });
+    const o = order({ status: 'refunded', stripe_refund_id: 're_1', dispute_id: 'dp_1', dispute_status: 'needs_response' });
     expect(diffPaymentAgainstOrder(pi, c, o)).toEqual([]);
+    // Recorded at the same open status.
+    expect(diffPaymentAgainstOrder(pi, c, order({ status: 'refunded', stripe_refund_id: 're_1', dispute_id: 'dp_1', dispute_status: 'under_review' }))).toEqual([]);
   });
 });
 
@@ -144,6 +147,20 @@ describe('diffPaymentAgainstOrder — mismatches', () => {
     expect(kinds(diffPaymentAgainstOrder(pi, c, order({ status: 'disputed', dispute_id: 'dp_1' })))).toEqual([
       'dispute_closed_order_still_disputed',
     ]);
+  });
+
+  it('an inquiry that escalated after the platform refund, still recorded as an inquiry (04-r3 P1)', () => {
+    // Settle-refund (partial), inquiry recorded, escalation dropped.
+    const c = charge({ amount_refunded: 11000, disputed: true, dispute: { id: 'dp_1', status: 'needs_response' } });
+    const o = order({ status: 'refunded', stripe_refund_id: 're_1', dispute_id: 'dp_1', dispute_status: 'warning_needs_response' });
+    expect(kinds(diffPaymentAgainstOrder(pi, c, o))).toEqual(['dispute_escalated_on_refunded_order']);
+    // A dashboard full refund reconciled by charge.refunded: same answer.
+    const full = charge({ amount_refunded: 12000, refunded: true, disputed: true, dispute: { id: 'dp_1', status: 'under_review' } });
+    expect(kinds(diffPaymentAgainstOrder(pi, full, order({ status: 'refunded', dispute_id: 'dp_1', dispute_status: 'warning_under_review' }))))
+      .toEqual(['dispute_escalated_on_refunded_order']);
+    // A refunded row that never recorded the dispute at all.
+    expect(kinds(diffPaymentAgainstOrder(pi, c, order({ status: 'refunded', stripe_refund_id: 're_1' }))))
+      .toEqual(['dispute_escalated_on_refunded_order']);
   });
 
   it('reports both directions at once when both are wrong', () => {

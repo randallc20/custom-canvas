@@ -52,6 +52,27 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const updates: Record<string, unknown> = {};
   for (const key of EDITABLE) if (key in parsed.data) updates[key] = parsed.data[key];
 
+  // A sold piece with a live order stays sold (04-r3 P2). Putting it back
+  // on sale re-entered the feed with an order still holding the one-live-
+  // order slot; every later buyer was charged and auto-refunded at the
+  // platform's expense. The order's own refund relists it (webhook and
+  // settle route) when that is the right answer. Same set as
+  // orders_one_live_per_listing (00055).
+  if ('status' in updates && listing.status === 'sold' && updates.status !== 'sold') {
+    const { count, error: liveError } = await createAdminSupabaseClient()
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('listing_id', params.id)
+      .in('status', ['paid', 'shipped', 'delivered', 'disputed']);
+    if (liveError) return NextResponse.json({ error: liveError.message }, { status: 500 });
+    if ((count ?? 0) > 0) {
+      return NextResponse.json(
+        { error: 'This piece has a live order; it goes back on sale when that order is refunded.' },
+        { status: 409 }
+      );
+    }
+  }
+
   const { data, error } = await supabase
     .from('listings')
     .update(updates)

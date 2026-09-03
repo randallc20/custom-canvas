@@ -243,13 +243,22 @@ export default function EditListingPage() {
           )}
         </fieldset>
 
+        {/* A sold piece stays sold or goes hidden: its order's refund is what
+            puts it back on sale (the API refuses anything else while an
+            order is live). Offering Available here was one click from
+            reselling a piece another collector had paid for. */}
         <Select label="Status" {...register('status')} error={errors.status?.message}>
-          <option value="available">Available</option>
+          {!isSold && <option value="available">Available</option>}
           <option value="hidden">Hidden</option>
-          <option value="commission_only">Commission Only</option>
+          {!isSold && <option value="commission_only">Commission Only</option>}
           {isSold && <option value="sold">Sold</option>}
           {listing?.status === 'draft' && <option value="draft">Draft</option>}
         </Select>
+        {isSold && (
+          <p className="-mt-2 text-xs text-muted">
+            Sold pieces go back on sale automatically if the order is refunded.
+          </p>
+        )}
         <Button type="submit" loading={isSubmitting} className="w-full">Save Changes</Button>
       </form>
     </div>
