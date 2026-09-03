@@ -18,6 +18,8 @@
 //     self-delete is refused (R1 / 01-P0)
 //   - creates a pickup fixture: an Art Lover holding one PAID *pickup* order
 //     from the seed artist, for the two-sided handoff spec (R11)
+//   - stamps the current document versions on every fixture (L2), then
+//     creates ONE deliberately stale account for acceptance.spec.ts
 //   - creates an unsubscribe fixture: an Art Lover with all email categories
 //     ON, and prints their unsubscribe_token (service-role-only column) so
 //     the /unsubscribe spec can follow a real token link (R11)
@@ -40,6 +42,21 @@ const env = Object.fromEntries(
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
+
+// Document versions, read from the counsel markdown that IS the published
+// page (L1) — the same source src/lib/agreement.ts's constants are pinned to
+// by src/lib/legalDocuments.test.ts. Hardcoding them here would put a third
+// copy in play and silently strand every fixture behind the acceptance
+// interstitial the day counsel ships a new version.
+function docVersion(file) {
+  const md = readFileSync(join(repo, 'docs/legal/website legal documents/markdown', file), 'utf8');
+  const m = /Version\s+(\d+\.\d+)/.exec(md.split('\n').slice(0, 20).join(' '));
+  if (!m) throw new Error(`seed-e2e: no version line in ${file}`);
+  return m[1];
+}
+const TERMS_VERSION = docVersion('terms-of-service.md');
+const TERMS_OF_SALE_VERSION = docVersion('terms-of-sale.md');
+const ARTIST_AGREEMENT_VERSION = docVersion('artist-agreement.md');
 
 const log = (...a) => console.error('seed-e2e:', ...a);
 const PASSWORD = 'E2e-' + randomBytes(6).toString('base64url') + '-Aa1';
@@ -153,7 +170,7 @@ const draftUser = await createUser(draftEmail, { role: 'artist', full_name: 'E2E
     display_name: 'E2E Draft Artist',
     story: 'I paint the bayous and freeways of Houston in oil and gouache, chasing the light that only shows up over concrete after a storm has washed everything clean.',
     agreement_accepted_at: new Date().toISOString(),
-    agreement_version: '1.0',
+    agreement_version: ARTIST_AGREEMENT_VERSION,
   }).select('id').single();
   if (apErr) throw apErr;
 
@@ -255,6 +272,44 @@ let unsubToken = '';
   log(`unsubscribe fixture created: ${unsubEmail}`);
 }
 
+// 9. Acceptance (L2 / ruling D11). Migration 00058 leaves terms_version NULL
+// on every existing row, which is correct for real accounts but would put the
+// re-acceptance interstitial over the top of every signed-in spec in the
+// suite. Fixtures are not "existing users" — stamp them current, so each spec
+// tests what it is about rather than the acceptance dialog.
+//
+// Then mint ONE account that is deliberately stale, for acceptance.spec.ts.
+{
+  const { error } = await admin.from('profiles').update({
+    terms_version: TERMS_VERSION,
+    terms_accepted_at: new Date().toISOString(),
+    terms_of_sale_version: TERMS_OF_SALE_VERSION,
+    terms_of_sale_accepted_at: new Date().toISOString(),
+  }).neq('id', '00000000-0000-0000-0000-000000000000');
+  if (error) throw error;
+
+  const { error: aErr } = await admin.from('artist_profiles').update({
+    agreement_accepted_at: new Date().toISOString(),
+    agreement_version: ARTIST_AGREEMENT_VERSION,
+  }).neq('id', '00000000-0000-0000-0000-000000000000');
+  if (aErr) throw aErr;
+  log('acceptance stamped current on all fixtures');
+}
+
+const staleEmail = `e2e.stale.${TS}@customcanvas.dev`;
+const staleUser = await createUser(staleEmail, { role: 'user', full_name: 'E2E Stale Terms' });
+{
+  // The signup trigger's row is already unstamped; be explicit anyway, so
+  // this fixture stays stale even if the blanket update above ever runs after
+  // it.
+  const { data, error } = await admin.from('profiles').update({
+    terms_version: null, terms_accepted_at: null,
+    terms_of_sale_version: null, terms_of_sale_accepted_at: null,
+  }).eq('id', staleUser.id).select('id').maybeSingle();
+  if (error || !data) throw error ?? new Error('stale fixture update matched zero rows');
+  log(`stale-terms fixture created: ${staleEmail}`);
+}
+
 log('done — eval the export block below');
 
 // STDOUT: the env contract of the specs (see each spec's header comment).
@@ -279,6 +334,8 @@ console.log(`export E2E_PICKUP_ORDER_ID='${pickupOrderId}'`);
 console.log(`export E2E_UNSUB_EMAIL='${unsubEmail}'`);
 console.log(`export E2E_UNSUB_PASSWORD='${PASSWORD}'`);
 console.log(`export E2E_UNSUB_TOKEN='${unsubToken}'`);
+console.log(`export E2E_STALE_TERMS_EMAIL='${staleEmail}'`);
+console.log(`export E2E_STALE_TERMS_PASSWORD='${PASSWORD}'`);
 // e2e/helpers/data.ts reads fixture rows straight from PostgREST (R7 deleted
 // the /api/artists and /api/listings collection routes it used to use).
 console.log(`export NEXT_PUBLIC_SUPABASE_URL='${env.NEXT_PUBLIC_SUPABASE_URL}'`);

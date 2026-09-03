@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { acceptanceGateFor, recordTermsOfSaleAcceptance } from '@/lib/acceptance';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe';
 import { calcSplit } from '@/utils/commissionCalc';
@@ -32,6 +33,12 @@ export async function POST(request: NextRequest) {
   const supabase = createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Ruling D11 (L2): a stale acceptance blocks the gated actions. The
+  // interstitial is the visible half of this; a client that never renders it
+  // still gets refused here.
+  const gate = await acceptanceGateFor(user.id);
+  if (gate) return NextResponse.json(gate, { status: 403 });
 
   const { listingId, shipping } = await request.json();
 
@@ -188,6 +195,12 @@ export async function POST(request: NextRequest) {
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/orders?success=true`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/listing/${listingId}`,
     });
+
+    // Terms of Sale §1: "you accept them at checkout". The notice above the
+    // Pay button is the disclosure; reaching here is the acceptance. Stamped
+    // once, and never overwritten with an older version — recordAcceptance
+    // no-ops when the recorded version is already current.
+    await recordTermsOfSaleAcceptance(user.id);
 
     return NextResponse.json({ url: session.url });
   } catch (err) {

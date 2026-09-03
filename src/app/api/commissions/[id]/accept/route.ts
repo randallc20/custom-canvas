@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { acceptanceGateFor } from '@/lib/acceptance';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { commissionQuoteSchema } from '@/schemas/commissionSchema';
 
@@ -7,6 +8,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const supabase = createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Ruling D11 (L2): a stale acceptance blocks the gated actions. The
+  // interstitial is the visible half of this; a client that never renders it
+  // still gets refused here.
+  const gate = await acceptanceGateFor(user.id);
+  if (gate) return NextResponse.json(gate, { status: 403 });
 
   const { data: commission } = await supabase
     .from('commissions')

@@ -9,6 +9,7 @@ import { LocationProvider } from '@/context/LocationContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { ToastProvider } from '@/components/ui/Toast';
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
+import { AcceptanceInterstitial } from '@/components/legal/AcceptanceInterstitial';
 
 export function Providers({ children }: { children: ReactNode }) {
   const queryClient = getQueryClient();
@@ -20,7 +21,14 @@ export function Providers({ children }: { children: ReactNode }) {
           <NotificationProvider>
             <LocationProvider>
               <ToastProvider>
-                <ConfirmProvider>{children}</ConfirmProvider>
+                <ConfirmProvider>
+                  {/* Ruling D11: asks every signed-in account to accept the
+                      counsel set. Renders nothing when there is nothing
+                      outstanding, and needs the toast + auth contexts above
+                      it. */}
+                  <AcceptanceInterstitial />
+                  {children}
+                </ConfirmProvider>
               </ToastProvider>
             </LocationProvider>
           </NotificationProvider>

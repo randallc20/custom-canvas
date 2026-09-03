@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { z } from 'zod';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { acceptanceGateFor } from '@/lib/acceptance';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { sendNewMessageEmail } from '@/services/email';
 
@@ -38,6 +39,12 @@ export async function POST(request: NextRequest) {
   const supabase = createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Ruling D11 (L2): a stale acceptance blocks the gated actions. The
+  // interstitial is the visible half of this; a client that never renders it
+  // still gets refused here.
+  const gate = await acceptanceGateFor(user.id);
+  if (gate) return NextResponse.json(gate, { status: 403 });
 
   const parsed = messageBodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
