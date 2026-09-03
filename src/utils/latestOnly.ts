@@ -1,5 +1,5 @@
 /**
- * A gate for overlapping async results, where only the newest may be applied.
+ * A guard for async results that outlive the session they were started for.
  *
  * Written for `AuthContext`, and the bug it exists to stop is worth knowing
  * before you touch it. Every auth event starts a profile fetch. `profiles` is
@@ -12,34 +12,39 @@
  * failure on "the artist signs out cleanly", which is exactly how long it can
  * hide for.
  *
- * `isMounted` does not help here: the provider stays mounted across a
- * sign-out. The question is not "am I still here" but "am I still the answer
- * anyone is waiting for".
+ * `isMounted` does not help: the provider stays mounted across a sign-out.
+ * The question is not "am I still here" but "is the session I was started for
+ * still the session".
  *
- *   const gate = createLatestOnly();
- *   const ticket = gate.begin();
+ *   const epoch = createSessionEpoch();
+ *   const mine = epoch.current();
  *   const data = await fetch();
- *   if (gate.isCurrent(ticket)) setUser(data);   // else: discard, silently
+ *   if (epoch.isCurrent(mine)) setUser(data);   // else: discard, silently
  *
- * and on sign-out, `gate.supersede()` before clearing — which retires every
- * fetch already in flight, so none of them can set a user OR clear one.
+ * and on sign-out, `epoch.invalidate()` before clearing.
+ *
+ * Deliberately NOT newest-wins between overlapping fetches. Two fetches inside
+ * one epoch are for the same session and the same user, so either answer is
+ * the right answer — and an earlier draft that retired the older one on every
+ * new fetch could discard a SUCCESS in favour of a later FAILURE, leaving the
+ * app signed-in-but-userless with nothing to retry. Only sign-out invalidates.
  */
-export type LatestOnly = {
-  /** Claim the newest ticket. Every prior ticket is now stale. */
-  begin: () => number;
-  /** Whether this ticket is still the newest. */
-  isCurrent: (ticket: number) => boolean;
-  /** Retire everything in flight without issuing a ticket to anyone. */
-  supersede: () => void;
+export type SessionEpoch = {
+  /** The epoch to carry alongside an in-flight request. */
+  current: () => number;
+  /** Whether that epoch is still the live one. */
+  isCurrent: (epoch: number) => boolean;
+  /** End the epoch: everything in flight is now answering a dead question. */
+  invalidate: () => void;
 };
 
-export function createLatestOnly(): LatestOnly {
-  let current = 0;
+export function createSessionEpoch(): SessionEpoch {
+  let epoch = 0;
   return {
-    begin: () => (current += 1),
-    isCurrent: (ticket: number) => ticket === current,
-    supersede: () => {
-      current += 1;
+    current: () => epoch,
+    isCurrent: (e: number) => e === epoch,
+    invalidate: () => {
+      epoch += 1;
     },
   };
 }

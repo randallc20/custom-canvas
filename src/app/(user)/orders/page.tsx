@@ -309,24 +309,57 @@ export default function OrdersPage() {
                     it is missed. Terms of Sale §3 and Artist Agreement §7 give
                     the buyer a unilateral cancel right here; before L7 their
                     only action was to ask the artist and hope. */}
-                {/* Not once a refund is approved: the sale is being unwound,
-                    and this block offered "Accept <new date>" straight above
-                    "Refund approved — Custom Canvas is settling your payment"
-                    (r11 money pass, P1). Accepting it wrote `agreed_ship_by`,
-                    which made `win.missed` false and so GAVE AWAY the buyer's
-                    own §3 cancel right — their only self-serve escape if the
-                    settle queue stalls — and told the artist to ship a piece
-                    they no longer have a Mark-as-Shipped button for. */}
-                {order.status === 'paid' && !order.is_pickup && !order.refund_approved_at && (() => {
+                {/* Only the ACCEPT half goes once a refund is approved.
+                    Offering "Accept <new date>" above "Refund approved —
+                    Custom Canvas is settling your payment" was a P1 (r11):
+                    accepting wrote `agreed_ship_by`, which made the window
+                    un-missed and so gave away the buyer's own §3 cancel right,
+                    while telling the artist to ship a piece they no longer
+                    have a Mark-as-Shipped button for.
+                    Hiding the WHOLE block was the next P1 (r12): settling is a
+                    manual admin action, so every approved refund sits here for
+                    as long as the queue takes, and the buyer was left with no
+                    ship-by date and — worse — no Cancel button, which is the
+                    one door Terms of Sale §3 grants them "whether or not the
+                    artist approves" and which `cancel-unshipped` still opens.
+                    Both cards now keep their sentence and lose only the
+                    buttons that no longer make sense. */}
+                {order.status === 'paid' && !order.is_pickup && (() => {
                   const win = fulfillmentWindow(order);
                   // Once accepted, the offer is settled: show the agreed
                   // date, and the cancel right returns only if THAT is missed
                   // (r5 money pass, P2).
-                  const proposed = order.agreed_ship_by ? null : order.proposed_ship_by;
+                  const refundApproved = !!order.refund_approved_at;
+                  const proposed = order.agreed_ship_by || refundApproved ? null : order.proposed_ship_by;
+                  // NOT widened by `refundApproved`: the route only grants the
+                  // buyer's cancel once the window is actually missed
+                  // (cancel-unshipped, buyer branch), so offering the button
+                  // earlier would be a button that 409s. An approved refund
+                  // that stalls reaches `win.missed` on its own, and the
+                  // sentence below says so.
                   const canCancel = win.missed || !!proposed;
                   return (
                     <div className="mt-3 space-y-2">
-                      {proposed ? (
+                      {refundApproved ? (
+                        <p className="text-xs leading-relaxed text-muted">
+                          The artist approved your refund and we&apos;re settling it — don&apos;t
+                          expect this to ship.{' '}
+                          {win.missed ? (
+                            <>
+                              It&apos;s also past the{' '}
+                              <span className="font-medium text-ink">{win.shipByText}</span> ship-by
+                              date, so you can cancel it yourself here for a full refund including
+                              the service fee.
+                            </>
+                          ) : (
+                            <>
+                              If it hasn&apos;t moved by{' '}
+                              <span className="font-medium text-ink">{win.shipByText}</span>, you can
+                              cancel it yourself here without waiting for us.
+                            </>
+                          )}
+                        </p>
+                      ) : proposed ? (
                         <p className="text-xs leading-relaxed text-ink">
                           The artist couldn&apos;t ship within the original window and has proposed{' '}
                           <span className="font-medium">{formatDate(proposed)}</span>. It&apos;s your

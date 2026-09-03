@@ -246,20 +246,31 @@ export async function settleRefund(
     // rejection surfaced as "Refund failed at Stripe — safe to retry", which
     // it was not: retrying re-sent the same mismatched body forever.
     //
-    // Adopt ONLY a refund that is exactly the one this settle would have
-    // created: our metadata, and our amount. Anything else — a hand-issued
-    // goodwill partial in the Dashboard, or our own refund from an earlier
-    // settle under a DIFFERENT reason — is refused, loudly, with the numbers.
+    // Refunds at Stripe are ADDITIVE, so the question is not "is there a
+    // refund here" but "how much has the buyer already had back". Top up to
+    // the figure this settle owes; never re-refund what is already returned.
     //
-    // Adopting `data[0]` unconditionally, which is what this did for about an
-    // hour, was a P0 (r11 money pass): a $25 goodwill refund on a $521 order
+    // Two earlier cuts of this were both wrong. Adopting `data[0]`
+    // unconditionally was a P0 (r11): a $25 goodwill refund on a $521 order
     // got adopted, the create was skipped, the artist's whole payout was
-    // reversed, the listing was relisted and the admin was told the buyer had
-    // been refunded $521. Nothing downstream catches it — `charge.refunded`
-    // returns early on a partial, and the reconcile cron treats "any refund at
-    // all" as refunded. Creating a second refund would be worse; refusing is
-    // the only answer that neither loses money nor invents it.
-    if (!refundId) {
+    // reversed and the admin was told the buyer had $521 back. Refusing
+    // outright was a P1 (r12): a change-of-mind refund is BY DESIGN less than
+    // the charge, so the "settle the difference in the Dashboard" the refusal
+    // recommended left `charge.amount_refunded < charge.amount`, which makes
+    // `charge.refunded` return early — order stuck `paid`, payout never
+    // reversed, listing never relisted, and a retry 409ing forever.
+    //
+    // Topping up is the answer that needs no human and loses no money: the
+    // buyer ends on exactly `refundAmount` however the earlier refunds got
+    // there, and the close, the reversal and the relist all still run.
+    //
+    // Measured every time, including on a resume: `order.stripe_refund_id` is
+    // a hint, and asking Stripe what it actually holds is the only reading
+    // that cannot double-refund. An earlier draft skipped the lookup when the
+    // row already carried an id, which left `alreadyRefunded` at zero on the
+    // resume path and would have refunded the whole amount a second time.
+    let alreadyRefunded = 0;
+    {
       const existing = await stripe.refunds.list({
         payment_intent: order.stripe_payment_intent_id,
         limit: 100,
@@ -268,33 +279,44 @@ export async function settleRefund(
       const live = existing.data.filter(
         (r) => r.status !== 'failed' && r.status !== 'canceled',
       );
-      if (live.length > 0) {
-        const ours =
-          live.length === 1 &&
-          live[0].metadata?.order_id === order.id &&
-          live[0].amount === refundAmount
-            ? live[0]
-            : null;
-        if (!ours) {
-          const total = live.reduce((sum, r) => sum + r.amount, 0);
-          throw new StripeStateMismatch(
-            `Stripe already holds ${live.length} refund${live.length === 1 ? '' : 's'} on this payment totalling ${dollars(total)}, which is not the ${dollars(refundAmount)} this settle would return. Nothing was changed. Settle the difference in the Stripe Dashboard, or pick the reason that matches what was already refunded.`,
-          );
-        }
+      alreadyRefunded = live.reduce((sum, r) => sum + r.amount, 0);
+
+      // The one case a person really does have to settle: the buyer already
+      // has back MORE than this reason justifies, and a refund cannot be
+      // un-made. Actionable rather than a dead end — a fault reason returns
+      // the whole charge, which is very often the figure already reached.
+      if (alreadyRefunded > refundAmount) {
+        throw new StripeStateMismatch(
+          `Stripe has already refunded ${dollars(alreadyRefunded)} on this payment, which is more than the ${dollars(refundAmount)} a "${opts.reason}" refund returns. Nothing was changed. Choose the reason that matches what was actually refunded — a fault reason returns the whole charge — or take it up in the Stripe Dashboard.`,
+        );
+      }
+
+      if (alreadyRefunded > 0) {
+        const ours = live.find((r) => r.metadata?.order_id === order.id) ?? live[0];
+        const changed = refundId !== ours.id;
         refundId = ours.id;
-        await admin.from('orders').update({ stripe_refund_id: refundId }).eq('id', order.id);
+        if (changed) {
+          await admin.from('orders').update({ stripe_refund_id: refundId }).eq('id', order.id);
+        }
         Sentry.captureMessage(
-          `settleRefund resumed: adopted its own Stripe refund ${ours.id} (${dollars(ours.amount)}) for order ${order.id}`,
+          `settleRefund on order ${order.id}: ${dollars(alreadyRefunded)} already refunded at Stripe` +
+            (alreadyRefunded === refundAmount
+              ? ' — exactly what this settle owes, nothing further to refund.'
+              : ` — topping up by ${dollars(refundAmount - alreadyRefunded)}.`) +
+            (live.some((r) => r.metadata?.order_id === order.id)
+              ? ''
+              : ' Not created by this platform.'),
           'info',
         );
       }
     }
 
-    if (!refundId) {
+    const owedToBuyer = refundAmount - alreadyRefunded;
+    if (owedToBuyer > 0) {
       const refund = await stripe.refunds.create(
         {
           payment_intent: order.stripe_payment_intent_id,
-          amount: refundAmount,
+          amount: owedToBuyer,
           reverse_transfer: false,
           metadata: {
             policy_refund: 'true',
@@ -308,7 +330,11 @@ export async function settleRefund(
             ...(opts.note ? { admin_reason: opts.note.slice(0, 500) } : {}),
           },
         },
-        { idempotencyKey: `refund_${order.id}` },
+        // The key carries the top-up amount for the same reason the reversal's
+        // does: two runs computing the same shortfall collapse into one
+        // refund, while a genuinely different figure is a different request
+        // rather than a rejection reported as "safe to retry".
+        { idempotencyKey: `refund_${order.id}_${owedToBuyer}` },
       );
       refundId = refund.id;
       await admin.from('orders').update({ stripe_refund_id: refundId }).eq('id', order.id);

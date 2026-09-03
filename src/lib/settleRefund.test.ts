@@ -339,13 +339,14 @@ describe('settleRefund — one order, one refund', () => {
     expect(updates.some((u) => u.payload.stripe_refund_id === 're_already_there')).toBe(true);
   });
 
-  it('REFUSES a hand-issued partial refund instead of calling the order fully refunded', async () => {
-    // The P0. Support refunds $25 of a $28.21 order as a goodwill gesture.
-    // Adopting it closed the order as refunded, reversed the artist's entire
-    // payout and relisted the piece, while telling the admin the buyer had
-    // been refunded in full. Nothing downstream catches it: charge.refunded
-    // returns early on a partial and the reconcile cron reads any refund at
-    // all as "refunded".
+  it('TOPS UP a hand-issued partial refund instead of re-refunding or refusing', async () => {
+    // Two earlier cuts were both wrong here. Adopting the $25 and skipping the
+    // create was the P0 — the buyer got $25, the artist lost their whole
+    // payout, the admin was told $27.06. Refusing outright was the P1 — a
+    // change-of-mind refund is by design less than the charge, so "settle the
+    // difference in the Dashboard" left the charge partially refunded, which
+    // makes charge.refunded return early: order stuck `paid`, payout never
+    // reversed, retry 409ing forever. Refunds are additive; top up.
     stripeStub.refunds.list.mockResolvedValue({
       data: [{ id: 're_by_hand', amount: 2500, status: 'succeeded' }],
     });
@@ -357,18 +358,19 @@ describe('settleRefund — one order, one refund', () => {
       initiatedBy: 'artist',
     });
 
-    expect(out.ok).toBe(false);
-    expect(!out.ok && out.status).toBe(409);
-    expect(!out.ok && out.error).toContain('$25.00');
-    expect(!out.ok && out.error).toContain('$27.06');
-    expect(stripeStub.refunds.create).not.toHaveBeenCalled();
-    expect(stripeStub.transfers.createReversal).not.toHaveBeenCalled();
+    expect(out.ok).toBe(true);
+    expect(stripeStub.refunds.create).toHaveBeenCalledTimes(1);
+    expect(stripeStub.refunds.create.mock.calls[0][0]).toMatchObject({
+      amount: CHANGE_OF_MIND_TOTAL - 2500,
+    });
+    // The buyer ends on the full figure however it got there.
+    expect(out.ok && out.refundedCents).toBe(CHANGE_OF_MIND_TOTAL);
   });
 
-  it('REFUSES when our own earlier refund was for a different reason and amount', async () => {
+  it('tops up when our own earlier refund was for a smaller reason', async () => {
     // A change-of-mind refund succeeded at Stripe but its id was lost, so
     // `moneyHasMoved` is false and the reason-mismatch guard cannot fire. The
-    // amount check is what catches it.
+    // top-up is what makes the buyer whole under the new reason.
     stripeStub.refunds.list.mockResolvedValue({
       data: [
         {
@@ -387,8 +389,61 @@ describe('settleRefund — one order, one refund', () => {
       initiatedBy: 'platform',
     });
 
+    const FAULT_TOTAL = 2000 + 500 + 106 + 215;
+    expect(out.ok).toBe(true);
+    expect(stripeStub.refunds.create.mock.calls[0][0]).toMatchObject({
+      amount: FAULT_TOTAL - CHANGE_OF_MIND_TOTAL,
+    });
+    expect(out.ok && out.refundedCents).toBe(FAULT_TOTAL);
+  });
+
+  it('refuses only when MORE has been refunded than this reason returns', async () => {
+    // The one case a person really does have to settle: a refund cannot be
+    // un-made. The message points at the exit — a fault reason returns the
+    // whole charge, which is very often the figure already reached.
+    stripeStub.refunds.list.mockResolvedValue({
+      data: [{ id: 're_generous', amount: 2900, status: 'succeeded' }],
+    });
+    const { client } = makeAdmin({ order: { ...BASE_ORDER }, ret: ACCEPTED_RETURN });
+
+    const out = await settleRefund(client, {
+      orderId: 'o1',
+      reason: 'change_of_mind',
+      initiatedBy: 'artist',
+    });
+
     expect(out.ok).toBe(false);
     expect(!out.ok && out.status).toBe(409);
+    expect(!out.ok && out.error).toContain('$29.00');
+    expect(stripeStub.refunds.create).not.toHaveBeenCalled();
+    expect(stripeStub.transfers.createReversal).not.toHaveBeenCalled();
+  });
+
+  it('does not re-refund on a resume, where the row already carries the id', async () => {
+    // The measured lookup runs on the resume path too. Trusting
+    // `stripe_refund_id` and skipping it would leave `alreadyRefunded` at zero
+    // and refund the whole amount a second time.
+    stripeStub.refunds.list.mockResolvedValue({
+      data: [
+        {
+          id: 're_old',
+          amount: CHANGE_OF_MIND_TOTAL,
+          status: 'succeeded',
+          metadata: { order_id: 'o1' },
+        },
+      ],
+    });
+    const { client } = makeAdmin({
+      order: { ...BASE_ORDER, stripe_refund_id: 're_old', refund_reason: 'change_of_mind' },
+    });
+
+    const out = await settleRefund(client, {
+      orderId: 'o1',
+      reason: 'change_of_mind',
+      initiatedBy: 'artist',
+    });
+
+    expect(out.ok).toBe(true);
     expect(stripeStub.refunds.create).not.toHaveBeenCalled();
   });
 
@@ -462,7 +517,9 @@ describe('settleRefund — one order, one refund', () => {
 
     expect(out.ok).toBe(true);
     expect(stripeStub.refunds.create).toHaveBeenCalledTimes(1);
-    expect(stripeStub.refunds.create.mock.calls[0][1]).toEqual({ idempotencyKey: 'refund_o1' });
+    expect(stripeStub.refunds.create.mock.calls[0][1]).toEqual({
+      idempotencyKey: `refund_o1_${CHANGE_OF_MIND_TOTAL}`,
+    });
     // The reversal key carries the amount: two runs computing the same
     // shortfall collapse into one reversal, and a different shortfall is a
     // different request rather than a silently swallowed one.
