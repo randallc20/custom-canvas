@@ -27,12 +27,15 @@ incomplete notice may not trigger our obligations.
 
 **Designated DMCA Agent**
 
-[NAME OR POSITION]  
+Managing Member  
 Custom Canvas LLC  
 3120 Southwest Freeway, Suite 101 #991985  
 Houston, Texas 77098  
-Telephone: [TELEPHONE NUMBER]  
-Email: [DEDICATED DMCA EMAIL]
+Telephone: (832) 319-4756  
+Email: support@customcanvas.shop
+
+Custom Canvas LLC is registered with the U.S. Copyright Office as a service provider
+under 17 U.S.C. §512(c)(2). Registration number: DMCA-1079827.
 
 Notices sent to this agent should relate to claimed copyright infringement under the
 Digital Millennium Copyright Act. Other legal notices, complaints, or customer-service

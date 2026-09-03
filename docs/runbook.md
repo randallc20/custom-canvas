@@ -148,16 +148,17 @@ hand if the artist still has it.
 
 ## DMCA notices (`/admin/dmca`)
 
-⚠️ **Before this page is honest, two things must exist and both are Chris's:**
-the designated agent registered in the U.S. Copyright Office DMCA Designated
-Agent Directory (the $6 filing — safe harbour under §512 depends on the
-registration, not on the page), and the dedicated mailbox
-(`dmca@customcanvas.shop` on the domain's real mail host; Resend sends but does
-not receive). Until counsel's filled agent details land in
-`docs/legal/website legal documents/markdown/dmca-policy.md`, `/dmca` replaces
-the agent block with an interim notice pointing at support@ — that swap keys
-on the placeholders themselves, so the real block publishes the moment the
-text arrives, with no deploy.
+**Registered and live since 2026-09-03.** The designated agent is the Managing
+Member of Custom Canvas LLC at 3120 Southwest Freeway, Suite 101 #991985,
+Houston TX 77098, telephone (832) 319-4756, email support@customcanvas.shop,
+and Custom Canvas LLC is on the U.S. Copyright Office register under 17 U.S.C.
+§512(c)(2) with **registration number DMCA-1079827**. Safe harbour rests on
+that registration, not on the page — if the LLC's details ever change, update
+the Copyright Office entry FIRST and the document second.
+
+Notices arrive at `support@customcanvas.shop`; there is no separate `dmca@`
+mailbox and none is needed, because that is the address the published policy
+gives. Watch for "DMCA" in the subject line.
 
 **Intake → removal → restoration:**
 

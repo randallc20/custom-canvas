@@ -77,6 +77,18 @@ function pageText(slug) {
 
 const parser = unified().use(remarkParse).use(remarkGfm);
 
+/** Like mdast-util-to-string, but a hard line break contributes a SPACE.
+ *  `mdToString` concatenates around `break` nodes, so the DMCA agent's
+ *  address came back as "Managing MemberCustom Canvas LLC3120 Southwest…"
+ *  while the page renders it as separate lines via <br> — a divergence in the
+ *  checker, not in the page. */
+function blockText(node) {
+  if (node.type === 'break') return ' ';
+  if (node.type === 'text' || node.type === 'inlineCode') return node.value;
+  if (Array.isArray(node.children)) return node.children.map(blockText).join('');
+  return mdToString(node);
+}
+
 /** Every leaf block a reader sees, as plain text. A list item's own text
  *  excludes nested lists (those come back as their own items), so each unit
  *  is a thing that renders inside one element on the page. */
@@ -89,12 +101,12 @@ function sourceBlocks(markdown) {
       case 'paragraph':
       case 'heading':
       case 'tableCell':
-        blocks.push(mdToString(node));
+        blocks.push(blockText(node));
         return;
       case 'listItem': {
         // Direct paragraph children only; nested lists recurse separately.
         const own = (node.children ?? []).filter((c) => c.type !== 'list');
-        if (own.length) blocks.push(own.map(mdToString).join(' '));
+        if (own.length) blocks.push(own.map(blockText).join(' '));
         (node.children ?? []).filter((c) => c.type === 'list').forEach(walk);
         return;
       }

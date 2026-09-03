@@ -64,34 +64,32 @@ is in production.
 actually configured in production. Confirm `UPSTASH_REDIS_REST_URL` is set
 there — it is on the go-live checklist (Section D.6).
 
-## A4 — DMCA & Copyright Policy: designated agent placeholders
+## A4 — RESOLVED 2026-09-03
 
-**Where.** DMCA & Copyright Policy, "Designated DMCA Agent".
+Counsel returned the filled document (`Custom Canvas - 8 DMCA and Copyright
+Policy.docx`, received 2026-09-03) and Chris completed the registration. The
+designated agent block now reads:
 
-**What the document says.** `[NAME OR POSITION]`, `[TELEPHONE NUMBER]`,
-`[DEDICATED DMCA EMAIL]`.
+> **Designated DMCA Agent**
+> Managing Member, Custom Canvas LLC
+> 3120 Southwest Freeway, Suite 101 #991985, Houston, Texas 77098
+> Telephone: (832) 319-4756 · Email: support@customcanvas.shop
+>
+> Custom Canvas LLC is registered with the U.S. Copyright Office as a service
+> provider under 17 U.S.C. §512(c)(2). **Registration number: DMCA-1079827.**
 
-**What is needed.** The real values, once the agent is registered.
+Two consequences worth recording:
 
-**What we did in the meantime.** The published `/dmca` page does **not** show
-the placeholders. While they are unfilled, the agent block is replaced with an
-interim notice directing notices and counter-notices to
-`support@customcanvas.shop` with "DMCA" in the subject, stating that we act on
-those exactly as we would on notices to the designated agent, and that
-registration is in progress. The substitution keys on the placeholders
-themselves, so the moment counsel's filled text lands in the markdown the real
-block publishes with no code change.
+- **Safe harbour now rests on a real registration**, not on the page. That was
+  the item that could not be closed from the code side.
+- **There is no separate `dmca@` mailbox and none is needed** — counsel put
+  `support@customcanvas.shop` in the agent block, so the address the policy
+  publishes is one that already receives mail. The runbook's "create the
+  dedicated mailbox" step is struck.
 
-**Two things must happen before this is finished, and both are Chris's:**
-
-1. Register the designated agent with the U.S. Copyright Office DMCA Designated
-   Agent Directory (the $6 filing). Safe harbor under §512 depends on this
-   registration existing, not on the page.
-2. Create the dedicated mailbox (e.g. `dmca@customcanvas.shop`) on the existing
-   mail provider. Resend sends but does not receive, so this needs the domain's
-   actual mail host.
-
-Then give counsel the name/position, telephone number and email for A4.
+`/dmca` published the real block the moment the filled text landed in the
+markdown: the interim substitution keys on the placeholders themselves, so no
+deploy or code change was needed to switch it over.
 
 ---
 

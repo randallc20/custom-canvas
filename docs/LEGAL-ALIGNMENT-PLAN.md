@@ -682,11 +682,15 @@ quietly fixed:
   defines these as "before the public push"; the launch minimum is built.
 - **A1–A3 are counsel's**, collected in `docs/legal/COUNSEL-NOTE-A1-A4.md`.
   Nothing in the product waits on them.
-- **A4 / L11 need Chris**: the Copyright Office designated-agent registration
-  (safe harbour depends on the registration, not the page) and the
-  `dmca@` mailbox. Until counsel's filled text lands in the markdown, `/dmca`
-  substitutes an interim block — keyed on the placeholders, so the real text
-  publishes with no deploy.
+- ~~**A4 / L11 need Chris**~~ — **DONE 2026-09-03.** Counsel returned the
+  filled DMCA document and Chris registered the agent: Managing Member, Custom
+  Canvas LLC, (832) 319-4756, support@customcanvas.shop, **U.S. Copyright
+  Office registration DMCA-1079827** under §512(c)(2). The interim block keyed
+  on the placeholders, so `/dmca` published the real agent the moment the text
+  landed — no deploy, no code change. There is no separate `dmca@` mailbox and
+  none is needed: counsel put support@ in the agent block, which already
+  receives mail. L11's acceptance criterion (`dmcaAgentPending()` is false) is
+  met.
 - **Sentry's 90-day retention** is a project setting nobody can verify from
   here. The Privacy Policy states it as fact, so it is on the runbook and the
   go-live checklist.

@@ -1,0 +1,147 @@
+You are reviewing the Custom Canvas codebase — a Houston art marketplace: Next.js 14 App Router, Supabase (Postgres + RLS + storage + auth), Stripe Connect, React Query, Tailwind. ~327 TS/TSX files, ~24k LOC in src/, 48 SQL migrations, Playwright e2e. It is live on production but payments are still gated off pending Stripe activation.
+
+Your job this session is one pass: Money & order lifecycle. Read only the scope below, and produce a written report. Nothing else.
+
+## Scope — the legal-alignment arc's money changes ONLY
+
+This is the fifth money pass. The four before it are in
+`docs/reviews/04-money*.md` and every P0/P1 they raised is fixed. Do NOT
+re-report those. Your scope is what the legal-alignment arc changed on
+2026-09-03, plus whatever those changes broke around them.
+
+Read all of these:
+
+- `src/lib/settleRefund.ts` — NEW. The whole money-moving sequence was
+  extracted here out of the admin refund route and now has three callers.
+  Read it against `git show 0776480 -- src/app/api/admin/orders/\[id\]/refund/route.ts`
+  to confirm the extraction preserved behaviour, and read every caller.
+- `src/lib/cancelUnshipped.ts` — NEW. One cancellation behaviour, three
+  triggers (buyer, artist, platform cron).
+- `src/utils/refundSplit.ts` — the split now takes a REASON. Fault reasons
+  return the whole charge including the service fee; change of mind keeps it.
+- `src/utils/orderReturns.ts` + `src/lib/orderReturns.ts` — NEW. Returns, and
+  the gate that stops a refund settling before the piece is back and
+  inspected.
+- `src/app/api/admin/orders/[id]/refund/route.ts`,
+  `.../signature-confirmed/route.ts`, `.../return/route.ts`
+- `src/app/api/orders/[id]/approve-refund/route.ts`,
+  `.../cancel-unshipped/route.ts`, `.../propose-ship-by/route.ts`,
+  `.../accept-ship-by/route.ts`, `.../return-shipped/route.ts`,
+  `.../concede-dispute/route.ts`
+- `src/app/api/cron/fulfillment-windows/route.ts` — the only automated money
+  movement in the product. Read it twice.
+- `src/lib/assessProtection.ts` — extracted from the Stripe webhook; the
+  webhook now imports it. Confirm the extraction lost nothing.
+- `src/app/api/webhooks/stripe/route.ts` — only what changed: the extraction,
+  the dispute-created read and notification.
+- `src/utils/evaluateProtection.ts` — `SIGNATURE_CONFIRMATION_AVAILABLE` is
+  true again and `addBusinessDays` is new.
+- `src/utils/fulfillmentWindow.ts` — NEW.
+- Migrations `supabase/migrations/00060`–`00064`, and
+  `scripts/db-smoke.sql` sections 10–14.
+
+Answer these:
+
+- **The extraction.** settleRefund and assessProtection were lifted out of
+  routes that had been through four review passes. Diff the behaviour. Did any
+  guard, any idempotency key, any CAS, any Sentry path get dropped or
+  reordered? This is the highest-value question in the pass.
+- **Three callers, one refund.** Can two of them run concurrently on the same
+  order and double-refund, double-reverse, or double-relist? The Stripe
+  idempotency keys are `refund_<order_id>` and `reversal_<order_id>` — say
+  what that does and does not protect.
+- **The cron.** It cancels orders and moves money with no human present.
+  Enumerate what it selects. Can it cancel an order it should not — one that
+  shipped a moment ago, one where the artist proposed a date, one where the
+  artist replied? What happens on a partial failure mid-loop, and on two
+  concurrent runs?
+- **The fault/change-of-mind split.** Verify the arithmetic returns exactly
+  the charge and never more. Can a caller reach the fault split on an order
+  that does not deserve it, or settle a change-of-mind refund the artist never
+  approved?
+- **The return gate.** Can the money move while a required return is
+  outstanding, by ANY path — admin route, buyer cancel, cron, a retry of a
+  half-finished settle? A retry is the interesting one: the reason is written
+  before Stripe is called.
+- **Signature confirmation.** The re-assessment on an already-disputed order
+  writes `protection_status`. Can it race the dispute-created handler's CAS,
+  or upgrade an order that should not be upgraded?
+- **The window arithmetic.** `addBusinessDays` and `businessDaysBetween` must
+  be exact inverses or an artist is told one deadline and held to another.
+  Check the boundary: is the window missed ON the promised day?
+
+## What the previous pass found, and what changed
+
+The r5 money pass and the r3 auth pass have been actioned in full: their P0
+and every P1 is fixed and pushed. Read every earlier report in `docs/reviews/04-money-r5..r9.md` and
+`docs/reviews/01-auth-access-r3..r7.md` first so you do not re-report them, then read the fixes in
+`git log -p -4`, and go after what those fixes
+introduced or missed. Migrations 00066-00069 are new. Five rounds in, every P0 has been the same question — does the buyer have the piece — and it now has THREE states with two predicates: `buyerTookPossession() || pickupPossessionUnknown()` for 'ask for it back', `pieceIsWithArtist()` for 'put it back on sale'. A unit test asserts they partition every state. Look for any caller still deciding it independently, and for the same class of split elsewhere. The last three rounds each found that a FIX opened a new hole — possession has now been redefined three times (shipped_at, then both pickup confirmations, then either) — so weigh the newest predicates hardest. Pay particular attention to LOCAL PICKUP: the r6 pass found that the whole fulfilment path reasoned through `shipped_at`, which a pickup order never has, and the fix introduced `buyerTookPossession()` — check every remaining caller that still keys on `shipped_at` alone. The open P2s and P3s
+in those two reports are known and NOT the point of this pass — mention one
+only if the fix made it worse.
+
+## Ground rules
+
+**Report only.** The one file you may write is `docs/reviews/04-money-r10.md`. Do not fix anything, do not refactor, do not run a codemod. If a fix is one obvious line, describe it in the finding — do not apply it.
+
+**Read before you claim.** A finding is real only if you have read the code that would break *and its callers*. "This doesn't validate X" is not a finding when the caller validates X. Reading a file's imports is not reading the file.
+
+**Try to disprove each finding before you write it.** For every candidate, make one honest attempt at arguing it is NOT a bug — a guard elsewhere, an RLS policy, a type that makes the input impossible, a caller that already handles it. Drop the ones you cannot defend after that attempt. Six findings that are all real beat thirty where I have to work out which six.
+
+**Every finding needs a concrete failure path.** Not "this could be a problem." Say who does what and what goes wrong: "an artist opens another artist's listing edit URL; the fetch filters on id but not owner, so the page renders their listing; the save then returns zero rows at RLS and the UI shows a success toast." If you cannot write that sentence, it is not a finding — it is a nit, and nits go in the appendix.
+
+**Uncertainty is fine; faking certainty is not.** If you suspect something but cannot confirm it without running the app or seeing production data, mark it UNVERIFIED and say exactly what would settle it.
+
+## Already settled — do not raise these
+
+Decisions, not oversights. Flagging them wastes the pass:
+
+- Destination charges with the platform as merchant of record. Not direct charges.
+- Stripe Express connected accounts, Stripe-hosted onboarding. Not embedded components.
+- The buyer covers Stripe's processing fee as a "Service fee" line. Platform commission is 15% of the artwork price only, never shipping. The artist is paid price − commission + shipping.
+- Payments are deliberately gated behind NEXT_PUBLIC_PAYMENTS_ENABLED until live activation. That flag being false is not a bug.
+- npm, never pnpm (a stray pnpm-lock.yaml flips Vercel's package manager). Prod deploys are manual and pinned.
+- Next.js 14 App Router + Supabase + React Query + Tailwind. Do not propose migrating the framework, the data layer, the state library, or the CSS approach.
+- `docs/CONVENTIONS.md` is the house standard, earned from a real defect sweep. Code that follows it is correct by definition. Code that VIOLATES it is a finding worth raising — check for that specifically.
+
+Also out of scope: formatting and naming taste, "add a comment here", dependency bumps, test-file style, and anything you would phrase as "consider extracting".
+
+## Context to read first
+
+`docs/CONVENTIONS.md`, `README.md`, `DECISIONS.md`. Then know this history: a full-platform adversarial review ran 2026-08-25 and all 15 of its defects are fixed; a six-phase hardening arc shipped after it; two rounds of live tester feedback are closed; a real staging purchase plus dispute and payout reversal were verified end to end. Assume the obvious surface bugs are gone. Look where those passes did not.
+
+## Severity
+
+- **P0** — loses money, exposes another user's data, or corrupts state. Launch-blocking.
+- **P1** — a real user hits it in a normal flow and the product is visibly broken.
+- **P2** — breaks under growth or under an unusual-but-real input; fine at today's volume.
+- **P3** — maintainability: the next change in this code is likely to introduce a bug.
+
+Cap the report at 12 findings, ranked, P0 first. More than that and the strongest 12 get full write-ups while the rest get one line each in the appendix. A pass that honestly finds two P0s and nothing else is a good pass. Do not pad to fill the cap.
+
+## Report format
+
+Write `docs/reviews/04-money-r10.md` in this shape:
+
+# Money & order lifecycle — review r10 (legal-alignment arc) — <date>
+
+**Files read:** every file you actually opened. If you skipped part of the scope, say which part and why.
+**Verdict:** two sentences on the health of this slice.
+
+Then one section per finding:
+
+### P<n> — <one-line claim>
+**Where:** `path/to/file.ts:120-134`
+**What happens:** the concrete failure path.
+**Why it's real:** what you read that rules out the innocent explanation.
+**Fix direction:** two sentences. Not a patch.
+
+Then close with two sections:
+
+## Appendix: minor
+One line each.
+
+## Not findings
+Things you looked at hard and concluded were fine, one line each. This is how I know what you actually covered.
+
+Start by listing the files in scope and giving me your reading plan. Then read. Then report.
