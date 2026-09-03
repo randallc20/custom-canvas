@@ -411,7 +411,9 @@ INSERT INTO expected_indexes VALUES
   ('follows',          'follows_artist_idx'),
   ('saved_listings',   'saved_listings_listing_idx'),
   ('messages',         'messages_unread_idx'),
-  ('analytics_events', 'analytics_events_viewer_listing_idx');
+  ('analytics_events', 'analytics_events_viewer_listing_idx'),
+  -- 00010, redefined by 00055: the oversell guard, one live order per listing.
+  ('orders',           'orders_one_live_per_listing');
 
 DO $$
 DECLARE missing text;
@@ -422,7 +424,25 @@ BEGIN
       SELECT 1 FROM pg_indexes i
       WHERE i.schemaname = 'public' AND i.tablename = e.tbl AND i.indexname = e.idx);
   IF missing IS NOT NULL THEN
-    RAISE EXCEPTION E'MISSING index (00051):\n%', missing;
+    RAISE EXCEPTION E'MISSING index (00051/00055):\n%', missing;
+  END IF;
+END $$;
+
+-- 00055: a disputed order holds the listing slot. The guard is a partial
+-- UNIQUE index whose predicate must name all four live statuses — dropping
+-- 'disputed' again would silently let a frozen piece be resold.
+DO $$
+DECLARE def text;
+BEGIN
+  SELECT pg_get_indexdef(c.oid) INTO def
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relname = 'orders_one_live_per_listing';
+  IF def IS NULL OR def NOT ILIKE 'CREATE UNIQUE INDEX%' THEN
+    RAISE EXCEPTION 'orders_one_live_per_listing must be a UNIQUE index (00010/00055): %', coalesce(def, 'missing');
+  END IF;
+  IF def NOT LIKE '%''paid''%' OR def NOT LIKE '%''shipped''%'
+     OR def NOT LIKE '%''delivered''%' OR def NOT LIKE '%''disputed''%' THEN
+    RAISE EXCEPTION 'orders_one_live_per_listing predicate must cover paid/shipped/delivered/disputed (00055): %', def;
   END IF;
 END $$;
 
