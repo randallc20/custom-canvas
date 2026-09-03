@@ -1,23 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
+import { z } from 'zod';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { sendNewMessageEmail } from '@/services/email';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
+// The types a PARTICIPANT may post. `system` (the platform's own notices —
+// pickup coordination, progress mirrors) and `quote_card` (a commission
+// quote, posted by the accept route from the row it just wrote) are
+// platform-only: guard_messages_insert / guard_message_attachments_insert
+// (00056) refuse them under a user session, and this mirror of the allowlist
+// turns that into a 400 instead of a raw constraint error (01-r2 P2).
+const PARTICIPANT_MESSAGE_TYPES = ['text', 'image', 'file', 'listing_card'] as const;
+const PARTICIPANT_ATTACHMENT_TYPES = ['image', 'file', 'listing_card'] as const;
+
+const messageBodySchema = z.object({
+  conversation_id: z.string().uuid(),
+  content: z.string().optional(),
+  message_type: z.enum(PARTICIPANT_MESSAGE_TYPES).default('text'),
+  attachment: z
+    .object({
+      attachment_type: z.enum(PARTICIPANT_ATTACHMENT_TYPES),
+      url: z.string().nullable().optional(),
+      metadata: z.record(z.string(), z.unknown()).optional(),
+    })
+    .optional(),
+});
+
 // Real user message types worth emailing about (system/mirror messages are not).
 // 'file' is what ChatThread sends for a PDF/document attachment (00045) — a
 // brief sent as the first message must email the artist like a photo does.
-const EMAILABLE = new Set(['text', 'image', 'file', 'listing_card', 'quote_card']);
+const EMAILABLE = new Set<string>(PARTICIPANT_MESSAGE_TYPES);
 
 export async function POST(request: NextRequest) {
   const supabase = createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { conversation_id, content, message_type = 'text', attachment } = await request.json();
-  if (!conversation_id) return NextResponse.json({ error: 'Missing conversation' }, { status: 400 });
+  const parsed = messageBodySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  const { conversation_id, content, message_type, attachment } = parsed.data;
 
   // Insert with the caller's session so RLS applies (participant-only, and the
   // blocked-sender guard trigger still fires).
@@ -48,10 +72,10 @@ export async function POST(request: NextRequest) {
     if (attErr) return NextResponse.json({ error: attErr.message }, { status: 400 });
   }
 
+  const text = content ?? '';
   const preview =
-    (content ?? '').trim() ? content
+    text.trim() ? text
     : message_type === 'image' ? '📷 Photo'
-    : message_type === 'quote_card' ? '💬 Commission quote'
     : message_type === 'listing_card' ? '🖼 Shared a listing'
     : attachment?.attachment_type === 'file' ? '📎 Attachment'
     : '';

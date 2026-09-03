@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { ARTIST_PROFILE_EMBED, ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
+import { artistProfileSchema } from '@/schemas/artistSchema';
+
+// The form's own schema, made partial for a PATCH, with the two columns the
+// route accepts that the form expresses differently: the form works in
+// dollars (commission_min_dollars) and never sends the banner URL. Values
+// were unvalidated before — a negative minimum or a non-numeric year reached
+// Postgres as a 500 (01-r2 appendix).
+const artistPatchSchema = artistProfileSchema
+  .partial()
+  .omit({ commission_min_dollars: true })
+  .extend({
+    commission_min_cents: z.number().int().min(0).nullable().optional(),
+    banner_image_url: z.string().url().max(2000).nullable().optional(),
+  });
 
 export async function GET(_request: NextRequest, { params }: { params: { slug: string } }) {
   const supabase = createServerSupabaseClient();
@@ -42,8 +57,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { slug: 
     'commission_min_cents', 'commission_turnaround', 'accent_color', 'bio_layout',
     'banner_image_url',
   ] as const;
-  const updates: Record<string, unknown> = {};
-  for (const key of EDITABLE) if (key in body) updates[key] = body[key];
+  const picked: Record<string, unknown> = {};
+  for (const key of EDITABLE) if (key in body) picked[key] = body[key];
+
+  const parsed = artistPatchSchema.safeParse(picked);
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  const updates: Record<string, unknown> = { ...parsed.data };
+  // "No website" is NULL on the row: the 00052 scheme CHECK rejects ''.
+  if (updates.website_url === '') updates.website_url = null;
 
   const { data, error } = await supabase
     .from('artist_profiles')

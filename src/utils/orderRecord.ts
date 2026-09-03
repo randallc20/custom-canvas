@@ -39,10 +39,42 @@ export interface CheckoutSessionLike {
   total_details?: { amount_tax?: number | null } | null;
 }
 
+/** The three party columns. Each is nullable on the row (00049: a deleted
+ *  account detaches from its orders) and may be detached at insert time too
+ *  when the row vanished while Checkout was open (01-r2 P2). */
+export type OrderParty = 'buyer_id' | 'listing_id' | 'artist_id';
+
+const FK_TO_PARTY: Record<string, OrderParty> = {
+  orders_buyer_id_fkey: 'buyer_id',
+  orders_listing_id_fkey: 'listing_id',
+  orders_artist_id_fkey: 'artist_id',
+};
+
+/** Which party a Postgres 23503 on `orders` names. PostgREST's message
+ *  carries the constraint ("violates foreign key constraint \"…\""); its
+ *  details carry the column ("Key (buyer_id)=(…) is not present"). Either
+ *  is enough; anything else is null (unknown FK — do not guess). */
+export function partyFromForeignKeyError(
+  message: string | null | undefined,
+  details?: string | null
+): OrderParty | null {
+  const byName = /foreign key constraint "([^"]+)"/.exec(message ?? '')?.[1];
+  if (byName && FK_TO_PARTY[byName]) return FK_TO_PARTY[byName];
+  const byColumn = /Key \((buyer_id|listing_id|artist_id)\)=/.exec(details ?? '')?.[1];
+  return (byColumn as OrderParty | undefined) ?? null;
+}
+
+/** The same order with one party detached. Every money column, the evidence
+ *  and the payment intent are untouched — the charge and the transfer
+ *  happened; only the reference to a row that no longer exists is dropped. */
+export function detachParty(order: OrderRecord, party: OrderParty): OrderRecord {
+  return { ...order, [party]: null };
+}
+
 export interface OrderRecord {
-  listing_id: string;
-  buyer_id: string;
-  artist_id: string;
+  listing_id: string | null;
+  buyer_id: string | null;
+  artist_id: string | null;
   amount_cents: number;
   platform_fee_cents: number;
   artist_payout_cents: number;
@@ -85,9 +117,11 @@ function stripeShippingAddress(session: CheckoutSessionLike): Record<string, str
   };
 }
 
+// `artistId` is null when the artist row is already gone by webhook time (the
+// listing cascaded away with it): the order is still recorded, detached.
 export function buildOrderRecord(
   session: CheckoutSessionLike,
-  artistId: string
+  artistId: string | null
 ): OrderRecord | null {
   const listingId = session.metadata?.listing_id;
   const buyerId = session.metadata?.buyer_id;

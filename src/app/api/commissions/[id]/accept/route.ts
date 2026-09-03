@@ -55,11 +55,20 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       .select('id')
       .single();
     if (msg) {
+      // The card is a copy of the ROW just written, not of the request body:
+      // after 00056 only the platform can post a quote_card and only the
+      // platform can rewrite its metadata, so what the buyer accepts is what
+      // /confirm moves the commission forward at (01-r2 P2).
       await admin.from('message_attachments').insert({
         message_id: msg.id,
         attachment_type: 'quote_card',
         url: null,
-        metadata: { commission_id: params.id, ...parsed.data },
+        metadata: {
+          commission_id: params.id,
+          quoted_price_cents: data.quoted_price_cents,
+          estimated_completion: data.estimated_completion,
+          artist_notes: data.artist_notes,
+        },
       });
       await admin
         .from('conversations')
