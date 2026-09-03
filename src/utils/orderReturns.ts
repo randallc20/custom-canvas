@@ -90,8 +90,21 @@ export type ReturnRecord = {
  *
  * Returns null when settling is allowed.
  */
-export function returnBlocksSettlement(ret: ReturnRecord | null): string | null {
-  if (!ret) return null;
+export function returnBlocksSettlement(
+  ret: ReturnRecord | null,
+  /** Set when there is no record yet: whether one is OWED for this refund.
+   *  Without it a fault refund on a piece the buyer is holding settled with
+   *  no return at all — the buyer kept the painting and the whole charge, and
+   *  nothing recorded that a return had been owed, waived or judged
+   *  unnecessary. `returnRequiredByDefault` said damaged and not-as-described
+   *  require one; nothing on the settle path called it (r9 money pass, P1). */
+  owedWhenUnrecorded = false,
+): string | null {
+  if (!ret) {
+    return owedWhenUnrecorded
+      ? 'This refund should be conditioned on the piece coming back. Use "Require a return…" on the order first, or waive it with a reason if a return is unlawful, unsafe, impracticable or unnecessary.'
+      : null;
+  }
   if (!ret.required) return null;
   if (ret.waived_at) return null;
   if (ret.inspection_outcome === 'accepted') return null;

@@ -308,7 +308,12 @@ export async function PATCH(request: NextRequest) {
     // move is still served from the claimant's own URL is the one thing this
     // log must not do quietly — safe harbour rests on access actually being
     // disabled, and the admin has to know to chase it.
-    const incomplete = moved.length < expected;
+    // A second notice against the same listing finds the files already in
+    // quarantine, so `moved` is legitimately 0 — that is not a failure, and
+    // saying "the rest are STILL PUBLIC" about work taken down an hour ago
+    // sends an admin chasing nothing (r7 auth pass, P2).
+    const alreadyDown = existing.length > 0 && moved.length === 0;
+    const incomplete = !alreadyDown && moved.length < expected;
     if (incomplete) {
       Sentry.captureMessage(
         `DMCA removal on listing ${notice.listing_id}: quarantined ${moved.length} of ${expected} images — the rest are STILL PUBLIC.`,
@@ -319,6 +324,7 @@ export async function PATCH(request: NextRequest) {
       ok: true,
       images_quarantined: moved.length,
       images_expected: expected,
+      already_quarantined: alreadyDown,
       incomplete,
       ...(incomplete
         ? { warning: `Only ${moved.length} of ${expected} images could be taken down. The rest are still publicly reachable — check Sentry and remove them by hand before responding to the claimant.` }
@@ -343,6 +349,29 @@ export async function PATCH(request: NextRequest) {
       );
     }
     if (notice.listing_id) {
+      // The same check the withdraw/defective path got, and the report that
+      // produced it named this path in the same sentence: a successful
+      // counter-notice on ONE claim must not republish material a different,
+      // still-substantiated notice took down (r7 auth pass, P1).
+      const { count: otherLive, error: othersError } = await admin
+        .from('dmca_notices')
+        .select('id', { count: 'exact', head: true })
+        .eq('listing_id', notice.listing_id)
+        .eq('kind', 'notice')
+        .in('status', ['received', 'material_removed'])
+        .neq('id', id);
+      if (othersError) {
+        return NextResponse.json({ error: othersError.message }, { status: 500 });
+      }
+      if ((otherLive ?? 0) > 0) {
+        await admin.from('dmca_notices').update(stamp('restored')).eq('id', id);
+        return NextResponse.json({
+          ok: true,
+          listing_restored: false,
+          warning: `This notice is resolved, but the listing stays down: ${otherLive} other live notice(s) still stand against it.`,
+        });
+      }
+
       const { data: listing } = await admin
         .from('listings')
         .select('status, pre_dmca_status, dmca_quarantined_paths')

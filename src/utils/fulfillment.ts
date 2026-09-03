@@ -64,3 +64,30 @@ export function pickupPossessionUnknown(order: {
     !order.pickup_confirmed_by_buyer_at
   );
 }
+
+/**
+ * Are we CONFIDENT the piece is still with the artist?
+ *
+ * The relist question, and deliberately not the negation of
+ * `buyerTookPossession`. Three states, not two:
+ *
+ *   buyer has it        -> no relist, and a return is required
+ *   artist still has it -> relist
+ *   nobody knows        -> a pickup order neither party confirmed. The return
+ *                          gate treats this as "might have it" and asks for
+ *                          the piece back; the relist must treat it the same
+ *                          way, or the two halves of the same fix disagree
+ *                          and the painting goes back on sale while the buyer
+ *                          holds it (r7 auth pass, P0).
+ *
+ * Relist only on the middle one.
+ */
+export function pieceIsWithArtist(order: {
+  shipped_at?: string | null;
+  is_pickup?: boolean | null;
+  status?: string;
+  pickup_confirmed_by_buyer_at?: string | null;
+  pickup_confirmed_by_artist_at?: string | null;
+}): boolean {
+  return !buyerTookPossession(order) && !pickupPossessionUnknown(order);
+}

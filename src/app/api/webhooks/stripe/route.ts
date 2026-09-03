@@ -6,7 +6,7 @@ import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { buildOrderRecord, detachParty, partyFromForeignKeyError } from '@/utils/orderRecord';
 import { classifyRead } from '@/utils/classifyRead';
 import { assessProtection } from '@/lib/assessProtection';
-import { buyerTookPossession } from '@/utils/fulfillment';
+import { pieceIsWithArtist } from '@/utils/fulfillment';
 import { selectDisputeOpenAction, selectDisputeCloseOutcome } from '@/utils/disputeOutcome';
 import { sendOrderConfirmationEmail, sendNewSaleEmail, sendOversoldRefundEmail } from '@/services/email';
 import { formatPrice } from '@/utils/formatPrice';
@@ -520,7 +520,7 @@ export async function POST(request: NextRequest) {
       // buyerTookPossession this relisted a painting already in the buyer's
       // house (r6 auth pass, P0).
       const wasShipped =
-        buyerTookPossession(order) ||
+        !pieceIsWithArtist(order) ||
         !!order.delivered_at ||
         order.pre_dispute_status === 'shipped' ||
         order.pre_dispute_status === 'delivered';

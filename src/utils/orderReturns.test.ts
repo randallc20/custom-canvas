@@ -7,7 +7,7 @@ import {
   type ReturnRecord,
 } from './orderReturns';
 import { REFUND_REASONS } from './refundSplit';
-import { buyerTookPossession, pickupPossessionUnknown } from './fulfillment';
+import { buyerTookPossession, pickupPossessionUnknown, pieceIsWithArtist } from './fulfillment';
 
 /**
  * L8 — the settle gate. Terms of Sale §5: "the refund may be issued after
@@ -221,5 +221,39 @@ describe('possession, not shipment (r6 P0)', () => {
   it('a shipped piece has, and an unshipped shipping order has not', () => {
     expect(buyerTookPossession({ shipped_at: '2026-09-01T12:00:00Z' })).toBe(true);
     expect(buyerTookPossession({ is_pickup: false, status: 'paid' })).toBe(false);
+  });
+});
+
+/**
+ * r7 auth pass, P0. Possession has three states, not two, and the relist
+ * sites were using the two-state version: a pickup order neither party
+ * confirmed read as "the artist has it" for the relist while the return gate
+ * read the same row as "the buyer might", so the painting went back on sale
+ * AND a return was demanded for it.
+ */
+describe('the three states of possession', () => {
+  const buyerHasIt = { is_pickup: true, status: 'paid', pickup_confirmed_by_artist_at: '2026-09-01T12:00:00Z' };
+  const artistHasIt = { is_pickup: false, status: 'paid' };
+  const nobodyKnows = { is_pickup: true, status: 'paid' };
+
+  it('only relists when the artist is confidently still holding it', () => {
+    expect(pieceIsWithArtist(artistHasIt)).toBe(true);
+    expect(pieceIsWithArtist(buyerHasIt)).toBe(false);
+    // The state the last two rounds were spent creating.
+    expect(pieceIsWithArtist(nobodyKnows)).toBe(false);
+  });
+
+  it('the relist and the return gate agree on every state', () => {
+    for (const order of [buyerHasIt, artistHasIt, nobodyKnows]) {
+      const gateWantsItBack = buyerTookPossession(order) || pickupPossessionUnknown(order);
+      // Never both "give it back" and "put it on sale".
+      expect(gateWantsItBack && pieceIsWithArtist(order)).toBe(false);
+      // And never neither: every state is decided.
+      expect(gateWantsItBack || pieceIsWithArtist(order)).toBe(true);
+    }
+  });
+
+  it('a shipped piece is never with the artist', () => {
+    expect(pieceIsWithArtist({ shipped_at: '2026-09-01T12:00:00Z' })).toBe(false);
   });
 });

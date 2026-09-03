@@ -3,8 +3,8 @@ import Stripe from 'stripe';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe';
 import { calculateRefundSplit, isFaultRefund, type RefundReason } from '@/utils/refundSplit';
-import { returnBlocksSettlement, type ReturnRecord } from '@/utils/orderReturns';
-import { buyerTookPossession } from '@/utils/fulfillment';
+import { returnBlocksSettlement, returnRequiredByDefault, type ReturnRecord } from '@/utils/orderReturns';
+import { buyerTookPossession, pickupPossessionUnknown, pieceIsWithArtist } from '@/utils/fulfillment';
 
 type AdminClient = ReturnType<typeof createAdminSupabaseClient>;
 
@@ -143,7 +143,12 @@ export async function settleRefund(
       error: 'Could not check whether a return is required on this order. Nothing was refunded — try again.',
     };
   }
-  const blocked = returnBlocksSettlement((ret as ReturnRecord | null) ?? null);
+  const blocked = returnBlocksSettlement(
+    (ret as ReturnRecord | null) ?? null,
+    // No record yet: is one owed? The reason's default, judged against who
+    // actually has the piece.
+    returnRequiredByDefault(opts.reason, buyerTookPossession(order) || pickupPossessionUnknown(order)),
+  );
   if (blocked) return { ok: false, status: 409, error: blocked };
 
   const stripe = getStripe();
@@ -219,12 +224,12 @@ export async function settleRefund(
   // Stripe idempotency keys already made their money ops no-ops). The write
   // is asserted: the money has moved at Stripe, so a close that silently
   // fails leaves a `paid` order the artist can still ship.
-  // "Does the buyer have the piece", not "what does the status say". A
-  // collected LOCAL PICKUP order sits at `paid` with no shipped_at until BOTH
-  // parties confirm, so a status check relisted a painting that was already in
-  // the buyer's house (r8 money / r6 auth, P0). One predicate, shared with the
-  // return gate, so the two cannot disagree about the same fact.
-  const wasShipped = buyerTookPossession(order);
+  // Relist ONLY when we are confident the artist still has it. Using
+  // buyerTookPossession alone left the third state — a pickup order neither
+  // party confirmed — reading as "the artist has it", while the return gate
+  // read the same state as "the buyer might", so the piece went back on sale
+  // AND a return was demanded for it (r7 auth pass, P0).
+  const wasShipped = !pieceIsWithArtist(order);
   const { data: closed, error: closeError } = await admin
     .from('orders')
     .update({ status: 'refunded' })

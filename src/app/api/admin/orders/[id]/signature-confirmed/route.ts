@@ -87,8 +87,15 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
   // dispute-created handler's to write (it CASes on `pending`, so writing it
   // here would race it).
   let reassessed: string | null = null;
+  let stillFailing: string[] = [];
   if (order.status === 'disputed' && order.protection_status === 'ineligible') {
     const assessment = await assessProtection(admin, params.id);
+    // Requirement 6 is measured from the live message history, so it can have
+    // started failing since the dispute froze the verdict — and then this
+    // route silently declined the upgrade it exists to grant while telling
+    // the admin it had worked (r9 money pass, P1). Report what is still
+    // missing so they can see why.
+    stillFailing = assessment?.failures ?? [];
     if (assessment?.status === 'protected') {
       const { error: reassessError } = await admin
         .from('orders')
@@ -112,5 +119,11 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
     ok: true,
     signature_confirmed_at: updated.signature_confirmed_at,
     protection_status: reassessed,
+    still_failing: stillFailing,
+    ...(order.status === 'disputed' && !reassessed && stillFailing.length
+      ? {
+          warning: `Signature confirmation is recorded, but this order is still NOT protected: ${stillFailing.join(' ')}`,
+        }
+      : {}),
   });
 }

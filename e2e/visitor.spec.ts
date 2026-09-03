@@ -304,6 +304,10 @@ test.describe('filters, sort, and tabs (7.2, 7.3, 7.4)', () => {
 
 test.describe('footer and static pages (3.5, 3.6, 3.10)', () => {
   test('footer links exist and every static page loads with a real heading', async ({ page }) => {
+    // Five full navigations against a shared staging target, and the mobile
+    // project is the slower of the two — this timed out at the default 30s
+    // budget on three separate runs, always on a different page.
+    test.setTimeout(90_000);
     await page.goto('/');
     await dismissCookies(page);
     const footer = page.locator('footer');

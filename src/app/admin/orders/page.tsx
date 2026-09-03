@@ -193,8 +193,11 @@ function OrdersContent() {
     setSigning(o.id);
     try {
       const res = await fetch(`/api/admin/orders/${o.id}/signature-confirmed`, { method: 'POST' });
-      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
-      toast('Signature confirmation recorded.', 'success');
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Failed');
+      // Recording it does not always upgrade the order: requirement 6 is read
+      // live and can have started failing since the dispute froze the verdict.
+      toast(body.warning ?? 'Signature confirmation recorded.', body.warning ? 'error' : 'success');
       setOrders((prev) => prev.map((x) => (x.id === o.id ? { ...x, signature_confirmed: true } : x)));
     } catch (e) {
       captureException(e, { where: 'admin.orders.signatureConfirmed' });
@@ -281,7 +284,12 @@ function OrdersContent() {
                         ones: a fault refund is settled whether or not the
                         artist agrees (L6). Still never on a disputed order —
                         Stripe refuses while a chargeback is open. */}
-                    {o.status !== 'refunded' && o.status !== 'disputed' && o.status !== 'pending' && (
+                    {/* Not offered while a recorded return is outstanding: the
+                        settle would 409, and a button that exists only to be
+                        refused is worse than no button. The server gate in
+                        settleRefund is still the enforcement. */}
+                    {o.status !== 'refunded' && o.status !== 'disputed' && o.status !== 'pending'
+                      && !returnBlocksSettlement(returns[o.id] ?? null) && (
                       <Button
                         size="sm"
                         variant={o.refund_approved_at ? 'danger' : 'outline'}
@@ -426,7 +434,10 @@ function OrdersContent() {
                 if (!o) return;
                 await handleReturn(
                   o,
-                  { action: 'authorize', reason: authorizeReason, required: true, return_address: authorizeAddress },
+                  // `required` is deliberately NOT forced: the route computes it from who
+                  // actually has the piece, so this control cannot re-open the
+                  // unshipped-return deadlock on a different door (r9 money pass, P2).
+                  { action: 'authorize', reason: authorizeReason, return_address: authorizeAddress },
                   'Require a return',
                   'The buyer is told where to send the piece and has 7 calendar days to ship it. The refund will not settle until it arrives and is inspected, or you waive it.',
                 );
