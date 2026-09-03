@@ -12,7 +12,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
   // interstitial is the visible half of this; a client that never renders it
   // still gets refused here.
   const gate = await acceptanceGateFor(user.id);
-  if (gate) return NextResponse.json(gate, { status: 403 });
+  if (gate) return NextResponse.json(gate.body, { status: gate.status });
 
   const { data: commission } = await supabase
     .from('commissions')

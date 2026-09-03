@@ -31,7 +31,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   // interstitial is the visible half of this; a client that never renders it
   // still gets refused here.
   const gate = await acceptanceGateFor(user.id);
-  if (gate) return NextResponse.json(gate, { status: 403 });
+  if (gate) return NextResponse.json(gate.body, { status: gate.status });
 
   const { data: listing } = await supabase
     .from('listings')

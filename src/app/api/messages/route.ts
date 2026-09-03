@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   // interstitial is the visible half of this; a client that never renders it
   // still gets refused here.
   const gate = await acceptanceGateFor(user.id);
-  if (gate) return NextResponse.json(gate, { status: 403 });
+  if (gate) return NextResponse.json(gate.body, { status: gate.status });
 
   const parsed = messageBodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });

@@ -320,8 +320,18 @@ export function SalesSection() {
                 )}
 
                 {/* L7 — the shipping promise, and the two things §7 asks of
-                    an artist who cannot keep it. */}
-                {order.status === 'paid' && !order.is_pickup && (() => {
+                    an artist who cannot keep it.
+                    Not once the artist has approved a refund: "Cancel order"
+                    posts reason `artist_cancelled`, which is a FAULT reason,
+                    so an artist clicking it because the settle queue looked
+                    slow converted their own change-of-mind approval into a
+                    full refund — the service fee and its tax handed back on a
+                    refund every document says retains them (r9 money pass).
+                    The same reason `Mark as Shipped` carries the condition:
+                    once a refund is approved, this sale is being unwound and
+                    the artist has nothing left to do to it. The state is
+                    already spoken for by the "Refund approved" line below. */}
+                {order.status === 'paid' && !order.is_pickup && !order.refund_approved_at && (() => {
                   const win = fulfillmentWindow(order);
                   return (
                     <div className="mt-3 space-y-2">

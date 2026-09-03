@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminSupabaseClient } from './supabase-admin';
 import {
@@ -143,8 +144,7 @@ export function acceptanceBlocks(outstanding: OutstandingAcceptance[]): boolean 
   return outstanding.some((o) => o.document === 'terms' || o.document === 'artist_agreement');
 }
 
-/** The 403 a gated write route returns while acceptance is outstanding, or
- *  null when the account is clear.
+/** The refusal a gated write route returns, or null when the account is clear.
  *
  *  This is the enforcement half of ruling D11 — the interstitial is the
  *  visible half, but a client that never renders it (a stale tab, a scripted
@@ -152,27 +152,70 @@ export function acceptanceBlocks(outstanding: OutstandingAcceptance[]): boolean 
  *  from an ordinary permission error and open the interstitial instead of
  *  showing a dead-end toast.
  *
- *  Fails CLOSED: if the lookup itself throws, the write is refused. The read
- *  endpoint fails open for the opposite reason — it decides what to show, not
- *  what to allow. */
+ *  The refusal carries its own status because there are two of them: 403 when
+ *  the account genuinely owes an acceptance, 503 when we could not find out.
+ *  A route that answered 403 for both would tell someone to go and accept
+ *  terms they have already accepted, and the interstitial would open on a
+ *  document they cannot clear. */
+export type AcceptanceRefusalBody = {
+  error: string;
+  code: 'acceptance_required' | 'acceptance_unavailable';
+  outstanding: OutstandingAcceptance[];
+};
+
+export type AcceptanceRefusal = {
+  status: 403 | 503;
+  body: AcceptanceRefusalBody;
+};
+
+/** Throws if the lookup fails. Callers in routes want `acceptanceGateFor`,
+ *  which turns that throw into a refusal; this one is the pure decision. */
 export async function acceptanceGate(
   admin: SupabaseClient,
   userId: string,
-): Promise<{ error: string; code: 'acceptance_required'; outstanding: OutstandingAcceptance[] } | null> {
+): Promise<AcceptanceRefusal | null> {
   const outstanding = await outstandingAcceptances(admin, userId);
   if (!acceptanceBlocks(outstanding)) return null;
   return {
-    error:
-      'Our terms have been updated. Please review and accept them to continue — you can do it from the banner at the top of the page.',
-    code: 'acceptance_required',
-    outstanding,
+    status: 403,
+    body: {
+      error:
+        'Our terms have been updated. Please review and accept them to continue — you can do it from the banner at the top of the page.',
+      code: 'acceptance_required',
+      outstanding,
+    },
   };
 }
 
 /** `acceptanceGate` with its own service-role client, for the gated write
- *  routes — two lines at the call site, right under the 401 check. */
-export async function acceptanceGateFor(userId: string) {
-  return acceptanceGate(createAdminSupabaseClient(), userId);
+ *  routes — two lines at the call site, right under the 401 check.
+ *
+ *  Fails CLOSED, and does it as a refusal rather than a throw. r8 auth pass
+ *  (P3): `outstandingAcceptances` throws by design so the write endpoints fail
+ *  closed, but nothing here caught it, so a statement timeout on `profiles`
+ *  became an unhandled exception in all thirteen gated routes at once —
+ *  message send, listing create and edit, checkout, reviews, every commission
+ *  action. Next answers those with a bare 500 and no body, so the browser
+ *  showed "please try again" forever with nothing anywhere saying why.
+ *
+ *  503 is the honest answer: the write is still refused, but it says the
+ *  refusal is ours and temporary, it does not open an interstitial the person
+ *  cannot clear, and it is the shape a client can sensibly retry. */
+export async function acceptanceGateFor(userId: string): Promise<AcceptanceRefusal | null> {
+  try {
+    return await acceptanceGate(createAdminSupabaseClient(), userId);
+  } catch (err) {
+    Sentry.captureException(err, { extra: { where: 'acceptanceGateFor', userId } });
+    return {
+      status: 503,
+      body: {
+        error:
+          'We could not check your account just now, so this did not go through. Please try again in a moment.',
+        code: 'acceptance_unavailable',
+        outstanding: [],
+      },
+    };
+  }
 }
 
 /** Stamp the Terms of Sale on a buyer who has just submitted an order.

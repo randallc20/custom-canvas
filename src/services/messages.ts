@@ -75,10 +75,14 @@ export async function sendMessage(data: {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const msg = typeof body.error === 'string' ? body.error : 'Failed to send message';
-    if (res.status === 403) {
+    if (res.status === 403 || res.status === 503) {
       // An acceptance refusal is actionable, and the person cannot act on it
       // unless something tells them: bring the interstitial back.
       if (body.code === 'acceptance_required') announceAcceptanceRequired();
+      // 503 is the gate saying it could not check (acceptance_unavailable).
+      // It carries no interstitial — there is nothing to accept — but the
+      // server's sentence still has to survive to the toast, because the
+      // generic "please try again" is what made the last one unreportable.
       throw new MessageRefusedError(msg, body.code);
     }
     throw new Error(msg);

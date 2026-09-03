@@ -27,7 +27,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, status, shipped_at, is_pickup, created_at, buyer_id, proposed_ship_by, agreed_ship_by, fulfillment_window_days, artist:artist_profiles(profile_id)')
+    .select('id, status, shipped_at, is_pickup, created_at, buyer_id, proposed_ship_by, agreed_ship_by, fulfillment_window_days, refund_approved_at, artist:artist_profiles(profile_id)')
     .eq('id', params.id)
     .single();
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -54,6 +54,27 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
   if (order.status !== 'paid' || order.shipped_at) {
     return NextResponse.json(
       { error: 'This order has already shipped or is no longer open. Ask about a return instead.' },
+      { status: 409 },
+    );
+  }
+
+  // An artist who has already approved a refund has made their decision, and
+  // this route is not how it gets carried out: it posts `artist_cancelled`,
+  // which is a FAULT reason, so cancelling here would refund the buyer fee and
+  // its tax on top of a change-of-mind refund that retains them — and the
+  // row's `refund_reason` would still read `change_of_mind` to everyone
+  // looking at it (r9 money pass). The Studio button is hidden now; this is
+  // the same refusal for a stale tab or a direct POST.
+  //
+  // The BUYER's door stays open even then. Terms of Sale §3 gives them a
+  // full-refund right of their own once the window is missed, and it does not
+  // depend on what the artist has or has not approved.
+  if (isArtist && order.refund_approved_at) {
+    return NextResponse.json(
+      {
+        error:
+          'You have already approved a refund on this order — Custom Canvas is settling it. Cancelling here would refund the buyer more than the approval agreed to. If it has not moved, write to support@customcanvas.shop.',
+      },
       { status: 409 },
     );
   }
