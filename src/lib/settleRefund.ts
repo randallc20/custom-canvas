@@ -61,7 +61,7 @@ export async function settleRefund(
   const { data: order } = await admin
     .from('orders')
     .select(
-      'id, status, stripe_payment_intent_id, amount_cents, shipping_cents, buyer_fee_cents, amount_tax_cents, artist_payout_cents, listing_id, stripe_refund_id, stripe_reversal_id, refund_approved_at, refund_reason, shipped_at',
+      'id, status, stripe_payment_intent_id, amount_cents, shipping_cents, buyer_fee_cents, amount_tax_cents, artist_payout_cents, listing_id, stripe_refund_id, stripe_reversal_id, refund_approved_at, refund_reason, shipped_at, is_pickup',
     )
     .eq('id', opts.orderId)
     .single();
@@ -78,12 +78,28 @@ export async function settleRefund(
         'This order is under an open chargeback. Stripe will not refund it until the dispute closes; settle it then.',
     };
   }
-  if (opts.requireUnshipped && (order.shipped_at || order.status !== 'paid')) {
-    return {
-      ok: false,
-      status: 409,
-      error: 'This order has already shipped — talk to the artist about a return instead.',
-    };
+  if (opts.requireUnshipped) {
+    // A LOCAL PICKUP order has no shipping promise to miss and never gets a
+    // shipped_at, so it passed this check by construction — which let the
+    // nightly cron refund a collected pickup piece in full and relist it
+    // while it hung on the buyer's wall (r6 money pass, P0). The whole
+    // missed-window path is about a shipment; pickup no-shows are a support
+    // process (Shipping, "Local pickup"), and SalesSection says so in words.
+    if (order.is_pickup) {
+      return {
+        ok: false,
+        status: 409,
+        error:
+          'This is a local-pickup order, so there is no shipping window to miss. A buyer who has not collected is a support matter — write to support@customcanvas.shop.',
+      };
+    }
+    if (order.shipped_at || order.status !== 'paid') {
+      return {
+        ok: false,
+        status: 409,
+        error: 'This order has already shipped — talk to the artist about a return instead.',
+      };
+    }
   }
   if (!order.stripe_payment_intent_id) {
     return { ok: false, status: 409, error: 'This order has no payment to refund.' };

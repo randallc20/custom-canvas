@@ -27,7 +27,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, status, shipped_at, created_at, buyer_id, proposed_ship_by, agreed_ship_by, fulfillment_window_days, artist:artist_profiles(profile_id)')
+    .select('id, status, shipped_at, is_pickup, created_at, buyer_id, proposed_ship_by, agreed_ship_by, fulfillment_window_days, artist:artist_profiles(profile_id)')
     .eq('id', params.id)
     .single();
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -36,6 +36,20 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
   const isBuyer = order.buyer_id === user.id;
   const isArtist = artist?.profile_id === user.id;
   if (!isBuyer && !isArtist) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  // The Orders page hides the button for pickup, but a buyer who has already
+  // collected the piece could POST this route directly after the window and
+  // be refunded in full (r6 money pass, P0). There is no shipping window on a
+  // pickup order to miss.
+  if (order.is_pickup) {
+    return NextResponse.json(
+      {
+        error:
+          'This is a local-pickup order — there is no shipping window here. If something has gone wrong with the handoff, write to support@customcanvas.shop.',
+      },
+      { status: 409 },
+    );
+  }
 
   if (order.status !== 'paid' || order.shipped_at) {
     return NextResponse.json(

@@ -102,7 +102,17 @@ for (const u of stale) {
 //     admin-safety run deletes its own) — sweep them so the public staging
 //     feed doesn't fill with "E2E Safety Canvas" debris.
 // (RT2 rows with orders attached refuse deletion via FK — logged, kept.)
-for (const pattern of ['E2E Safety Canvas %', 'RT2 Morning in Montrose %']) {
+for (const pattern of [
+  'E2E Safety Canvas %',
+  'RT2 Morning in Montrose %',
+  // L4's listing-standards spec publishes real listings to prove the
+  // reproduction rule and the mature filter. Left behind they sit at the top
+  // of the shared staging feed and broke the visitor spec's front-door
+  // assertion, which reads the first card's image.
+  'L4 Standards Check %',
+  'L4 Edition %',
+  'L4 Mature %',
+]) {
   const { data: gone, error } = await admin
     .from('listings')
     .delete()

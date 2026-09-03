@@ -63,6 +63,51 @@ export async function POST() {
     return NextResponse.json({ error: OPEN_ORDER_MESSAGE }, { status: 409 });
   }
 
+  // Detach any DMCA notices from this account's listings BEFORE the cascade.
+  //
+  // 00067 made dmca_notices.listing_id ON DELETE RESTRICT so a removal record
+  // could not be orphaned by an artist deleting the listing. A foreign key
+  // does not care who initiated the delete, so the cascade behind
+  // deleteUser hit it too: an artist who had ever had a listing removed on a
+  // copyright notice could never delete their account, and the route handed
+  // them the raw FK error as a 500. Same shape as the deviation 00049 had to
+  // make for orders.listing_id.
+  //
+  // Deletion is a promise on the account page, so it wins — but the notice
+  // does not lose its subject: the listing's title goes into the notes, and
+  // subject_profile_id (ON DELETE SET NULL) keeps the repeat-infringer count
+  // honest for as long as the person exists.
+  if (artistIds.length) {
+    const { data: listingRows } = await admin
+      .from('listings')
+      .select('id, title')
+      .in('artist_id', artistIds);
+    const titleById = new Map((listingRows ?? []).map((l) => [l.id as string, l.title as string]));
+
+    if (titleById.size) {
+      const { data: notices, error: noticeErr } = await admin
+        .from('dmca_notices')
+        .select('id, listing_id, notes')
+        .in('listing_id', Array.from(titleById.keys()));
+      // Fail closed: a delete that trips the FK later is a 500 with no
+      // explanation, which is what this exists to prevent.
+      if (noticeErr) {
+        return NextResponse.json({ error: noticeErr.message }, { status: 500 });
+      }
+      for (const n of notices ?? []) {
+        const title = titleById.get(n.listing_id as string) ?? 'a deleted listing';
+        const note = `${n.notes ? `${n.notes}\n\n` : ''}[account deleted ${new Date().toISOString().slice(0, 10)}] listing was "${title}" (${n.listing_id}).`;
+        const { error: detachErr } = await admin
+          .from('dmca_notices')
+          .update({ listing_id: null, notes: note })
+          .eq('id', n.id);
+        if (detachErr) {
+          return NextResponse.json({ error: detachErr.message }, { status: 500 });
+        }
+      }
+    }
+  }
+
   const { error } = await admin.auth.admin.deleteUser(user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });

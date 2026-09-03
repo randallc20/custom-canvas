@@ -7,6 +7,7 @@ import {
   type ReturnRecord,
 } from './orderReturns';
 import { REFUND_REASONS } from './refundSplit';
+import { buyerTookPossession } from './fulfillment';
 
 /**
  * L8 — the settle gate. Terms of Sale §5: "the refund may be issued after
@@ -168,5 +169,45 @@ describe('returnRequiredByDefault — nothing to return before it ships', () => 
 
   it('defaults to "the buyer has it", so existing callers are unchanged', () => {
     expect(returnRequiredByDefault('change_of_mind')).toBe(true);
+  });
+});
+
+/**
+ * r6 money pass, P0. Fixing r5's "no return on an unshipped order" by making
+ * possession mean `!!shipped_at` broke LOCAL PICKUP: a pickup order never has
+ * a shipped_at, not even after the buyer has walked out of the studio with
+ * the painting. A change-of-mind refund then required no return at all, and
+ * the buyer kept the artwork AND the money — the exact outcome Terms of Sale
+ * §5 ("you may not keep both") exists to prevent.
+ */
+describe('possession, not shipment (r6 P0)', () => {
+  it('a collected pickup piece must come back', () => {
+    expect(buyerTookPossession({ is_pickup: true, status: 'delivered' })).toBe(true);
+    expect(
+      buyerTookPossession({
+        is_pickup: true,
+        status: 'paid',
+        pickup_confirmed_by_buyer_at: '2026-09-01T12:00:00Z',
+        pickup_confirmed_by_artist_at: '2026-09-01T12:05:00Z',
+      }),
+    ).toBe(true);
+    expect(returnRequiredByDefault('change_of_mind', true)).toBe(true);
+  });
+
+  it('a pickup nobody has collected yet has not', () => {
+    expect(buyerTookPossession({ is_pickup: true, status: 'paid' })).toBe(false);
+    // One-sided confirmation is not a handoff.
+    expect(
+      buyerTookPossession({
+        is_pickup: true,
+        status: 'paid',
+        pickup_confirmed_by_buyer_at: '2026-09-01T12:00:00Z',
+      }),
+    ).toBe(false);
+  });
+
+  it('a shipped piece has, and an unshipped shipping order has not', () => {
+    expect(buyerTookPossession({ shipped_at: '2026-09-01T12:00:00Z' })).toBe(true);
+    expect(buyerTookPossession({ is_pickup: false, status: 'paid' })).toBe(false);
   });
 });

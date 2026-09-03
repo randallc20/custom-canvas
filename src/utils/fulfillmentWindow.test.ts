@@ -30,7 +30,9 @@ describe('fulfillmentWindow', () => {
   });
 
   it('is missed on the sixth business day', () => {
-    const win = fulfillmentWindow({ created_at: created }, new Date('2026-08-11T00:30:00Z'));
+    // 12:00 UTC on the 11th = 7am Houston, so the promised day (the 10th) is
+    // genuinely over. 00:30 UTC would still be 7:30pm on the 10th locally.
+    const win = fulfillmentWindow({ created_at: created }, new Date('2026-08-11T12:00:00Z'));
     expect(win.missed).toBe(true);
   });
 
@@ -83,9 +85,11 @@ describe('fulfillmentWindow — the r5 findings', () => {
     expect(win.missed).toBe(false);
   });
 
-  it('is missed once the promised day is over', () => {
-    const win = fulfillmentWindow({ created_at: created }, new Date('2026-08-11T00:30:00Z'));
-    expect(win.missed).toBe(true);
+  it('is missed once the promised day is over in Houston', () => {
+    // Still the promised day locally: 00:30 UTC is 7:30pm on the 10th.
+    expect(fulfillmentWindow({ created_at: created }, new Date('2026-08-11T00:30:00Z')).missed).toBe(false);
+    // Genuinely the next morning.
+    expect(fulfillmentWindow({ created_at: created }, new Date('2026-08-11T12:00:00Z')).missed).toBe(true);
   });
 
   it('an accepted later date moves the prompts but NOT the protection window (P1)', () => {
@@ -107,7 +111,7 @@ describe('fulfillmentWindow — the r5 findings', () => {
   it('an accepted date that passes is missed again', () => {
     const win = fulfillmentWindow(
       { created_at: created, agreed_ship_by: '2026-10-01T12:00:00Z' },
-      new Date('2026-10-02T00:30:00Z'),
+      new Date('2026-10-02T12:00:00Z'),
     );
     expect(win.missed).toBe(true);
   });

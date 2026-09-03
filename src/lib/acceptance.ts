@@ -96,18 +96,28 @@ export async function outstandingAcceptances(
   const outstanding: AcceptanceDocument[] = [];
   if (profile.terms_version !== TERMS_VERSION) outstanding.push('terms');
 
-  if (profile.role === 'artist') {
-    const { data: artist } = await admin
-      .from('artist_profiles')
-      .select('agreement_version')
-      .eq('profile_id', userId)
-      .maybeSingle();
-    // No artist profile yet means onboarding has not run; onboarding is where
-    // the agreement is accepted, so there is nothing outstanding to chase.
-    if (artist && artist.agreement_version !== ARTIST_AGREEMENT_VERSION) {
-      outstanding.push('artist_agreement');
-    }
-  } else if (profile.terms_of_sale_version !== TERMS_OF_SALE_VERSION) {
+  // Keyed on HAVING an artist profile, not on profiles.role. The RLS policy
+  // behind that row is `auth.uid() = profile_id` with no role condition, so a
+  // `user`-role account can complete the onboarding wizard — and once 00067
+  // stopped the browser stamping its own acceptance, a role check here left
+  // them permanently unable to accept: the interstitial never asked, the POST
+  // filtered their request down to nothing, and submit-for-review refused
+  // them forever with no surface anywhere that could fix it (r4 auth pass).
+  //
+  // No artist profile yet means onboarding has not run, and onboarding is
+  // where the agreement is accepted — nothing to chase.
+  const { data: artist } = await admin
+    .from('artist_profiles')
+    .select('agreement_version')
+    .eq('profile_id', userId)
+    .maybeSingle();
+  if (artist && artist.agreement_version !== ARTIST_AGREEMENT_VERSION) {
+    outstanding.push('artist_agreement');
+  }
+
+  // The Terms of Sale are the buyer's document; an artist meets them at
+  // checkout like anyone else, so they are not asked for here.
+  if (profile.role !== 'artist' && profile.terms_of_sale_version !== TERMS_OF_SALE_VERSION) {
     outstanding.push('terms_of_sale');
   }
 

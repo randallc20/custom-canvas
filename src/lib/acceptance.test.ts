@@ -140,3 +140,35 @@ describe('acceptanceBlocks', () => {
     expect(acceptanceBlocks([])).toBe(false);
   });
 });
+
+/**
+ * r4 auth pass, P3. `Artists can insert own profile` is
+ * `WITH CHECK (auth.uid() = profile_id)` with no role condition, so a
+ * `user`-role account can finish the onboarding wizard. Once 00067 stopped
+ * the browser stamping its own acceptance, keying this on profiles.role left
+ * such an account permanently unable to accept the agreement — the
+ * interstitial never asked, and submit-for-review refused them forever.
+ */
+describe('the Artist Agreement follows the artist PROFILE, not the role', () => {
+  it('asks a user-role account that somehow has an artist profile', async () => {
+    const out = await outstandingAcceptances(
+      stubClient({
+        profile: { role: 'user', terms_version: TERMS_VERSION, terms_of_sale_version: TERMS_OF_SALE_VERSION },
+        artist: { agreement_version: null },
+      }),
+      'u1',
+    );
+    expect(out.map((o) => o.document)).toEqual(['artist_agreement']);
+  });
+
+  it('still asks nothing of a buyer with no artist profile', async () => {
+    const out = await outstandingAcceptances(
+      stubClient({
+        profile: { role: 'user', terms_version: TERMS_VERSION, terms_of_sale_version: TERMS_OF_SALE_VERSION },
+        artist: null,
+      }),
+      'u1',
+    );
+    expect(out).toEqual([]);
+  });
+});

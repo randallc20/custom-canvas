@@ -50,6 +50,87 @@ async function requireAdmin() {
   return { userId: user.id };
 }
 
+/** The storage path inside `listing-images` for a stored public URL. */
+function imagePath(url: string): string | null {
+  const marker = '/listing-images/';
+  const i = url.indexOf(marker);
+  return i === -1 ? null : url.slice(i + marker.length);
+}
+
+/**
+ * Move a removed listing's images into the private `dmca-quarantine` bucket.
+ *
+ * §512(c)(1)(C) asks for the material to be removed OR access to it disabled.
+ * `listing-images` is a PUBLIC bucket, and a public Supabase bucket serves
+ * object GETs with no policy evaluation at all — so hiding the listing row
+ * did neither: the claimant could re-check the very URL they sent us and find
+ * the work still served. Found by the r4 auth pass.
+ *
+ * Copy-then-delete rather than delete, so a successful counter-notice can put
+ * the images back. Returns the paths moved.
+ */
+async function quarantineImages(
+  admin: ReturnType<typeof createAdminSupabaseClient>,
+  listingId: string,
+): Promise<string[]> {
+  const { data: images } = await admin
+    .from('listing_images')
+    .select('image_url')
+    .eq('listing_id', listingId);
+
+  const moved: string[] = [];
+  for (const img of images ?? []) {
+    const path = imagePath(img.image_url as string);
+    if (!path) continue;
+    const { data: blob, error: dlError } = await admin.storage.from('listing-images').download(path);
+    if (dlError || !blob) {
+      Sentry.captureException(dlError ?? new Error('quarantine: download returned nothing'), {
+        extra: { where: 'admin.dmca.quarantine', listingId, path },
+      });
+      continue;
+    }
+    const { error: upError } = await admin.storage
+      .from('dmca-quarantine')
+      .upload(path, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
+    if (upError) {
+      Sentry.captureException(upError, { extra: { where: 'admin.dmca.quarantine.upload', path } });
+      continue;
+    }
+    // Only now is it safe to take the public copy down.
+    const { error: rmError } = await admin.storage.from('listing-images').remove([path]);
+    if (rmError) {
+      Sentry.captureException(rmError, { extra: { where: 'admin.dmca.quarantine.remove', path } });
+      continue;
+    }
+    moved.push(path);
+  }
+  return moved;
+}
+
+/** Put quarantined images back when a counter-notice succeeds. */
+async function restoreImages(
+  admin: ReturnType<typeof createAdminSupabaseClient>,
+  paths: string[],
+): Promise<void> {
+  for (const path of paths) {
+    const { data: blob, error: dlError } = await admin.storage.from('dmca-quarantine').download(path);
+    if (dlError || !blob) {
+      Sentry.captureException(dlError ?? new Error('restore: quarantined object missing'), {
+        extra: { where: 'admin.dmca.restoreImages', path },
+      });
+      continue;
+    }
+    const { error: upError } = await admin.storage
+      .from('listing-images')
+      .upload(path, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
+    if (upError) {
+      Sentry.captureException(upError, { extra: { where: 'admin.dmca.restoreImages.upload', path } });
+      continue;
+    }
+    await admin.storage.from('dmca-quarantine').remove([path]);
+  }
+}
+
 export async function GET() {
   const auth = await requireAdmin();
   if (auth.error) return auth.error;
@@ -113,7 +194,7 @@ export async function PATCH(request: NextRequest) {
   const admin = createAdminSupabaseClient();
   const { data: notice } = await admin
     .from('dmca_notices')
-    .select('id, listing_id, status, received_at')
+    .select('id, listing_id, status, received_at, quarantined_paths')
     .eq('id', id)
     .single();
   if (!notice) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -161,8 +242,15 @@ export async function PATCH(request: NextRequest) {
       });
       return NextResponse.json({ error: hideError?.message ?? 'Could not remove the listing.' }, { status: 500 });
     }
-    await admin.from('dmca_notices').update(stamp('material_removed')).eq('id', id);
-    return NextResponse.json({ ok: true });
+    // Hiding the row is not "disabling access" while the file is still
+    // served from a public bucket.
+    const quarantined = await quarantineImages(admin, notice.listing_id as string);
+
+    await admin
+      .from('dmca_notices')
+      .update({ ...stamp('material_removed'), quarantined_paths: quarantined })
+      .eq('id', id);
+    return NextResponse.json({ ok: true, images_quarantined: quarantined.length });
   }
 
   if (action === 'restore') {
@@ -213,9 +301,18 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: restoreError.message }, { status: 500 });
       }
     }
-    await admin.from('dmca_notices').update(stamp('restored')).eq('id', id);
+    // Mirror image of the removal: the files come back before the listing is
+    // visible again.
+    const paths = (notice.quarantined_paths as string[] | null) ?? [];
+    if (paths.length) await restoreImages(admin, paths);
+
+    await admin
+      .from('dmca_notices')
+      .update({ ...stamp('restored'), quarantined_paths: null })
+      .eq('id', id);
     return NextResponse.json({
       ok: true,
+      images_restored: paths.length,
       overdue: now > latest,
       window: { earliest, latest },
     });

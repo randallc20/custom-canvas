@@ -34,8 +34,14 @@ test.describe('listing standards (L4)', () => {
     ).toBeVisible({ timeout: 15_000 });
     await expect(page).toHaveURL(/\/listings\/new/);
 
-    // Say it, and it publishes.
+    // Say it, and it publishes. With an image: an imageless card lands at the
+    // top of the shared staging feed and breaks the visitor spec's front-door
+    // assertion, which reads the first card's <img>.
     await page.getByLabel('Title').fill(`${title} (print)`);
+    if (process.env.E2E_SMALL_IMAGE) {
+      await page.locator('input[type=file]').setInputFiles(process.env.E2E_SMALL_IMAGE);
+      await expect(page.locator('img[alt="Listing image"]').first()).toBeVisible({ timeout: 30_000 });
+    }
     await page.getByRole('button', { name: /publish listing/i }).click();
     await expect(page).toHaveURL(/\/studio\/work/, { timeout: 30_000 });
   });
@@ -68,6 +74,10 @@ test.describe('listing standards (L4)', () => {
     await page.getByLabel('Price ($)').fill('90');
     await page.getByLabel('Condition').fill('New, no damage.');
     await page.getByLabel(/contains nudity or mature themes/i).check();
+    if (process.env.E2E_SMALL_IMAGE) {
+      await page.locator('input[type=file]').setInputFiles(process.env.E2E_SMALL_IMAGE);
+      await expect(page.locator('img[alt="Listing image"]').first()).toBeVisible({ timeout: 30_000 });
+    }
     await page.getByRole('button', { name: /publish listing/i }).click();
     await expect(page).toHaveURL(/\/studio\/work/, { timeout: 30_000 });
 

@@ -10,6 +10,7 @@ import {
   type ReturnAddress,
   type ReturnRecord,
 } from '@/utils/orderReturns';
+import { buyerTookPossession } from '@/utils/fulfillment';
 import type { RefundReason } from '@/utils/refundSplit';
 
 type AdminClient = ReturnType<typeof createAdminSupabaseClient>;
@@ -42,7 +43,7 @@ export async function authorizeReturn(
 ): Promise<{ ok: true; ret: ReturnRecord } | { ok: false; status: number; error: string }> {
   const { data: order } = await admin
     .from('orders')
-    .select('id, status, shipped_at, buyer_id, listing_id, artist:artist_profiles(profile_id, display_name), listing:listings(title)')
+    .select('id, status, shipped_at, is_pickup, pickup_confirmed_by_buyer_at, pickup_confirmed_by_artist_at, buyer_id, listing_id, artist:artist_profiles(profile_id, display_name), listing:listings(title)')
     .eq('id', opts.orderId)
     .maybeSingle();
   if (!order) return { ok: false, status: 404, error: 'Not found' };
@@ -50,9 +51,10 @@ export async function authorizeReturn(
     return { ok: false, status: 409, error: 'This order is already refunded — a return cannot be authorised after the money has gone back.' };
   }
 
-  // `shipped_at` is the fact that decides whether the buyer has anything to
-  // send back — not the reason, and not the caller's optimism.
-  const required = opts.required ?? returnRequiredByDefault(opts.reason, !!order.shipped_at);
+  // Possession is the fact that decides whether the buyer has anything to
+  // send back — not the reason, not the caller's optimism, and not shipped_at
+  // alone (a collected pickup piece has no shipped_at).
+  const required = opts.required ?? returnRequiredByDefault(opts.reason, buyerTookPossession(order));
   const now = new Date();
   // Seven CALENDAR days, per §5.
   const shipBy = new Date(now.getTime() + RETURN_SHIP_BY_DAYS * 86_400_000);

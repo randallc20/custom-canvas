@@ -1708,4 +1708,51 @@ BEGIN
 END $$;
 ROLLBACK;
 
+-- ---------------------------------------------------------------------------
+-- 16. EXECUTE on SECURITY DEFINER functions (00068).
+--
+--     A SECURITY DEFINER function reads past RLS by design, so who may CALL
+--     it is the whole of its access control. Postgres grants EXECUTE to
+--     PUBLIC on every new function, and `REVOKE ... FROM anon, authenticated`
+--     does NOT remove a privilege those roles hold via PUBLIC — so a revoke
+--     that names the two roles and omits PUBLIC is a no-op that reads like a
+--     lock. That is exactly how dmca_substantiated_count() shipped callable
+--     with the public anon key, returning the number of copyright
+--     accusations against any account in the artist directory.
+--
+--     Pinned as a CLASS rather than for that one function: the next
+--     SECURITY DEFINER helper that forgets PUBLIC fails here.
+--
+--     Trigger functions are exempt — they are invoked by the trigger, never
+--     called over PostgREST, and Supabase's own helpers live outside public.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE bad text;
+BEGIN
+  SELECT string_agg(sig || ' -> ' || role_name, E'\n' ORDER BY sig) INTO bad
+    FROM (
+      SELECT p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' AS sig,
+             r.role_name
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        CROSS JOIN (VALUES ('anon'), ('authenticated')) AS r(role_name)
+       WHERE n.nspname = 'public'
+         AND p.prosecdef
+         -- Trigger functions: not reachable over the API.
+         AND p.prorettype <> 'trigger'::regtype
+         -- The deliberately public ones: these are the read helpers the
+         -- browser is MEANT to call, each with its own internal auth check.
+         AND p.proname NOT IN (
+           'is_privileged', 'blocked_by', 'sender_is_blocked',
+           'follower_count', 'my_unread_counts', 'artist_sales_totals',
+           'neighborhood_listing_counts', 'refresh_completeness_score',
+           'link_education_partners', 'current_terms_version'
+         )
+         AND has_function_privilege(r.role_name, p.oid, 'EXECUTE')
+    ) d;
+  IF bad IS NOT NULL THEN
+    RAISE EXCEPTION E'SECURITY DEFINER function is callable by a browser role (REVOKE ... FROM PUBLIC missing?):\n%', bad;
+  END IF;
+END $$;
+
 \echo 'db-smoke: all checks passed'

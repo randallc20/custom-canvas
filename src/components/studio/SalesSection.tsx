@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatPrice } from '@/utils/formatPrice';
+import { buyerTookPossession } from '@/utils/fulfillment';
 import { fulfillmentWindow, formatDate } from '@/utils/fulfillmentWindow';
 import { useArtistProfileId } from '@/hooks/useArtistProfileId';
 import type { Order, OrderStatus } from '@/types/order';
@@ -175,9 +176,10 @@ export function SalesSection() {
   const submitApproveRefund = async () => {
     const order = refundOrder;
     if (!order) return;
-    // Nothing to send back if it never shipped (r5 money pass, P1): the
-    // route skips the return entirely there, so do not demand an address.
-    const needsReturn = !!order.shipped_at;
+    // "Did the buyer take possession", not "did it ship" — a collected
+    // pickup piece has no shipped_at but is very much in the buyer's hands
+    // (r6 money pass, P0).
+    const needsReturn = buyerTookPossession(order);
     const missing = needsReturn
       ? (['name', 'street', 'city', 'state', 'zip'] as const).filter((k) => !returnAddress[k].trim())
       : [];
@@ -449,13 +451,13 @@ export function SalesSection() {
             is returned. On a change of mind the buyer&apos;s service fee is not refunded, and they
             ordinarily bear return shipping.
           </p>
-          {!refundOrder?.shipped_at && (
+          {refundOrder && !buyerTookPossession(refundOrder) && (
             <p className="rounded-md bg-sand/60 px-3 py-2 text-sm leading-relaxed text-ink">
-              This piece hasn&apos;t shipped, so there is nothing for the buyer to send back — no
-              return address needed.
+              The buyer never received this piece, so there is nothing to send back — no return
+              address needed.
             </p>
           )}
-          {!!refundOrder?.shipped_at && (
+          {!!refundOrder && buyerTookPossession(refundOrder) && (
           <div>
             <p className="text-sm font-medium text-ink">Where should they send it?</p>
             <p className="mt-0.5 text-xs text-muted">
@@ -493,7 +495,7 @@ export function SalesSection() {
             </div>
           </div>
           )}
-          {!!refundOrder?.shipped_at && (
+          {!!refundOrder && buyerTookPossession(refundOrder) && (
           <div>
             <label htmlFor="return-instructions" className="mb-1 block text-sm font-medium text-ink">
               Packing or insurance instructions (optional)
@@ -515,7 +517,7 @@ export function SalesSection() {
               loading={approvingRefund === refundOrder?.id}
               onClick={submitApproveRefund}
             >
-              {refundOrder?.shipped_at ? 'Approve and authorise the return' : 'Approve refund'}
+              {refundOrder && buyerTookPossession(refundOrder) ? 'Approve and authorise the return' : 'Approve refund'}
             </Button>
           </div>
         </div>

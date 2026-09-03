@@ -5,6 +5,7 @@ import { formatPrice } from '@/utils/formatPrice';
 import * as Sentry from '@sentry/nextjs';
 import { z } from 'zod';
 import { authorizeReturn } from '@/lib/orderReturns';
+import { buyerTookPossession } from '@/utils/fulfillment';
 
 const returnAddressSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, status, shipped_at, amount_cents, refund_approved_at, artist:artist_profiles(profile_id, display_name), listing:listings(title)')
+    .select('id, status, shipped_at, is_pickup, pickup_confirmed_by_buyer_at, pickup_confirmed_by_artist_at, amount_cents, refund_approved_at, artist:artist_profiles(profile_id, display_name), listing:listings(title)')
     .eq('id', params.id)
     .single();
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -47,11 +48,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   // certainly present — and never taken from their public profile, which is
   // not an address they agreed to publish by listing a painting.
   const body = await request.json().catch(() => null);
-  // Only ask for an address when there is something to send back. An
-  // unshipped order has nothing to return — demanding one there authorised a
-  // return for a piece still on the artist's wall and deadlocked the refund
-  // (r5 money pass, P1).
-  const needsReturn = !!order.shipped_at;
+  // Only ask for an address when there is something to send back — which is
+  // "did the buyer take possession", NOT "did it ship". An unshipped order
+  // has nothing to return (r5 P1), but a COLLECTED pickup piece does, and
+  // keying on shipped_at alone let the buyer keep the artwork and the money
+  // (r6 P0).
+  const needsReturn = buyerTookPossession(order);
   const address = returnAddressSchema.safeParse(body?.return_address);
   if (needsReturn && !address.success) {
     return NextResponse.json(

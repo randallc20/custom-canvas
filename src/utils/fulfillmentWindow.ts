@@ -52,8 +52,17 @@ export function fulfillmentWindow(
   // missed at 7pm on the promised day, hours before the artist's own deadline
   // as they read it (r5 money pass, P3), and would let the buyer cancel a
   // sale the artist still had the day to ship.
+  // End of the promised day in HOUSTON, not in UTC. Setting 23:59 UTC made
+  // the window expire at 6:59pm local on the promised day — before the
+  // artist's own working day was over — which is the same off-by-a-timezone
+  // the first cut of this had (r6 money pass, P2). CST is UTC-6 and CDT
+  // UTC-5; six hours is used deliberately so the boundary is never EARLIER
+  // than the artist's midnight, only ever up to an hour later. Erring in the
+  // artist's favour is the right direction: the cost of being early is
+  // cancelling a sale they still had time to ship.
   const deadline = new Date(shipByIso);
   deadline.setUTCHours(23, 59, 59, 999);
+  deadline.setTime(deadline.getTime() + 6 * 60 * 60 * 1000);
 
   return {
     shipByIso,

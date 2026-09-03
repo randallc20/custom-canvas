@@ -49,10 +49,17 @@ export async function GET(request: NextRequest) {
   const { data: orders, error } = await supabase
     .from('orders')
     .select(
-      'id, created_at, shipped_at, buyer_id, listing_id, fulfillment_window_days, proposed_ship_by, agreed_ship_by, window_missed_at, platform_nudged_at, artist:artist_profiles(profile_id, display_name), listing:listings(title)',
+      'id, created_at, shipped_at, is_pickup, buyer_id, listing_id, fulfillment_window_days, proposed_ship_by, agreed_ship_by, window_missed_at, platform_nudged_at, artist:artist_profiles(profile_id, display_name), listing:listings(title)',
     )
     .eq('status', 'paid')
     .is('shipped_at', null)
+    // LOCAL PICKUP has no shipping promise to miss and never gets a
+    // shipped_at, so without this every pickup order looked overdue on day 6:
+    // the artist was told to ship a piece nobody agreed to post, the buyer was
+    // told about a window they were never shown, and five business days later
+    // this refunded a collected painting in full and relisted it (r6 money
+    // pass, P0). A pickup no-show is a support process.
+    .eq('is_pickup', false)
     .order('created_at', { ascending: true })
     .limit(200);
 
