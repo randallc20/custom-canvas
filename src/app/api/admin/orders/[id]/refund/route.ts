@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe';
+import { calculateRefundSplit } from '@/utils/refundSplit';
 
 // Admin settles an artist-approved refund. Policy (2026-07-06, tax added
 // 2026-08-18): the buyer gets the artwork price + shipping + THEIR TAX back
@@ -40,12 +41,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   // Refund = price + shipping + the tax attributable to them. Tax was
   // charged on three lines (price, shipping, fee) at a uniform rate, so the
   // fee's share is proportional; the fee and its tax stay with the platform.
-  const taxedBase = order.amount_cents + order.shipping_cents + order.buyer_fee_cents;
-  const feeTax = taxedBase > 0
-    ? Math.round((order.amount_tax_cents * order.buyer_fee_cents) / taxedBase)
-    : 0;
-  const refundTax = Math.max(0, order.amount_tax_cents - feeTax);
-  const refundAmount = order.amount_cents + order.shipping_cents + refundTax;
+  // The arithmetic lives in utils/refundSplit.ts so tests can pin it (R11).
+  const { refundTax, refundAmount } = calculateRefundSplit(order);
 
   let refundId = order.stripe_refund_id as string | null;
   let reversalId = order.stripe_reversal_id as string | null;

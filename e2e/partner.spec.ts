@@ -1,5 +1,6 @@
 import { test, expect, Page, BrowserContext } from '@playwright/test';
 import { login } from './helpers/auth';
+import { fetchAvailableListings, fetchLiveArtists } from './helpers/data';
 
 /**
  * Live-test-plan Part 12 — The Partner (gallery/school), walked for real.
@@ -8,7 +9,8 @@ import { login } from './helpers/auth';
  * the admin, then taken through profile edit, roster, and curated picks.
  *
  * Requires: E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD.
- * Uses live staging data: /api/artists for roster names, /api/listings for
+ * Uses live staging data (read straight from Supabase with the anon key, see
+ * helpers/data.ts): live artists for roster names, available listings for
  * pickable titles — steps that need them skip with a reason when staging is
  * too empty.
  *
@@ -212,11 +214,8 @@ test.describe.serial('live test plan part 12 — the partner', () => {
     const page = partnerPage;
 
     // Live artists from staging — the roster search matches display_name.
-    const res = await page.request.get('/api/artists');
-    const artists = res.ok() ? await res.json() : [];
-    const names: string[] = Array.isArray(artists)
-      ? artists.map((a: { display_name?: string }) => a.display_name ?? '').filter((n: string) => n.length >= 3)
-      : [];
+    const artists = await fetchLiveArtists(page.request);
+    const names: string[] = artists.map((a) => a.display_name ?? '').filter((n) => n.length >= 3);
     // Names that appear once, so search results and roster rows are unambiguous.
     artistNames = names.filter((n) => names.indexOf(n) === names.lastIndexOf(n)).slice(0, 2);
     test.skip(artistNames.length < 2, 'staging has fewer than two uniquely-named live artists');
@@ -292,11 +291,8 @@ test.describe.serial('live test plan part 12 — the partner', () => {
 
     // Live available listings to pick from — titles must be search-friendly
     // and unique so each result row is unambiguous.
-    const res = await page.request.get('/api/listings');
-    const listings = res.ok() ? await res.json() : [];
-    const all: { id: string; title: string }[] = Array.isArray(listings)
-      ? listings.map((l: { id: string; title?: string }) => ({ id: l.id, title: (l.title ?? '').trim() }))
-      : [];
+    const listings = await fetchAvailableListings(page.request);
+    const all: { id: string; title: string }[] = listings.map((l) => ({ id: l.id, title: (l.title ?? '').trim() }));
     const titles = all.map((l) => l.title.toLowerCase());
     pickables = all
       .filter((l) => /^[A-Za-z0-9 .,'()&:-]{4,60}$/.test(l.title))

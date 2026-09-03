@@ -12,10 +12,22 @@ E2E_MONEY=1 ./scripts/run-e2e.sh  # include the Stripe-test money loop
 ```
 
 The runner generates the fixture images, seeds DEV (`scripts/seed-e2e.mjs` —
-resets seed-account passwords, creates a fresh admin, draft artist and guard
-fixtures, deletes the previous run's consumed fixtures), then runs each spec
-file **sequentially with `--workers=1`**. Never parallelize across spec
-files: parallel logins trip Supabase auth rate limits.
+resets seed-account passwords, creates a fresh admin, draft artist, guard,
+paid-buyer, pickup and unsubscribe fixtures, deletes the previous run's
+consumed fixtures), then runs each spec file **sequentially with
+`--workers=1`**. Never parallelize across spec files: parallel logins trip
+Supabase auth rate limits.
+
+An entry in the runner's list is `spec` (chromium) or `spec:project`;
+`visitor:mobile` is a second pass over the public surface on the iPhone
+project, which existed in `playwright.config.ts` but had never been run.
+
+Fixture discovery (which live artist, which available listing) goes through
+`e2e/helpers/data.ts`, which reads those rows from PostgREST with the anon
+key. It used to call `GET /api/artists` and `GET /api/listings`; R7 deleted
+both routes, because nothing in the app called them. The helper takes
+`NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` from the
+environment (the seeder exports both) and falls back to `.env.local`.
 
 One spec by hand (env contract is in each spec's header comment; get the
 exports with `node scripts/seed-e2e.mjs`):
@@ -31,6 +43,9 @@ exports with `node scripts/seed-e2e.mjs`):
 - `setup-guard`'s wizard-walk test creates the missing profile row for the
   no-profile fixture — fresh guard accounts are needed every run.
 - `purchase-refund` (money) hides its own listing afterwards.
+- `pickup-handoff` ends with its fixture order confirmed by both parties and
+  `delivered`; `unsubscribe` ends with its fixture unsubscribed. Both need a
+  fresh fixture every run.
 - Everything `e2e.*@customcanvas.dev` on DEV is disposable test-bed state;
   the seeder deletes prior `e2e.admin.*` / `e2e.draft.*` / `e2e.guard.*`
   accounts at the start of each run.
@@ -64,4 +79,5 @@ Preferred: GitHub Actions — blocked until minutes/billing are restored
 (LAUNCH.md TODO; add the `E2E_*` secrets when wiring it).
 Fallback (active): a local launchd job runs `scripts/nightly-e2e.sh` at
 03:30 and logs to `~/Library/Logs/custom-canvas-e2e/` — see that script's
-header for install/uninstall.
+header for install/uninstall. The nightly runs with `E2E_MONEY=1`, so the
+Stripe-test money loop is exercised once a day; ad-hoc runs still opt in.

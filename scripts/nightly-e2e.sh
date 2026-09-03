@@ -28,9 +28,14 @@ if ! command -v node >/dev/null 2>&1; then
   if [[ -n "${NODE_BIN:-}" ]]; then export PATH="$NODE_BIN:$PATH"; fi
 fi
 
+# E2E_MONEY=1: the nightly is the only run that exercises the Stripe-test
+# money loop end to end (purchase -> ship -> deliver -> review -> refund
+# request -> artist approves -> admin settles -> relist). It was opt-in and
+# nothing opted in, so the most expensive code in the app had no nightly
+# coverage at all (05-P3 "tests"). Staging is Stripe TEST: no real money.
 {
   echo "== nightly e2e $(date '+%Y-%m-%d %H:%M:%S') =="
-  if "$REPO/scripts/run-e2e.sh"; then
+  if E2E_MONEY=1 "$REPO/scripts/run-e2e.sh"; then
     echo "NIGHTLY PASS"
   else
     echo "NIGHTLY FAIL"
