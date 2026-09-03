@@ -80,7 +80,8 @@ export function LocationPicker({ variant = 'pill' }: { variant?: 'pill' | 'hero'
             Choose your community to see local artists first. Your choice is saved only
             on this device. &ldquo;Use my current location&rdquo; sends your coordinates to a
             geocoding service once to find your city — type a city or ZIP instead if
-            you&apos;d rather not share your location.
+            you&apos;d rather not share your location. We never ask for background location
+            access.
           </p>
 
           <Button variant="outline" className="w-full" onClick={handleGeolocate} loading={busy === 'geo'}>
