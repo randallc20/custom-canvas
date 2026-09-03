@@ -22,6 +22,8 @@ const shippingSchema = z.object({
   country: z.string().trim().min(2).max(2).default('US'),
 });
 
+const CHECKOUT_UNAVAILABLE = 'We could not start checkout. Please try again in a moment.';
+
 export async function POST(request: NextRequest) {
   // Payments gated until Stripe live activation — flip NEXT_PUBLIC_PAYMENTS_ENABLED.
   if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== 'true') {
@@ -84,10 +86,17 @@ export async function POST(request: NextRequest) {
   // Seller-protection evidence, SNAPSHOT at purchase. Listings stay editable
   // after a sale, so evaluating against the live listing would let an artist
   // add photos the day a dispute arrives and retroactively qualify.
-  const { count: photoCount } = await createAdminSupabaseClient()
+  const { count: photoCount, error: photoCountError } = await createAdminSupabaseClient()
     .from('listing_images')
     .select('id', { count: 'exact', head: true })
     .eq('listing_id', listingId);
+  // A failed count is not zero photographs: the snapshot is frozen for the
+  // life of the order, so a pooler blip here would fail requirement 5 for
+  // good on a listing that met it (04-r4 P3). Refuse to start checkout.
+  if (photoCountError) {
+    Sentry.captureException(new Error(`listing_images count failed for ${listingId}: ${photoCountError.message}`));
+    return NextResponse.json({ error: CHECKOUT_UNAVAILABLE }, { status: 502 });
+  }
   const evidencePhotoCount = photoCount ?? 0;
   const hasConditionNotes = (listing.description ?? '').trim().length >= MIN_CONDITION_NOTES_CHARS;
   const signatureRequired = listing.price_cents >= SIGNATURE_REQUIRED_FROM_CENTS;
@@ -183,9 +192,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: session.url });
   } catch (err) {
     Sentry.captureException(err);
-    return NextResponse.json(
-      { error: 'We could not start checkout. Please try again in a moment.' },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: CHECKOUT_UNAVAILABLE }, { status: 502 });
   }
 }

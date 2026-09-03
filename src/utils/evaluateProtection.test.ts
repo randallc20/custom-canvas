@@ -4,6 +4,7 @@ import {
   businessDaysBetween,
   ProtectionInput,
   SIGNATURE_REQUIRED_FROM_CENTS,
+  SIGNATURE_CONFIRMATION_AVAILABLE,
   MIN_CONDITION_NOTES_CHARS,
 } from './evaluateProtection';
 
@@ -95,21 +96,50 @@ describe('evaluateProtection', () => {
     expect(evaluateProtection(order({ deliveredAt: null })).status).toBe('ineligible');
   });
 
-  // --- requirement 4: signature on high-value orders ---
-  it('requires signature confirmation when the order is flagged for it', () => {
-    const r = evaluateProtection(order({ signatureRequired: true, signatureConfirmed: false }));
+  // --- requirement 4: signature on high-value orders — WAIVED at launch (D6) ---
+  it('protects a $1,200 order that meets everything else while requirement 4 is waived (D6)', () => {
+    // A $1,200 piece crosses the threshold, so checkout snapshots
+    // signature_required = true; nothing on the platform can ever set
+    // signature_confirmed, so the waiver must make this protected.
+    const signatureRequired = 120_000 >= SIGNATURE_REQUIRED_FROM_CENTS;
+    expect(signatureRequired).toBe(true);
+    const r = evaluateProtection(order({ signatureRequired, signatureConfirmed: false }));
+    expect(r.status).toBe('protected');
+    expect(r.failures).toEqual([]);
+  });
+
+  it('ships with requirement 4 waived: SIGNATURE_CONFIRMATION_AVAILABLE is false', () => {
+    expect(SIGNATURE_CONFIRMATION_AVAILABLE).toBe(false);
+    // The default and an explicit false agree.
+    expect(
+      evaluateProtection(order({ signatureRequired: true, signatureConfirmed: false }), {
+        signatureConfirmationAvailable: false,
+      }).status
+    ).toBe('protected');
+  });
+
+  it('requires signature confirmation again once a confirmation path exists (constant flipped)', () => {
+    const r = evaluateProtection(order({ signatureRequired: true, signatureConfirmed: false }), {
+      signatureConfirmationAvailable: true,
+    });
     expect(r.status).toBe('ineligible');
-    expect(r.failures.join(' ')).toMatch(/signature/i);
+    expect(r.failures.join(' ')).toMatch(/signature confirmation was not recorded/i);
   });
 
-  it('protects a high-value order once the signature is confirmed', () => {
-    expect(evaluateProtection(order({ signatureRequired: true, signatureConfirmed: true })).status)
-      .toBe('protected');
+  it('protects a high-value order once the signature is confirmed, with the check active', () => {
+    expect(
+      evaluateProtection(order({ signatureRequired: true, signatureConfirmed: true }), {
+        signatureConfirmationAvailable: true,
+      }).status
+    ).toBe('protected');
   });
 
-  it('ignores signature state when it is not required', () => {
-    expect(evaluateProtection(order({ signatureRequired: false, signatureConfirmed: false })).status)
-      .toBe('protected');
+  it('ignores signature state when it is not required, with the check active', () => {
+    expect(
+      evaluateProtection(order({ signatureRequired: false, signatureConfirmed: false }), {
+        signatureConfirmationAvailable: true,
+      }).status
+    ).toBe('protected');
   });
 
   // --- requirement 5: listing evidence, snapshotted ---

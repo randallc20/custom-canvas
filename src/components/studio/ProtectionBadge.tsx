@@ -27,6 +27,15 @@ function isFrozen(failure: string) {
   return FROZEN_AT_SALE.some((f) => failure.toLowerCase().includes(f));
 }
 
+// Requirement 4 (signature confirmation) is waived at launch — ruling D6,
+// DECISIONS.md 2026-09-02 — so evaluateProtection never reports it today. If
+// the check is ever re-enabled, signature_confirmed is recorded by Custom
+// Canvas from the carrier's record, not by anything the artist can do in
+// Studio, so it must never be listed under "To protect this order:".
+function isPlatformRecorded(failure: string) {
+  return failure.toLowerCase().includes('signature');
+}
+
 export function ProtectionBadge({ order }: { order: Order }) {
   const [open, setOpen] = useState(false);
 
@@ -55,8 +64,9 @@ export function ProtectionBadge({ order }: { order: Order }) {
   });
 
   const covered = settled ? order.protection_status === 'protected' : result.status === 'protected';
-  const fixable = result.failures.filter((f) => !isFrozen(f));
+  const fixable = result.failures.filter((f) => !isFrozen(f) && !isPlatformRecorded(f));
   const frozen = result.failures.filter(isFrozen);
+  const platformRecorded = result.failures.filter(isPlatformRecorded);
 
   const label = settled
     ? covered
@@ -118,6 +128,12 @@ export function ProtectionBadge({ order }: { order: Order }) {
                     full condition description before publishing.
                   </p>
                 </>
+              )}
+              {platformRecorded.length > 0 && (
+                <p className={`text-muted ${fixable.length || frozen.length ? 'mt-2' : ''}`}>
+                  {platformRecorded.join(' ')} Custom Canvas records signature confirmation from
+                  the carrier&apos;s delivery record — send it to support@customcanvas.shop.
+                </p>
               )}
             </>
           )}

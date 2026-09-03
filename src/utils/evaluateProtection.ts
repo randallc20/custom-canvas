@@ -12,6 +12,16 @@ export const SUPPORTED_CARRIERS = ['usps', 'ups', 'fedex', 'dhl'] as const;
  *  eBay's threshold and the card-network evidence rules. */
 export const SIGNATURE_REQUIRED_FROM_CENTS = 75_000;
 
+/** Requirement 4 (signature confirmation at and above the threshold) has no
+ *  writer at launch: `signature_confirmed` is service-role-only (00040) and
+ *  no carrier integration or admin path sets it, so the check would fail
+ *  every $750+ order by construction while Studio told the artist how to
+ *  satisfy it. WAIVED — ruling D6, DECISIONS.md 2026-09-02. Flip to true when
+ *  a confirmation path exists; the check is skipped below, not removed.
+ *  `signature_required` is still snapshotted at checkout so the ship modal
+ *  can RECOMMEND the option. */
+export const SIGNATURE_CONFIRMATION_AVAILABLE = false;
+
 /** Platform-wide default. Not per-listing at launch: a per-listing window
  *  means a new field, new form UI, and teaching artists a concept they haven't
  *  asked for. Snapshotted per order so changing it later can't rewrite the bar
@@ -61,6 +71,12 @@ export function pickupHandoffConfirmed(order: {
   return !!order.pickup_confirmed_by_buyer_at && !!order.pickup_confirmed_by_artist_at;
 }
 
+export interface ProtectionOptions {
+  /** Whether requirement 4 is checked. Defaults to
+   *  SIGNATURE_CONFIRMATION_AVAILABLE; tests pass it explicitly. */
+  signatureConfirmationAvailable?: boolean;
+}
+
 export interface ProtectionResult {
   status: ProtectionStatus;
   /** Human-readable, artist-facing. Empty when protected. Drives both the
@@ -92,7 +108,11 @@ export function businessDaysBetween(fromIso: string, toIso: string): number {
   return days;
 }
 
-export function evaluateProtection(input: ProtectionInput): ProtectionResult {
+export function evaluateProtection(
+  input: ProtectionInput,
+  options: ProtectionOptions = {}
+): ProtectionResult {
+  const signatureCheckActive = options.signatureConfirmationAvailable ?? SIGNATURE_CONFIRMATION_AVAILABLE;
   const failures: string[] = [];
 
   // Local pickup short-circuits the shipping requirements entirely — there is
@@ -128,9 +148,13 @@ export function evaluateProtection(input: ProtectionInput): ProtectionResult {
     failures.push('The order was never marked delivered.');
   }
 
-  // 4. Signature confirmation on high-value orders.
-  if (input.signatureRequired && !input.signatureConfirmed) {
-    failures.push('Signature confirmation is required on orders of $750 or more.');
+  // 4. Signature confirmation on high-value orders. Skipped while nothing
+  //    can record it (ruling D6): a requirement nobody can satisfy is not a
+  //    bargain. The wording, when active, says what was not RECORDED — it is
+  //    written by the platform from the carrier's record, never by the
+  //    artist in Studio.
+  if (signatureCheckActive && input.signatureRequired && !input.signatureConfirmed) {
+    failures.push('Signature confirmation was not recorded for this order of $750 or more.');
   }
 
   // 5. Listing evidence, snapshotted at checkout.
