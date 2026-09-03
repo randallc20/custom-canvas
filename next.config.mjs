@@ -2,6 +2,16 @@ import { withSentryConfig } from '@sentry/nextjs';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    // The eight legal pages read their markdown from docs/ with fs (L1). They
+    // prerender at build, so the read normally happens on the build machine —
+    // but if one of them ever becomes dynamic (a cookie read in the layout is
+    // enough), the serverless bundle needs the files or the route 500s in
+    // production only. Trace them in explicitly.
+    outputFileTracingIncludes: {
+      '/**': ['./docs/legal/website legal documents/markdown/**'],
+    },
+  },
   images: {
     remotePatterns: [
       {

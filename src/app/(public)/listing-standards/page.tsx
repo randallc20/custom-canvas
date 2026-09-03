@@ -3,8 +3,8 @@ import { legalMetadata } from '@/lib/legalDocuments';
 
 // Rendered from docs/legal/website legal documents/markdown/ — the counsel
 // set is the page. Do not transcribe it into JSX (L1).
-export const metadata = legalMetadata('privacy');
+export const metadata = legalMetadata('listing-standards');
 
-export default function PrivacyPolicyPage() {
-  return <LegalDocument slug="privacy" />;
+export default function ListingStandardsPage() {
+  return <LegalDocument slug="listing-standards" />;
 }

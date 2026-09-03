@@ -15,6 +15,29 @@ import { paymentsEnabled } from '@/utils/features';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { PageShell } from '@/components/layout/PageShell';
 
+/** The summary Terms of Sale §1 promises is "displayed above the Pay button".
+ *  It carries the four things the buyer must be told before paying: who the
+ *  seller is (§1), what the statement will say (§1), that refunds are
+ *  artist-mediated (§5), and the service-fee rule — nonrefundable on a
+ *  change-of-mind return, refunded when the fault is ours or the artist's
+ *  (§2). Before L1 this said the fee was flatly "non-refundable", which the
+ *  final documents contradict; L6 makes the code behave that way too. */
+function PurchaseNotice() {
+  return (
+    <p className="text-xs leading-relaxed text-muted">
+      The artist is the seller of this artwork; Custom Canvas operates the marketplace and
+      facilitates payment. By paying you agree to the{' '}
+      <a href="/terms-of-sale" target="_blank" className="font-medium text-terraText underline">Terms of Sale</a>
+      {' '}and the{' '}
+      <a href="/shipping-returns" target="_blank" className="font-medium text-terraText underline">Shipping, Returns &amp; Refunds Policy</a>.
+      Refunds are arranged with the artist. The service fee is not refunded on a
+      change-of-mind return; it is refunded if the piece is never shipped, is lost or
+      damaged in transit, or is materially not as described. This charge appears as{' '}
+      <span className="font-medium text-ink">CUSTOM CANVAS</span> on your statement.
+    </p>
+  );
+}
+
 export default function CheckoutPage() {
   return (
     <PageShell>
@@ -121,13 +144,7 @@ function CheckoutContent() {
               You&apos;ll coordinate pickup with the artist via Messages after purchase.
             </p>
           </div>
-          <p className="text-xs leading-relaxed text-muted">
-            By completing this purchase you agree to the{' '}
-            <a href="/terms" target="_blank" className="font-medium text-terraText underline">Terms of Sale</a>,
-            including the artist-mediated refund policy and the non-refundable service fee.
-            This charge will appear as <span className="font-medium text-ink">CUSTOM CANVAS</span> on
-            your statement.
-          </p>
+          <PurchaseNotice />
           <Button className="w-full" onClick={handleCheckout} loading={submitting}>
             Pay {formatPrice(split.buyerTotal)}
           </Button>
@@ -141,13 +158,7 @@ function CheckoutContent() {
               calculated from where the piece ships.
             </p>
           </div>
-          <p className="text-xs leading-relaxed text-muted">
-            By completing this purchase you agree to the{' '}
-            <a href="/terms" target="_blank" className="font-medium text-terraText underline">Terms of Sale</a>,
-            including the artist-mediated refund policy and the non-refundable service fee.
-            This charge will appear as <span className="font-medium text-ink">CUSTOM CANVAS</span> on
-            your statement.
-          </p>
+          <PurchaseNotice />
           <Button className="w-full" onClick={handleCheckout} loading={submitting}>
             Pay {formatPrice(split.buyerTotal)}
           </Button>

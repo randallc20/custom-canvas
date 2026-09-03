@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { createSitemapSupabaseClient, listingSitemapPageCount, SITEMAP_PAGE_SIZE } from '@/lib/sitemapPages';
+import { LEGAL_DOCUMENTS } from '@/lib/legalDocuments';
 
 /** Paged sitemaps (/sitemap/0.xml, /sitemap/1.xml, ...): page N carries
  *  listings N*1000..N*1000+999 in a stable created_at order; page 0 also
@@ -43,8 +44,13 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
     { url: baseUrl, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
     { url: `${baseUrl}/about`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${baseUrl}/partners`, changeFrequency: 'weekly', priority: 0.7 },
-    { url: `${baseUrl}/terms`, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${baseUrl}/privacy`, changeFrequency: 'yearly', priority: 0.3 },
+    // The counsel document set (L1). The Artist Agreement is public but
+    // noindex, so it is deliberately absent.
+    ...LEGAL_DOCUMENTS.filter((d) => !d.noindex).map((d) => ({
+      url: `${baseUrl}/${d.slug}`,
+      changeFrequency: 'yearly' as const,
+      priority: 0.3,
+    })),
   ];
 
   const artistPages: MetadataRoute.Sitemap = (artists ?? []).map((a) => ({
