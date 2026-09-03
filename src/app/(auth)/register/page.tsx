@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { CaptchaField, captchaEnabled } from '@/components/auth/CaptchaField';
 import Link from 'next/link';
 import { useAuth, postSignupPath } from '@/context/AuthContext';
-import { recordTermsAcceptance } from '@/services/acceptance';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -44,14 +43,14 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const { needsEmailConfirmation } = await signUp(email, password, role, fullName, captcha);
-      // Record what the checkbox above covers: the Terms of Service (and the
-      // Privacy Policy, which is stamped with them). Explicitly NOT the Terms
-      // of Sale — those are accepted at checkout, and stamping them here would
-      // record an acceptance this person was never shown. When the project
-      // requires email confirmation there is no session yet, so nothing is
-      // stamped and the acceptance interstitial asks on their first signed-in
-      // visit instead.
-      if (!needsEmailConfirmation) await recordTermsAcceptance();
+      // The acceptance this checkbox covers — the Terms of Service, and the
+      // Privacy Policy stamped with them — is recorded by handle_new_user in
+      // the same statement that creates the profile (00063). It used to be a
+      // POST from here, which raced the acceptance query behind the
+      // re-acceptance interstitial and could show "We've updated our terms"
+      // to someone who had just ticked that exact box.
+      //
+      // NOT the Terms of Sale: those are accepted at checkout (§1).
       if (needsEmailConfirmation) {
         setConfirmationSent(true);
         setCaptcha('');

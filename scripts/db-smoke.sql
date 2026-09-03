@@ -51,7 +51,7 @@ INSERT INTO expected_functions VALUES
   ('is_privileged'), ('blocked_by'), ('sender_is_blocked'),
   ('link_education_partners'), ('refresh_completeness_score'),
   ('neighborhood_listing_counts'), ('my_unread_counts'), ('artist_sales_totals'),
-  ('follower_count'),
+  ('follower_count'), ('current_terms_version'),
   -- trigger functions (exercised via their tables' writes)
   ('artist_search_update'), ('enforce_featured_cap'), ('enforce_partner_picks_cap'),
   ('guard_artist_profiles_insert'), ('guard_artist_profiles_update'),
@@ -1350,5 +1350,37 @@ BEGIN
     RAISE EXCEPTION 'missing index orders_paid_unshipped_idx (00062)';
   END IF;
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- 12. Acceptance at signup (00063). handle_new_user must stamp the Terms of
+--     Service on a new profile — the fix for the race where the interstitial
+--     asked someone to accept terms they had just ticked a box for — and must
+--     NOT stamp the Terms of Sale, which are accepted at checkout.
+-- ---------------------------------------------------------------------------
+BEGIN;
+DO $$
+DECLARE
+  uid uuid := gen_random_uuid();
+  p profiles%ROWTYPE;
+BEGIN
+  INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+    VALUES (uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+            'smoke.signup.' || uid || '@customcanvas.dev', '{"full_name":"Smoke Signup"}'::jsonb);
+
+  SELECT * INTO p FROM profiles WHERE id = uid;
+  IF p.id IS NULL THEN
+    RAISE EXCEPTION 'signup acceptance: handle_new_user did not create the profile row';
+  END IF;
+  IF p.terms_version IS DISTINCT FROM current_terms_version() THEN
+    RAISE EXCEPTION 'signup acceptance: terms_version is %, expected %', p.terms_version, current_terms_version();
+  END IF;
+  IF p.terms_accepted_at IS NULL THEN
+    RAISE EXCEPTION 'signup acceptance: terms_accepted_at was not stamped';
+  END IF;
+  IF p.terms_of_sale_version IS NOT NULL OR p.terms_of_sale_accepted_at IS NOT NULL THEN
+    RAISE EXCEPTION 'signup acceptance: the Terms of Sale must NOT be stamped at signup (accepted at checkout)';
+  END IF;
+END $$;
+ROLLBACK;
 
 \echo 'db-smoke: all checks passed'
