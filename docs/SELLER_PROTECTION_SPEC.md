@@ -24,6 +24,9 @@ Canvas's chargeback ratio, not theirs.
 >    (at launch the artist confirms this in Studio; carrier confirmation will
 >    replace it — DECISIONS.md 2026-09-02, ruling D1)
 > 4. **Signature confirmation** was obtained, for orders of **$750 or more**
+>    (waived at launch: no carrier or admin path records it, so the check is
+>    skipped and the ship modal recommends the option instead — DECISIONS.md
+>    2026-09-02, ruling D6; re-enable when a confirmation path exists)
 > 5. The listing carried at least three photographs and written condition notes
 > 6. The artist replied to buyer messages within three business days
 >
@@ -47,7 +50,7 @@ Add to `orders` (`tracking_number` and status `disputed` already exist):
 | `shipped_at` | timestamptz | Set when the artist marks shipped |
 | `delivered_at` | timestamptz | From carrier webhook, or artist confirmation |
 | `signature_required` | boolean | Computed at checkout: `amount_cents >= 75000` |
-| `signature_confirmed` | boolean | Proof of signature on delivery |
+| `signature_confirmed` | boolean | Proof of signature on delivery — **no writer at launch** (D6) |
 | `evidence_photo_count` | int | **Snapshot at checkout** |
 | `evidence_has_condition_notes` | boolean | **Snapshot at checkout** |
 | `fulfillment_window_days` | int | **Snapshot at checkout** |
@@ -116,8 +119,8 @@ Custom Canvas. One careless artist can jeopardise processing for everyone.
 
 - **Studio → Sales**: a protection badge per order, showing what is satisfied and what
   is missing, *before* a dispute exists. "Add tracking to protect this order."
-- **Shipping flow**: when `signature_required`, the tracking form demands the signature
-  option and says why.
+- **Shipping flow**: when `signature_required`, the tracking form recommends the
+  signature option and says why (a recommendation, not a requirement, while D6 stands).
 - **Artist agreement**: the policy verbatim, plus the payout-delay explanation.
 - **Dispute notification**: state the protection result in the first sentence. An artist
   should never have to work out whether they are covered.

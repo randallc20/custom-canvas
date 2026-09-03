@@ -175,7 +175,10 @@ export function SalesSection() {
                       </Button>
                     ) : null
                   )}
-                  {!order.is_pickup && order.status === 'paid' && (
+                  {/* Not after the artist approved a refund: shipping then
+                      leaves the settle seeing `shipped` and never relisting
+                      (04-r4 appendix). */}
+                  {!order.is_pickup && order.status === 'paid' && !order.refund_approved_at && (
                     <Button size="sm" onClick={() => setShipModal(order)}>Mark as Shipped</Button>
                   )}
                   {order.status === 'shipped' && (
@@ -217,9 +220,13 @@ export function SalesSection() {
           <div className="rounded-md bg-sand/50 px-3 py-2 text-xs leading-relaxed text-ink">
             <span className="font-medium">Seller protection:</span> a supported carrier and a
             tracking number are required for Custom Canvas to cover a chargeback on this order.
+            {/* Advice, not a requirement: nothing on the platform can record
+                a signature yet, so it is not part of the bargain at launch
+                (ruling D6, DECISIONS.md 2026-09-02). */}
             {shipModal?.signature_required && (
-              <> This order is <span className="font-medium">$750 or more</span>, so signature
-              confirmation is also required — select it when you buy the label.</>
+              <> This order is <span className="font-medium">$750 or more</span>: we recommend
+              adding signature confirmation when you buy the label — it is the strongest
+              evidence if the buyer ever claims the piece never arrived.</>
             )}
           </div>
           <div>

@@ -3,6 +3,34 @@
 Deliberate choices with lasting consequences, recorded so they read as
 choices — not oversights. Newest first.
 
+## 2026-09-02 — D6: seller-protection requirement 4 (signature confirmation) waived at launch
+
+Requirement 4 of Seller Protection — signature confirmation on orders of
+$750 or more — had no writer anywhere. `signature_confirmed` is frozen for
+everyone but the service role (00040: "service-role only until a carrier
+integration can confirm it"), and no route, cron, admin page, script or
+runbook step sets it. So every order at or above the threshold was
+ineligible by construction: an artist who bought USPS Signature
+Confirmation, shipped on time with tracking, marked delivered and answered
+every message would still lose the payout on a non-receipt chargeback,
+while the ship modal told them to "select it when you buy the label" and
+the Studio badge listed it under "To protect this order"
+(`docs/reviews/04-money-r4.md` P2). The same shape as requirement 3 before
+D1, without the ruling.
+
+Taken as R16 with the plan's default: waived at launch. `evaluateProtection`
+skips the check while `SIGNATURE_CONFIRMATION_AVAILABLE` is false (the code
+path stays; the constant is the switch), the ship modal now recommends
+signature confirmation on $750+ orders as evidence rather than demanding it,
+and the badge never lists it as something the artist can fix in Studio.
+`signature_required` is still snapshotted at checkout so the recommendation
+knows when to appear. Re-enable when a carrier lookup or an admin path
+(service role, after checking the carrier's signature record at dispute
+time) can actually record it — flip the constant, and give the badge and the
+runbook the path. Until then a lost non-receipt dispute on a high-value
+order that met the other five requirements is a platform cost we accept,
+knowingly, rather than one the artist eats for a box nobody could tick.
+
 ## 2026-09-02 — D5: a disputed commission is closed by an admin, or withdrawn by the requester who raised it
 
 A commission that reached `disputed` could not leave it. Enumerating every
