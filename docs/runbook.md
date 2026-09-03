@@ -146,6 +146,75 @@ hand if the artist still has it.
 - **Chargeback/dispute** (Stripe Dashboard → Payments → Disputes): gather the
   order + shipping evidence, submit in Stripe. Platform is merchant of record.
 
+## Retention (`/api/cron/retention`, Sundays 11:00 UTC)
+
+Privacy §6 states retention periods; this keeps them (L10). A retention
+promise nobody keeps is worse than no promise.
+
+- **Analytics events**: deleted past 24 months.
+- **Message threads**: deleted 3 years after the last message — UNLESS the two
+  participants have an order, or the thread has a commission, younger than 7
+  years. Order records are kept 7 years for tax and dispute defence, and the
+  buyer↔artist thread IS that dispute evidence (it is what seller-protection
+  requirement 6 is judged from). The two promises are in tension and the
+  longer one wins. Every read failure in that check SKIPS the delete, because
+  the failure mode is destroying evidence.
+- Private `chat-attachments` objects are removed BEFORE the thread row, so a
+  storage failure leaves the thread in place for the next run rather than
+  orphaning files nobody can reach.
+- 500 rows per table per run. A large first run spreads over a few weeks.
+- Logs an info-level Sentry message every run with the counts: a job that runs
+  and deletes nothing looks identical to one that is not running, and the
+  difference matters when someone asks whether we keep our own policy.
+
+**Not automated, and both are settings rather than code:**
+- **Error logs, 90 days** — Sentry project retention. ⚠️ Confirm this in the
+  Sentry project settings; the policy states it as fact.
+- **Backups, rolling 90 days** — Supabase Pro takes 7-day PITR backups, which
+  is inside the 90-day promise. Nothing to change.
+- **Listings and images, 90 days after account closure** — account deletion
+  already removes listings; there is no separate 90-day sweep because there is
+  nothing left to sweep.
+
+## Privacy rights requests (Privacy §7)
+
+Requests arrive at support@customcanvas.shop. Texas (TDPSA) shapes the clock:
+
+1. **Verify the requester** owns the account — reply from the address on the
+   account, or ask them to sign in and send from the account's email.
+2. **Answer within 45 days.** One 45-day extension is allowed if you tell them
+   why, in writing, inside the first 45.
+3. **What each right means here:**
+   - *Access* — profile, listings, saved items, message threads, order
+     records. Export from the admin console or straight from Supabase.
+   - *Correct* — the account page covers most of it; do the rest by hand.
+   - *Delete* — `/api/account/delete` (the person can run it themselves).
+     It detaches them from completed sales and KEEPS the money record: order
+     amount, date, tax collected, and the shipping address the piece went to,
+     for seven years. §6's "How deletion interacts with records we must keep"
+     is the paragraph to quote back if they ask why.
+   - *Port* — the access export, as JSON.
+4. **If you turn a request down**, say so within the 45 days with the reason.
+   The requester may appeal; you have **60 days** to answer an appeal, and if
+   you deny the appeal you must give them a way to complain to the **Texas
+   Attorney General**.
+5. **Global Privacy Control**: no action needed. We do not sell personal data
+   and do not share it for cross-context behavioural advertising, so there is
+   nothing for a GPC signal to switch off. Do not add a "Do Not Sell" link
+   that implies otherwise.
+
+## Data breach (Privacy §8)
+
+1. **Contain first**, then determine scope: whose data, which fields, when.
+2. **Notify affected individuals without unreasonable delay** once you have
+   determined a breach occurred — Texas requires it within **60 days**.
+3. **250 or more Texans affected**: notify the **Texas Attorney General**
+   within **30 days**, electronically, including the categories of data, the
+   number of people, and what you did about it.
+4. Notify Supabase/Stripe/Vercel if the breach involves their systems, and
+   keep a written timeline from the first hour — reconstructing one later is
+   how deadlines get missed.
+
 ## Payments suddenly not working
 - Check `NEXT_PUBLIC_PAYMENTS_ENABLED` in Vercel prod (`true` to sell). If a
   buyer sees checkout disabled, this flag is `false`.
