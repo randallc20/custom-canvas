@@ -101,21 +101,14 @@ describe('calculateCompletenessScore agrees with the SQL refresh_completeness_sc
 });
 
 /**
- * KNOWN DIVERGENCE, recorded rather than fixed (R11 is tests only; the
- * weights live in app code and a migration).
- *
- * The SQL checks `v_avatar IS NOT NULL` and `a.banner_image_url IS NOT NULL`;
- * the TS checks truthiness. An EMPTY STRING therefore scores 15 points in the
- * database and 0 in the editor's bar — the artist sees a bar that disagrees
- * with the number Studio shows, and a profile can cross a completeness
- * threshold on two blank columns. Everything else (display_name, story,
- * primary_mediums, neighborhood) is length/trim-checked on both sides and
- * agrees. Fix direction when someone takes it: make the SQL test
- * `length(trim(coalesce(...,''))) > 0` for both URL columns, like the others.
- *
- * Observed on DEV 2026-09-02 by the same rolled-back transaction: 15.
+ * Empty-string URLs. The SQL once checked `IS NOT NULL` on the two image
+ * columns while the TS checked truthiness, so a cleared avatar scored 15 in
+ * the database and 0 on screen. Migration 00054 made the SQL length/trim
+ * check both columns like the rest; observed on DEV 2026-09-02 after 00054
+ * by a rolled-back transaction with blank display_name/story/neighborhood,
+ * '' avatar_url and '' banner_image_url: 0.
  */
-describe('completeness score — TS/SQL divergence on empty-string URLs', () => {
+describe('completeness score — empty-string URLs score nothing on both sides', () => {
   const blank: CompletenessInput = {
     display_name: '   ',
     story: '   ',
@@ -129,8 +122,8 @@ describe('completeness score — TS/SQL divergence on empty-string URLs', () => 
     expect(calculateCompletenessScore(blank)).toBe(0);
   });
 
-  it('SQL scored the same row 15 — avatar (10) + banner (5) on empty strings', () => {
-    const SQL_OBSERVED = 15;
-    expect(SQL_OBSERVED - calculateCompletenessScore(blank)).toBe(15);
+  it('SQL (00054) scores the same row 0 — parity holds', () => {
+    const SQL_OBSERVED = 0;
+    expect(calculateCompletenessScore(blank)).toBe(SQL_OBSERVED);
   });
 });
