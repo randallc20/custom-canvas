@@ -123,8 +123,13 @@ export default function OrdersPage() {
         <div className="space-y-4">
           {orders.map((order) => {
             const badge = STATUS_BADGE[order.status];
+            // reviews.order_id is UNIQUE, so PostgREST embeds reviews(id) as ONE
+            // object, not an array — `.length` on it was undefined, every
+            // reviewed order re-offered "Leave a Review", and the submit 409'd.
+            const embeddedReview = (order as { reviews?: unknown }).reviews;
             const alreadyReviewed =
-              ((order as { reviews?: unknown[] }).reviews?.length ?? 0) > 0 || reviewedOrders.has(order.id);
+              (Array.isArray(embeddedReview) ? embeddedReview.length > 0 : !!embeddedReview) ||
+              reviewedOrders.has(order.id);
             const canReview = order.status === 'delivered' && !alreadyReviewed;
             return (
               <div key={order.id} className="rounded-lg border border-line p-4">
