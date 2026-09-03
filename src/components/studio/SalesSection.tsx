@@ -220,13 +220,16 @@ export function SalesSection() {
           <div className="rounded-md bg-sand/50 px-3 py-2 text-xs leading-relaxed text-ink">
             <span className="font-medium">Seller protection:</span> a supported carrier and a
             tracking number are required for Custom Canvas to cover a chargeback on this order.
-            {/* Advice, not a requirement: nothing on the platform can record
-                a signature yet, so it is not part of the bargain at launch
-                (ruling D6, DECISIONS.md 2026-09-02). */}
+            {/* A requirement again (ruling D7, DECISIONS.md 2026-09-03):
+                Artist Agreement §7 obliges it and Seller Protection makes it
+                requirement 4. The artist buys it; Custom Canvas reads the
+                carrier's record and records it, which is why this says "we
+                record it" rather than asking them to tick anything. */}
             {shipModal?.signature_required && (
-              <> This order is <span className="font-medium">$750 or more</span>: we recommend
-              adding signature confirmation when you buy the label — it is the strongest
-              evidence if the buyer ever claims the piece never arrived.</>
+              <> This order is <span className="font-medium">$750 or more</span>, so{' '}
+              <span className="font-medium">signature confirmation is required</span> for
+              protection — add it when you buy the label. Custom Canvas records it from the
+              carrier&apos;s record if the order is ever disputed.</>
             )}
           </div>
           <div>

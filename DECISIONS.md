@@ -3,6 +3,44 @@
 Deliberate choices with lasting consequences, recorded so they read as
 choices — not oversights. Newest first.
 
+## 2026-09-03 — D7: signature confirmation restored as protection requirement 4, recorded by Custom Canvas (supersedes D6)
+
+D6 waived requirement 4 the day before, for a good reason: `signature_confirmed`
+had no writer anywhere, so every $750+ order was ineligible by construction.
+The counsel set makes the requirement explicit in four places — Seller
+Protection req. 4, Artist Agreement §4 and §7, Terms of Sale §3, and the
+Shipping policy — so the drafts were right and the code was the thing that had
+to move.
+
+Taken with the plan's default. `SIGNATURE_CONFIRMATION_AVAILABLE` is true
+again, and the writer now exists:
+`POST /api/admin/orders/[id]/signature-confirmed` (admin only, service role,
+compare-and-swap) with a control on `/admin/orders`. Migration 00060 adds
+`signature_confirmed_at` and `signature_confirmed_by`, both frozen for
+non-privileged writers alongside the boolean.
+
+The division of labour is the whole point, and the copy everywhere reflects
+it: the **artist** buys signature confirmation at the counter; **Custom
+Canvas** reads the carrier's record and records it. So the ship modal says it
+is required and that we record it, and ProtectionBadge keeps requirement 4 out
+of "To protect this order" — there is no control an artist could click — and
+gives it its own bucket, "Recorded by Custom Canvas, up until a dispute".
+
+The part that makes it real rather than ceremonial: a dispute freezes the
+protection verdict the instant the webhook lands, long before a human could
+open a tracking page. So recording a signature on an already-disputed order
+**re-assesses it**, upgrading `ineligible` to `protected` if that is now the
+answer. Without that, requirement 4 could never actually be satisfied in
+practice and the runbook step would be theatre. `assessProtection` moved out of
+the Stripe webhook into `src/lib/assessProtection.ts` to give the admin route
+the same assessor. The admin dispute notification now names the carrier check
+when a $750+ order has no signature recorded, and the runbook's chargeback
+section leads with it.
+
+The waiver path is kept, not deleted: `evaluateProtection` still honours an
+explicit `signatureConfirmationAvailable: false`, and a test pins that, so the
+ruling can be reversed without a code change.
+
 ## 2026-09-03 — D11: existing accounts re-accept the counsel set through a dismissible interstitial
 
 Terms of Service v2.0 adds an agreement to individual arbitration and a

@@ -96,48 +96,49 @@ describe('evaluateProtection', () => {
     expect(evaluateProtection(order({ deliveredAt: null })).status).toBe('ineligible');
   });
 
-  // --- requirement 4: signature on high-value orders — WAIVED at launch (D6) ---
-  it('protects a $1,200 order that meets everything else while requirement 4 is waived (D6)', () => {
+  // --- requirement 4: signature on high-value orders — ACTIVE (D7) ---
+  //
+  // D6 waived this on 2026-09-02 because nothing could record it. D7
+  // (2026-09-03) supersedes that: the counsel set requires it, and an admin
+  // now records it from the carrier's record through
+  // POST /api/admin/orders/[id]/signature-confirmed.
+  it('ships with requirement 4 ACTIVE: SIGNATURE_CONFIRMATION_AVAILABLE is true (D7)', () => {
+    expect(SIGNATURE_CONFIRMATION_AVAILABLE).toBe(true);
+  });
+
+  it('refuses a $1,200 order with no signature recorded, naming requirement 4', () => {
     // A $1,200 piece crosses the threshold, so checkout snapshots
-    // signature_required = true; nothing on the platform can ever set
-    // signature_confirmed, so the waiver must make this protected.
+    // signature_required = true.
     const signatureRequired = 120_000 >= SIGNATURE_REQUIRED_FROM_CENTS;
     expect(signatureRequired).toBe(true);
+
     const r = evaluateProtection(order({ signatureRequired, signatureConfirmed: false }));
+    expect(r.status).toBe('ineligible');
+    expect(r.failures.join(' ')).toMatch(/signature confirmation on orders of \$750 or more/i);
+    // The wording must say who records it. An artist reading this in Studio
+    // has no control to click, and telling them to "add signature
+    // confirmation" after the piece has shipped would be advice they cannot
+    // act on — ProtectionBadge keys on the word "signature" to keep this out
+    // of the "To protect this order" list for the same reason.
+    expect(r.failures.join(' ')).toMatch(/Custom Canvas records it/i);
+  });
+
+  it('protects a $1,200 order once the signature is recorded', () => {
+    const r = evaluateProtection(order({ signatureRequired: true, signatureConfirmed: true }));
     expect(r.status).toBe('protected');
     expect(r.failures).toEqual([]);
   });
 
-  it('ships with requirement 4 waived: SIGNATURE_CONFIRMATION_AVAILABLE is false', () => {
-    expect(SIGNATURE_CONFIRMATION_AVAILABLE).toBe(false);
-    // The default and an explicit false agree.
+  it('ignores signature state below the threshold', () => {
+    expect(
+      evaluateProtection(order({ signatureRequired: false, signatureConfirmed: false })).status
+    ).toBe('protected');
+  });
+
+  it('still honours an explicit waiver, so the ruling can be reversed without a code change', () => {
     expect(
       evaluateProtection(order({ signatureRequired: true, signatureConfirmed: false }), {
         signatureConfirmationAvailable: false,
-      }).status
-    ).toBe('protected');
-  });
-
-  it('requires signature confirmation again once a confirmation path exists (constant flipped)', () => {
-    const r = evaluateProtection(order({ signatureRequired: true, signatureConfirmed: false }), {
-      signatureConfirmationAvailable: true,
-    });
-    expect(r.status).toBe('ineligible');
-    expect(r.failures.join(' ')).toMatch(/signature confirmation was not recorded/i);
-  });
-
-  it('protects a high-value order once the signature is confirmed, with the check active', () => {
-    expect(
-      evaluateProtection(order({ signatureRequired: true, signatureConfirmed: true }), {
-        signatureConfirmationAvailable: true,
-      }).status
-    ).toBe('protected');
-  });
-
-  it('ignores signature state when it is not required, with the check active', () => {
-    expect(
-      evaluateProtection(order({ signatureRequired: false, signatureConfirmed: false }), {
-        signatureConfirmationAvailable: true,
       }).status
     ).toBe('protected');
   });
