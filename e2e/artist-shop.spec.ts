@@ -84,7 +84,7 @@ test.describe.serial('artist shop building, reject → resubmit → approve, goi
     await page.getByLabel('Email').fill(artistEmail);
     await page.getByLabel('Password').fill(artistPassword);
     await page.getByRole('button', { name: 'Artist' }).click();
-    await page.getByText(/I agree to the/).locator('..').locator('input[type=checkbox]').check();
+    await page.getByText(/18 or older and agree to the/).locator('..').locator('input[type=checkbox]').check();
     await page.getByRole('button', { name: /create account/i }).click();
     await expect(page).toHaveURL(/\/onboarding\/artist/, { timeout: 20_000 });
     await expect(page.getByLabel('Display Name')).toBeVisible({ timeout: 20_000 });

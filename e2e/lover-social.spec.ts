@@ -135,7 +135,7 @@ test.describe.serial('lover social journey (live-test-plan part 8)', () => {
     await page.getByLabel('Email').fill(loverEmail);
     await page.getByLabel('Password').fill(loverPassword);
     await page.getByRole('button', { name: 'Art Lover' }).click();
-    await page.getByText(/I agree to the/).locator('..').locator('input[type=checkbox]').check();
+    await page.getByText(/18 or older and agree to the/).locator('..').locator('input[type=checkbox]').check();
     await page.getByRole('button', { name: /create account/i }).click();
 
     // Autoconfirm: no "Check Your Email" screen — buyers go straight to the

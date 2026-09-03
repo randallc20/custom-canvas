@@ -76,7 +76,7 @@ test.describe.serial('tester round 1 journey', () => {
     await page.getByLabel('Email').fill(artistEmail);
     await page.getByLabel('Password').fill(artistPassword);
     await page.getByRole('button', { name: 'Artist' }).click();
-    await page.getByText(/I agree to the/).locator('..').locator('input[type=checkbox]').check();
+    await page.getByText(/18 or older and agree to the/).locator('..').locator('input[type=checkbox]').check();
     await page.getByRole('button', { name: /create account/i }).click();
     // Autoconfirm target: a session came back, so the app must go straight to
     // setup — the old flow parked everyone on "Check Your Email".

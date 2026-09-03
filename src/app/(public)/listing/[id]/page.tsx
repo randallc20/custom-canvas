@@ -90,7 +90,7 @@ export default async function ListingPage({ params }: Props) {
               {processedListing.year_created ? ` · ${processedListing.year_created}` : ''}
             </p>
           </div>
-          <PurchasePanel listing={processedListing} artistProfileId={artist?.profile_id} fulfillmentPref={artist?.fulfillment_pref} awayMode={artist?.away_mode} awayUntil={artist?.away_until} />
+          <PurchasePanel listing={processedListing} artistProfileId={artist?.profile_id} artistName={artist?.display_name} fulfillmentPref={artist?.fulfillment_pref} awayMode={artist?.away_mode} awayUntil={artist?.away_until} />
           <div className="mt-4">
             <ShareButton title={processedListing.title} text={`Check out "${processedListing.title}" on Custom Canvas`} path={`/listing/${processedListing.id}`} className="w-full justify-center" />
           </div>

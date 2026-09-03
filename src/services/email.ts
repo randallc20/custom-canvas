@@ -169,11 +169,12 @@ export async function sendOrderConfirmationEmail(
         <p style="color:#666;font-size:16px;line-height:1.5">Hi ${escapeHtml(buyerName)}, your purchase has been confirmed!</p>
         <div style="background:#f9f9f9;padding:16px;border-radius:8px;margin:16px 0">
           <p style="margin:0;font-weight:bold;color:#111">${escapeHtml(listingTitle)}</p>
-          <p style="margin:4px 0 0;color:#666">by ${escapeHtml(artistName)}</p>
+          <p style="margin:4px 0 0;color:#666">Sold by ${escapeHtml(artistName)}</p>
           <p style="margin:4px 0 0;color:#666">Total: ${amount}</p>
           <p style="margin:4px 0 0;color:#999;font-size:13px">Order #${orderId.slice(0, 8)}</p>
         </div>
-        <p style="color:#666;font-size:14px;line-height:1.5">This charge will appear as <strong>CUSTOM CANVAS</strong> on your card statement.</p>
+        <p style="color:#666;font-size:14px;line-height:1.5">${escapeHtml(artistName)} is the seller of this artwork; Custom Canvas operates the marketplace and handled the payment. This charge will appear as <strong>CUSTOM CANVAS</strong> on your card statement.</p>
+        <p style="color:#666;font-size:14px;line-height:1.5">Questions about the piece or the delivery go to the artist in <a href="${APP_URL}/messages" style="color:#A84928">Messages</a>. Our <a href="${APP_URL}/terms-of-sale" style="color:#A84928">Terms of Sale</a> and <a href="${APP_URL}/shipping-returns" style="color:#A84928">Shipping, Returns &amp; Refunds Policy</a> cover what happens if something goes wrong.</p>
         <a href="${APP_URL}/orders" style="display:inline-block;padding:12px 24px;background:#E8704A;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:16px">View Order</a>
       </div>
     `,

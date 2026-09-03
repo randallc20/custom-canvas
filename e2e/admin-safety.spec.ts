@@ -288,7 +288,7 @@ test.describe.serial('marketplace safety journey', () => {
     await loverPage.getByLabel('Email').fill(loverEmail);
     await loverPage.getByLabel('Password').fill(loverPassword);
     await loverPage.getByRole('button', { name: 'Art Lover' }).click();
-    await loverPage.getByText(/I agree to the/).locator('..').locator('input[type=checkbox]').check();
+    await loverPage.getByText(/18 or older and agree to the/).locator('..').locator('input[type=checkbox]').check();
     await loverPage.getByRole('button', { name: /create account/i }).click();
     // Autoconfirm: an Art Lover lands on the home page, signed in.
     await expect(loverPage).not.toHaveURL(/\/register/, { timeout: 20_000 });

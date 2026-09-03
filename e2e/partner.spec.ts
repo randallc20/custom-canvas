@@ -95,7 +95,7 @@ test.describe.serial('live test plan part 12 — the partner', () => {
     await page.getByLabel('Email').fill(partnerEmail);
     await page.getByLabel('Password').fill(partnerPassword);
     await page.getByRole('button', { name: 'Partner' }).click();
-    await page.getByText(/I agree to the/).locator('..').locator('input[type=checkbox]').check();
+    await page.getByText(/18 or older and agree to the/).locator('..').locator('input[type=checkbox]').check();
     await page.getByRole('button', { name: /create account/i }).click();
 
     // Autoconfirm: a partner signup must land on the setup form directly —
