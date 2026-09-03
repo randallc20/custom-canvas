@@ -1,0 +1,146 @@
+You are reviewing the Custom Canvas codebase — a Houston art marketplace: Next.js 14 App Router, Supabase (Postgres + RLS + storage + auth), Stripe Connect, React Query, Tailwind. It is live on production but payments are still gated off pending Stripe activation.
+
+Your job this session is one pass: Accounts, auth & access control. Read only the scope below, and produce a written report. Nothing else.
+
+## Why this pass exists
+
+This is the NINTH auth pass and it is the arc's gate. The rule is: repeat
+review passes until one returns **no P0 and no P1**. Round r8 was the first
+with no P0. Its P1 is fixed. This pass decides whether the arc is finished.
+
+The bar is therefore different. Do not go looking for volume. Go looking for
+whether the LAST ROUND OF FIXES broke something — that is what every previous
+round found. Every P0 this arc produced was produced by a fix, not by the
+original build.
+
+## Scope — HEAD, and above all `git log -p -3`
+
+Read `git log -p -3` in full first. `f875d61` is the one that matters; the
+other two are docs.
+
+The acceptance gate was rewritten. It used to return
+`{error, code, outstanding} | null` and THROW when its lookup failed; thirteen
+gated routes did `if (gate) return NextResponse.json(gate, {status: 403})` and
+none of them caught the throw. It now returns `{status, body} | null` — 403
+`acceptance_required` when an acceptance is owed, 503 `acceptance_unavailable`
+when the lookup failed — and every call site was rewritten mechanically with
+sed to `NextResponse.json(gate.body, {status: gate.status})`.
+
+**A mechanical rewrite across thirteen files is exactly the kind of change that
+misses one.** Verify all thirteen individually. Then read:
+
+- `src/lib/acceptance.ts` and `src/lib/acceptance.test.ts` (both changed/new)
+- `src/services/messages.ts` — 503 now throws `MessageRefusedError` alongside
+  403, so the server's sentence reaches the toast
+- `src/hooks/useMessages.ts`, `src/components/legal/AcceptanceInterstitial.tsx`,
+  `src/app/api/account/acceptance/route.ts`
+- every route that calls `acceptanceGateFor` (there are thirteen)
+- `src/app/api/admin/dmca/route.ts` and `src/app/admin/dmca/page.tsx` — in full;
+  the DMCA surface has produced a finding in every round and the backlog says
+  three are still open there
+- `src/middleware.ts`, `src/lib/supabase-admin.ts`, `src/lib/sessionRetry.ts`
+- migrations `00058`, `00063`, `00065`, `00067`, `00068`, `00069`
+- `scripts/db-smoke.sql` §10-§14
+
+## The questions I actually want answered
+
+- **All thirteen call sites.** Name each one and say what it now returns on a
+  403 and on a 503. Did any keep the old shape, serialise `gate` instead of
+  `gate.body`, or hardcode 403 where the gate says 503?
+- **Is 503 the right refusal?** The write is still refused, so the gate still
+  fails CLOSED — confirm that. Then ask the opposite question: can a caller
+  drive the lookup into failure deliberately and use the 503 for anything, or
+  is it purely a denial?
+- **`acceptance_unavailable` is a new code on the wire.** Does any client
+  branch on `code` in a way that now falls through wrongly? Checkout in
+  particular does not handle `acceptance_required` at all (a known open P3) —
+  did adding a second code make that worse?
+- **The test file.** `src/lib/acceptance.test.ts` mocks the admin client. Does
+  the mock actually reproduce the failure it claims to (an `error` in the
+  supabase-js result, not a thrown exception), and would the test still pass
+  against the old throwing implementation?
+- **The DMCA surface, once more.** Three open items are listed in the backlog
+  and are NOT for this pass. Everything else in that route is: the status
+  machine, who can reach each action, what `restore` does to a listing whose
+  status changed underneath it, and whether the quarantine bucket is still
+  unreachable by anyone but the service role.
+- **Signup and role.** `00063` reverted `00023`'s role sanitiser once already
+  and anyone could self-register as `admin`. db-smoke §12 pins it. Confirm the
+  pin has teeth at HEAD and that nothing since has restated
+  `handle_new_user` from an older body.
+
+## What is already known and NOT the point of this pass
+
+`docs/POST-LAUNCH-BACKLOG.md` lists seventeen open P2/P3s that are deliberately
+deferred. Read it. Do NOT re-report any of them — raise one only if a fix in
+`f875d61` made it worse, and say so explicitly.
+
+Read `docs/reviews/01-auth-access-r3.md` … `-r8.md` and
+`docs/reviews/04-money-r5.md` … `-r10.md` by finding heading so you do not
+re-report anything else.
+
+## Ground rules
+
+**Report only.** The one file you may write is `docs/reviews/01-auth-access-r9.md`. Do not fix anything, do not refactor, do not run a codemod. If a fix is one obvious line, describe it in the finding — do not apply it.
+
+**Read before you claim.** A finding is real only if you have read the code that would break *and its callers*. "This doesn't validate X" is not a finding when the caller validates X. Reading a file's imports is not reading the file.
+
+**Try to disprove each finding before you write it.** For every candidate, make one honest attempt at arguing it is NOT a bug — a guard elsewhere, an RLS policy, a type that makes the input impossible, a caller that already handles it. Drop the ones you cannot defend after that attempt. Six findings that are all real beat thirty where I have to work out which six.
+
+**Every finding needs a concrete failure path.** Not "this could be a problem." Say who does what and what goes wrong: "an artist opens another artist's listing edit URL; the fetch filters on id but not owner, so the page renders their listing; the save then returns zero rows at RLS and the UI shows a success toast." If you cannot write that sentence, it is not a finding — it is a nit, and nits go in the appendix.
+
+**Uncertainty is fine; faking certainty is not.** If you suspect something but cannot confirm it without running the app or seeing production data, mark it UNVERIFIED and say exactly what would settle it.
+
+## Already settled — do not raise these
+
+Decisions, not oversights. Flagging them wastes the pass:
+
+- Destination charges with the platform as merchant of record. Not direct charges.
+- Stripe Express connected accounts, Stripe-hosted onboarding. Not embedded components.
+- The buyer covers Stripe's processing fee as a "Service fee" line. Platform commission is 15% of the artwork price only, never shipping. The artist is paid price − commission + shipping.
+- Payments are deliberately gated behind NEXT_PUBLIC_PAYMENTS_ENABLED until live activation. That flag being false is not a bug.
+- npm, never pnpm (a stray pnpm-lock.yaml flips Vercel's package manager). Prod deploys are manual and pinned.
+- Next.js 14 App Router + Supabase + React Query + Tailwind. Do not propose migrating the framework, the data layer, the state library, or the CSS approach.
+- `docs/CONVENTIONS.md` is the house standard, earned from a real defect sweep. Code that follows it is correct by definition. Code that VIOLATES it is a finding worth raising — check for that specifically.
+
+Also out of scope: formatting and naming taste, "add a comment here", dependency bumps, test-file style, and anything you would phrase as "consider extracting".
+
+## Context to read first
+
+`docs/CONVENTIONS.md`, `README.md`, `DECISIONS.md`. Then know this history: a full-platform adversarial review ran 2026-08-25 and all 15 of its defects are fixed; a six-phase hardening arc shipped after it; two rounds of live tester feedback are closed; a real staging purchase plus dispute and payout reversal were verified end to end. Assume the obvious surface bugs are gone. Look where those passes did not.
+
+## Severity
+
+- **P0** — loses money, exposes another user's data, or corrupts state. Launch-blocking.
+- **P1** — a real user hits it in a normal flow and the product is visibly broken.
+- **P2** — breaks under growth or under an unusual-but-real input; fine at today's volume.
+- **P3** — maintainability: the next change in this code is likely to introduce a bug.
+
+Cap the report at 12 findings, ranked, P0 first. More than that and the strongest 12 get full write-ups while the rest get one line each in the appendix. A pass that honestly finds two P0s and nothing else is a good pass. Do not pad to fill the cap.
+
+## Report format
+
+Write `docs/reviews/01-auth-access-r9.md` in this shape:
+
+# Accounts, auth & access control — review <date>
+
+**Files read:** every file you actually opened. If you skipped part of the scope, say which part and why.
+**Verdict:** two sentences on the health of this slice.
+
+Then one section per finding:
+
+### P<n> — <one-line claim>
+**Where:** `path/to/file.ts:120-134`
+**What happens:** the concrete failure path.
+**Why it's real:** what you read that rules out the innocent explanation.
+**Fix direction:** two sentences. Not a patch.
+
+Then close with two sections:
+
+## Appendix: minor
+One line each.
+
+## Not findings
+Things you looked at hard and concluded were fine, one line each. This is how I know what you actually covered.
+
+Start by listing the files in scope and giving me your reading plan. Then read. Then report.

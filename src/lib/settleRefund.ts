@@ -42,6 +42,19 @@ export type SettleRefundOutcome =
 
 const RETRY_CLOSE = 'Refund done at Stripe but the order could not be closed — retry.';
 
+/** Raised inside the Stripe block when what is already at Stripe does not match
+ *  what this settle would do. It is not a failure to retry — it is a state a
+ *  human made and only a human can resolve — so it escapes the retry-shaped
+ *  catch and becomes a 409 with the numbers in it. */
+class StripeStateMismatch extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'StripeStateMismatch';
+  }
+}
+
+const dollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+
 export async function settleRefund(
   admin: AdminClient,
   opts: {
@@ -217,6 +230,9 @@ export async function settleRefund(
 
   let refundId = order.stripe_refund_id as string | null;
   let reversalId = order.stripe_reversal_id as string | null;
+  // Measured, not inferred. Deriving this from "is there a reversal id" is how
+  // a partial reversal got reported as the whole payout (r11 money pass, P1).
+  let payoutReversedCents = 0;
 
   try {
     // Step 1 — buyer refund (skipped on retry if already created).
@@ -230,24 +246,45 @@ export async function settleRefund(
     // rejection surfaced as "Refund failed at Stripe — safe to retry", which
     // it was not: retrying re-sent the same mismatched body forever.
     //
-    // The window is narrow — a refund created at Stripe whose id write did not
-    // land — but the recovery is the same either way, and asking Stripe what
-    // already exists is a better answer than trusting our own last write. Any
-    // refund on this payment intent counts, including one an admin issued by
-    // hand in the Dashboard: the intent belongs to exactly one order, and
-    // adopting a stranger's refund is far safer than issuing a second one.
+    // Adopt ONLY a refund that is exactly the one this settle would have
+    // created: our metadata, and our amount. Anything else — a hand-issued
+    // goodwill partial in the Dashboard, or our own refund from an earlier
+    // settle under a DIFFERENT reason — is refused, loudly, with the numbers.
+    //
+    // Adopting `data[0]` unconditionally, which is what this did for about an
+    // hour, was a P0 (r11 money pass): a $25 goodwill refund on a $521 order
+    // got adopted, the create was skipped, the artist's whole payout was
+    // reversed, the listing was relisted and the admin was told the buyer had
+    // been refunded $521. Nothing downstream catches it — `charge.refunded`
+    // returns early on a partial, and the reconcile cron treats "any refund at
+    // all" as refunded. Creating a second refund would be worse; refusing is
+    // the only answer that neither loses money nor invents it.
     if (!refundId) {
       const existing = await stripe.refunds.list({
         payment_intent: order.stripe_payment_intent_id,
         limit: 100,
       });
-      const found = existing.data[0];
-      if (found) {
-        refundId = found.id;
+      // A failed or cancelled refund moved no money and is not in the way.
+      const live = existing.data.filter(
+        (r) => r.status !== 'failed' && r.status !== 'canceled',
+      );
+      if (live.length > 0) {
+        const ours =
+          live.length === 1 &&
+          live[0].metadata?.order_id === order.id &&
+          live[0].amount === refundAmount
+            ? live[0]
+            : null;
+        if (!ours) {
+          const total = live.reduce((sum, r) => sum + r.amount, 0);
+          throw new StripeStateMismatch(
+            `Stripe already holds ${live.length} refund${live.length === 1 ? '' : 's'} on this payment totalling ${dollars(total)}, which is not the ${dollars(refundAmount)} this settle would return. Nothing was changed. Settle the difference in the Stripe Dashboard, or pick the reason that matches what was already refunded.`,
+          );
+        }
+        refundId = ours.id;
         await admin.from('orders').update({ stripe_refund_id: refundId }).eq('id', order.id);
         Sentry.captureMessage(
-          `settleRefund adopted existing Stripe refund ${found.id} for order ${order.id}` +
-            (found.metadata?.order_id === order.id ? '' : ' (not created by this platform)'),
+          `settleRefund resumed: adopted its own Stripe refund ${ours.id} (${dollars(ours.amount)}) for order ${order.id}`,
           'info',
         );
       }
@@ -278,38 +315,53 @@ export async function settleRefund(
     }
 
     // Step 2 — exact artist payout reversal (skipped on retry if done).
-    if (!reversalId && order.artist_payout_cents > 0) {
+    if (order.artist_payout_cents > 0 && payoutReversedCents < order.artist_payout_cents) {
       const pi = await stripe.paymentIntents.retrieve(order.stripe_payment_intent_id, {
         expand: ['latest_charge'],
       });
       const charge = pi.latest_charge as Stripe.Charge | null;
       if (charge?.transfer) {
         const transferId = typeof charge.transfer === 'string' ? charge.transfer : charge.transfer.id;
-        // Same look-before-you-create as the refund above. The reversal body
-        // is the frozen payout amount so it cannot drift, but a reversal
-        // created without its id landing would still be re-requested, and a
-        // second reversal on a transfer is real money taken from the artist
-        // twice.
-        const priorReversals = await stripe.transfers.listReversals(transferId, { limit: 100 });
-        const prior = priorReversals.data[0];
-        if (prior) {
-          reversalId = prior.id;
-          Sentry.captureMessage(
-            `settleRefund adopted existing transfer reversal ${prior.id} for order ${order.id}`,
-            'info',
-          );
-        } else {
+        // Work from the transfer's OWN `amount_reversed`, the way the
+        // dispute-close handler in the Stripe webhook already does. Taking
+        // `listReversals().data[0]` and calling the payout fully reversed was
+        // a P1 (r11 money pass): a dashboard refund with "reverse transfer"
+        // ticked, or a partial claw-back, left a smaller reversal that this
+        // adopted — the artist kept the difference and the platform funded it,
+        // while the admin was told the whole payout had come back.
+        //
+        // Reversing only the SHORTFALL makes a second run a no-op rather than
+        // a double claw-back, and the key carries the amount so two runs that
+        // compute the same shortfall collapse into one reversal while a
+        // genuinely different one is not silently swallowed.
+        const transfer = await stripe.transfers.retrieve(transferId);
+        const already = transfer.amount_reversed ?? 0;
+        const owed = order.artist_payout_cents - already;
+        if (owed > 0) {
           const reversal = await stripe.transfers.createReversal(
             transferId,
-            { amount: order.artist_payout_cents },
-            { idempotencyKey: `reversal_${order.id}` },
+            { amount: owed },
+            { idempotencyKey: `reversal_${order.id}_${owed}` },
           );
           reversalId = reversal.id;
+          await admin.from('orders').update({ stripe_reversal_id: reversalId }).eq('id', order.id);
+        } else if (already > 0) {
+          Sentry.captureMessage(
+            `settleRefund: transfer ${transferId} for order ${order.id} was already reversed by ${dollars(already)}; nothing further owed.`,
+            'info',
+          );
         }
-        await admin.from('orders').update({ stripe_reversal_id: reversalId }).eq('id', order.id);
+        // What actually came back, never more than the payout.
+        payoutReversedCents = Math.min(order.artist_payout_cents, already + Math.max(0, owed));
       }
     }
   } catch (err) {
+    if (err instanceof StripeStateMismatch) {
+      // Not a fault and not retryable: Stripe's state and this settle's
+      // intention disagree, and a person has to decide which is right.
+      Sentry.captureMessage(`settleRefund refused on order ${order.id}: ${err.message}`, 'warning');
+      return { ok: false, status: 409, error: err.message };
+    }
     Sentry.captureException(err);
     // State so far is persisted — a retry resumes from the failed step.
     return {
@@ -395,7 +447,7 @@ export async function settleRefund(
     ok: true,
     refundedCents: refundAmount,
     taxRefundedCents: refundTax,
-    payoutReversedCents: reversalId ? order.artist_payout_cents : 0,
+    payoutReversedCents,
     relisted,
   };
 }

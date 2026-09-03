@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { captureException } from '@/lib/sentry';
+import { announceAcceptanceRequired } from '@/services/acceptance';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -21,6 +22,18 @@ interface MessageBubbleProps {
   isOwn: boolean;
   /** Set when the sender is a verified partner — renders the shield. */
   senderPartnerType?: PartnerType | null;
+}
+
+/** A refusal from a quote action. `byPolicy` marks the ones the server meant
+ *  to send — 403 and the acceptance gate's 503 — which get a toast and no
+ *  Sentry event. */
+class QuoteActionRefused extends Error {
+  readonly byPolicy: boolean;
+  constructor(message: string, byPolicy: boolean) {
+    super(message);
+    this.name = 'QuoteActionRefused';
+    this.byPolicy = byPolicy;
+  }
 }
 
 export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubbleProps) {
@@ -87,7 +100,20 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
       setActing(true);
       try {
         const res = await fetch(`/api/commissions/${commissionId}/${action}`, { method: 'POST' });
-        if (!res.ok) throw new Error();
+        if (!res.ok) {
+          // `throw new Error()` with no message destroyed the server's own
+          // sentence before the catch could see it, so a buyer refused for a
+          // stale acceptance — which under ruling D11 is every pre-existing
+          // account until they clear the interstitial — got "Action failed.
+          // Try again.", no interstitial, and a Sentry event on every press
+          // (r9 auth pass, P2).
+          const body = await res.json().catch(() => ({} as Record<string, unknown>));
+          if (body.code === 'acceptance_required') announceAcceptanceRequired();
+          throw new QuoteActionRefused(
+            typeof body.error === 'string' ? body.error : 'Action failed. Try again.',
+            res.status === 403 || res.status === 503,
+          );
+        }
         setResolved(action === 'confirm' ? 'Accepted' : 'Declined');
         toast(action === 'confirm' ? 'Quote accepted' : 'Quote declined', 'success');
         // Reflect the new commission status across the thread, the rail, and
@@ -97,8 +123,11 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
         void queryClient.invalidateQueries({ queryKey: ['conversations'] });
         router.refresh();
       } catch (err) {
-        captureException(err, { where: 'MessageBubble.quoteAction' });
-        toast('Action failed. Try again.', 'error');
+        // A policy refusal is the app working as designed — tell the person
+        // why, and do not page anyone. Same rule as useSendMessage.
+        const refused = err instanceof QuoteActionRefused && err.byPolicy;
+        if (!refused) captureException(err, { where: 'MessageBubble.quoteAction' });
+        toast(err instanceof Error ? err.message : 'Action failed. Try again.', 'error');
       } finally {
         setActing(false);
       }

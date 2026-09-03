@@ -75,7 +75,12 @@ export async function sendMessage(data: {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const msg = typeof body.error === 'string' ? body.error : 'Failed to send message';
-    if (res.status === 403 || res.status === 503) {
+    // Keyed on the CODE, not the status. Classifying every 503 as a policy
+    // refusal made an edge- or platform-level 503 (HTML body, no `error`
+    // field, server code never reached) silent in Sentry from both sides,
+    // because MessageRefusedError is by definition never reported (r9 auth
+    // pass, P3). Only the gate's own `acceptance_unavailable` is expected.
+    if (res.status === 403 || body.code === 'acceptance_unavailable') {
       // An acceptance refusal is actionable, and the person cannot act on it
       // unless something tells them: bring the interstitial back.
       if (body.code === 'acceptance_required') announceAcceptanceRequired();

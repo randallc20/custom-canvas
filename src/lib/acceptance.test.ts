@@ -2,13 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 
 // `acceptanceGateFor` builds its own service-role client.
 const adminBehaviour = { throwOnRead: false };
+// Answers PER TABLE. Ignoring the table argument handed the artist_profiles
+// lookup the profiles row, so the "buyer" fixture also owed the Artist
+// Agreement — the assertions held but the state was not one the product can
+// produce (r9 auth pass, appendix).
 vi.mock('@/lib/supabase-admin', () => ({
   createAdminSupabaseClient: () => ({
-    from: () => ({
+    from: (table: string) => ({
       select: () => ({
         eq: () => ({
           maybeSingle: async () => {
             if (adminBehaviour.throwOnRead) return { data: null, error: { message: 'statement timeout' } };
+            if (table === 'artist_profiles') return { data: null, error: null };
             return { data: { role: 'user', terms_version: null, terms_of_sale_version: null }, error: null };
           },
         }),
@@ -223,7 +228,9 @@ describe('acceptanceGateFor', () => {
     const gate = await acceptanceGateFor('u1');
     expect(gate?.status).toBe(403);
     expect(gate?.body.code).toBe('acceptance_required');
-    expect(gate?.body.outstanding.map((o) => o.document)).toContain('terms');
+    // A plain buyer with no artist profile: Terms of Service (which blocks)
+    // and Terms of Sale (which does not).
+    expect(gate?.body.outstanding.map((o) => o.document)).toEqual(['terms', 'terms_of_sale']);
   });
 
   it('refuses with 503 rather than throwing when the lookup fails', async () => {

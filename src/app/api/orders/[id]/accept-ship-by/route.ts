@@ -27,7 +27,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, status, shipped_at, created_at, buyer_id, listing_id, proposed_ship_by, fulfillment_window_days, artist:artist_profiles(profile_id)')
+    .select('id, status, shipped_at, created_at, buyer_id, listing_id, proposed_ship_by, fulfillment_window_days, refund_approved_at, artist:artist_profiles(profile_id)')
     .eq('id', params.id)
     .single();
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -37,6 +37,22 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
   }
   if (order.status !== 'paid' || order.shipped_at) {
     return NextResponse.json({ error: 'This order has already shipped.' }, { status: 409 });
+  }
+  // A refund is already being settled on this order, and accepting a new ship
+  // date here would work against the buyer twice over: it writes
+  // `agreed_ship_by`, which makes `fulfillmentWindow().missed` false and so
+  // takes away their own Terms of Sale §3 cancel right — their only
+  // self-serve escape if the settle stalls — and it tells the artist to ship a
+  // piece the artist has no button to ship (r11 money pass, P1). The buyer's
+  // card no longer offers this; the refusal is for a stale tab.
+  if (order.refund_approved_at) {
+    return NextResponse.json(
+      {
+        error:
+          'A refund has already been approved on this order and we are settling it. There is no new date to accept — if you would rather have the piece after all, say so in Messages.',
+      },
+      { status: 409 },
+    );
   }
 
   const target = new Date(order.proposed_ship_by as string);
@@ -58,6 +74,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
     .eq('id', params.id)
     .eq('status', 'paid')
     .is('shipped_at', null)
+    .is('refund_approved_at', null)
     .select('id')
     .maybeSingle();
   if (error) {

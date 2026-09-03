@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Profile } from '@/types/user';
+import { createLatestOnly } from '@/utils/latestOnly';
 
 interface AuthContextValue {
   user: Profile | null;
@@ -35,11 +36,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
+    // Only the newest profile fetch may set state. See src/utils/latestOnly.ts
+    // for the failure this stops: `profiles` is anon-readable, so a fetch
+    // issued while signed IN still resolves successfully after sign-out and
+    // put the person back in the header with no session behind it.
+    const gate = createLatestOnly();
 
     // The email column is not client-readable (00031 column privacy) — the
     // auth session is the source of truth for the user's own email, so we
     // select the public columns and merge session email into the Profile.
     const fetchProfile = async (userId: string, email: string) => {
+      const ticket = gate.begin();
       const run = () =>
         supabase
           .from('profiles')
@@ -56,7 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ({ data, error } = await run());
       }
 
-      if (isMounted) {
+      // Not `isMounted` alone: the provider stays mounted across a sign-out.
+      // A result from a superseded fetch is discarded outright — it cannot set
+      // a user, and it cannot clear one either.
+      if (isMounted && gate.isCurrent(ticket)) {
         if (data) {
           setUser({ ...data, email });
         } else if (error?.code === 'PGRST116') {
@@ -84,6 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         void fetchProfile(session.user.id, session.user.email ?? '');
       } else if (isMounted) {
+        // Signed out. Retire every fetch already in flight before clearing.
+        gate.supersede();
         setUser(null);
         setLoading(false);
       }

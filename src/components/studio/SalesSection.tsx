@@ -321,22 +321,31 @@ export function SalesSection() {
 
                 {/* L7 — the shipping promise, and the two things §7 asks of
                     an artist who cannot keep it.
-                    Not once the artist has approved a refund: "Cancel order"
-                    posts reason `artist_cancelled`, which is a FAULT reason,
-                    so an artist clicking it because the settle queue looked
-                    slow converted their own change-of-mind approval into a
-                    full refund — the service fee and its tax handed back on a
-                    refund every document says retains them (r9 money pass).
-                    The same reason `Mark as Shipped` carries the condition:
-                    once a refund is approved, this sale is being unwound and
-                    the artist has nothing left to do to it. The state is
-                    already spoken for by the "Refund approved" line below. */}
-                {order.status === 'paid' && !order.is_pickup && !order.refund_approved_at && (() => {
+                    The BUTTONS go once the artist has approved a refund:
+                    "Cancel order" posts reason `artist_cancelled`, a FAULT
+                    reason, so an artist clicking it because the settle queue
+                    looked slow converted their own change-of-mind approval
+                    into a full refund — the service fee and its tax handed
+                    back on a refund every document says retains them (r9
+                    money pass). The SENTENCE stays: hiding the whole block
+                    left the artist with no ship-by date and no sight of their
+                    own outstanding proposal, while the buyer's card still
+                    showed both (r11 money pass, P1). */}
+                {order.status === 'paid' && !order.is_pickup && (() => {
                   const win = fulfillmentWindow(order);
                   return (
                     <div className="mt-3 space-y-2">
                       <p className="text-xs leading-relaxed text-muted">
-                        {order.agreed_ship_by ? (
+                        {order.refund_approved_at ? (
+                          <>
+                            You approved a refund on this order, so the shipping promise no longer
+                            applies — don&apos;t ship it. {order.proposed_ship_by && !order.agreed_ship_by ? (
+                              <>Your proposed date of{' '}
+                              <span className="font-medium text-ink">{formatDate(order.proposed_ship_by)}</span>{' '}
+                              is no longer on the table for the buyer. </>
+                            ) : null}Custom Canvas is settling the payment.
+                          </>
+                        ) : order.agreed_ship_by ? (
                           <>
                             The buyer agreed to{' '}
                             <span className="font-medium text-ink">{formatDate(order.agreed_ship_by)}</span>.
@@ -365,27 +374,29 @@ export function SalesSection() {
                           </>
                         )}
                       </p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setProposeOrder(order);
-                            setProposeDate('');
-                            setProposeNote('');
-                          }}
-                        >
-                          Can&apos;t ship in time
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          loading={cancellingOrder === order.id}
-                          onClick={() => handleCancelOrder(order)}
-                        >
-                          Cancel order
-                        </Button>
-                      </div>
+                      {!order.refund_approved_at && (
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setProposeOrder(order);
+                              setProposeDate('');
+                              setProposeNote('');
+                            }}
+                          >
+                            Can&apos;t ship in time
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            loading={cancellingOrder === order.id}
+                            onClick={() => handleCancelOrder(order)}
+                          >
+                            Cancel order
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}

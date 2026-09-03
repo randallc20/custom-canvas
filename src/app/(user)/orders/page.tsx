@@ -309,7 +309,15 @@ export default function OrdersPage() {
                     it is missed. Terms of Sale §3 and Artist Agreement §7 give
                     the buyer a unilateral cancel right here; before L7 their
                     only action was to ask the artist and hope. */}
-                {order.status === 'paid' && !order.is_pickup && (() => {
+                {/* Not once a refund is approved: the sale is being unwound,
+                    and this block offered "Accept <new date>" straight above
+                    "Refund approved — Custom Canvas is settling your payment"
+                    (r11 money pass, P1). Accepting it wrote `agreed_ship_by`,
+                    which made `win.missed` false and so GAVE AWAY the buyer's
+                    own §3 cancel right — their only self-serve escape if the
+                    settle queue stalls — and told the artist to ship a piece
+                    they no longer have a Mark-as-Shipped button for. */}
+                {order.status === 'paid' && !order.is_pickup && !order.refund_approved_at && (() => {
                   const win = fulfillmentWindow(order);
                   // Once accepted, the offer is settled: show the agreed
                   // date, and the cancel right returns only if THAT is missed
