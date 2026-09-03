@@ -32,7 +32,15 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
   const admin = createAdminSupabaseClient();
   const { data: updated, error } = await admin
     .from('orders')
-    .update({ refund_approved_at: new Date().toISOString() })
+    .update({
+      refund_approved_at: new Date().toISOString(),
+      // The artist agreeing to a buyer's request IS the discretionary
+      // change-of-mind path (Artist Agreement §8) — the service fee stays.
+      // A fault refund does not come through here: Custom Canvas settles
+      // those whether or not the artist agrees, from the admin page (L6).
+      refund_reason: 'change_of_mind',
+      refund_initiated_by: 'artist',
+    })
     .eq('id', params.id)
     .is('refund_approved_at', null)
     .select()

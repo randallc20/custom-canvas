@@ -13,6 +13,9 @@ export interface ShippingAddress {
 
 export interface Order {
   refund_approved_at?: string | null;
+  /** Why the order was refunded (00061 / L6). Decides whether the service fee
+   *  went back. NULL on rows refunded before L6. */
+  refund_reason?: import('@/utils/refundSplit').RefundReason | null;
   /** Joined on the buyer orders view for the refund-request chat handoff. */
   artist?: { profile_id: string; display_name: string } | null;
   listing?: { title: string } | null;

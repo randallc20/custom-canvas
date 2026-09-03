@@ -276,12 +276,31 @@ enough that a refund reversal doesn't overdraw their bank account. Artists
 are told about the delay in Studio → Sales.
 
 ## 2026-07-06 — Artist-mediated refunds; service fee non-refundable
+### Amended 2026-09-03 (L6): non-refundable on CHANGE OF MIND only
 
 Buyer requests via chat → artist approves in Studio → admin settles. Buyer
 receives price + shipping + the tax on those amounts; the service fee (and
 its tax) is retained; the artist payout is reversed exactly; the platform
 returns its commission. (Tax component added 2026-08-18 — merchant-of-record
 obligation.)
+
+**Amendment, 2026-09-03.** "Non-refundable" was too broad, and the counsel set
+says so in three places — Terms of Sale §2, Artist Agreement §8, and the
+Shipping policy. The fee is retained only on a discretionary **change-of-mind**
+return. When the fault is ours or the artist's — never shipped, lost in
+transit, materially damaged, materially not as described, an obvious
+pricing/tax error (Terms of Sale §2A), or the artist cancelling before
+shipping — the **whole charge goes back**, service fee and all of the tax
+included. A buyer who did nothing wrong and received nothing does not pay us
+for the privilege.
+
+`orders.refund_reason` records which it was (00061, frozen for non-privileged
+writers), and `calculateRefundSplit` takes it. The reason also decides whether
+the artist had to agree: a change-of-mind settle is refused without
+`refund_approved_at`, and a fault settle is allowed without it — that is Artist
+Agreement §8's "with four exceptions" made real. Orders refunded before this
+carry no reason and are displayed as a bare "Refunded" rather than being
+retroactively labelled.
 
 ## 2026-07-24 — Destination charges; platform is merchant of record
 

@@ -16,6 +16,7 @@ import { Modal } from '@/components/ui/Modal';
 import { ReviewForm } from '@/components/review/ReviewForm';
 import { useToast } from '@/components/ui/Toast';
 import { formatPrice } from '@/utils/formatPrice';
+import { refundReasonLabel } from '@/utils/refundSplit';
 import type { Order, OrderStatus } from '@/types/order';
 
 const STATUS_BADGE: Record<OrderStatus, { variant: 'default' | 'success' | 'warning' | 'danger'; label: string }> = {
@@ -152,6 +153,12 @@ export default function OrdersPage() {
                     </p>
                   </div>
                   <Badge variant={badge.variant}>{badge.label}</Badge>
+                  {/* L6: whether the service fee came back is the buyer's
+                      most likely question about a refund, so answer it
+                      without being asked. */}
+                  {order.status === 'refunded' && (
+                    <p className="mt-1 text-xs text-muted">{refundReasonLabel(order.refund_reason)}</p>
+                  )}
                 </div>
                 {order.tracking_number && (
                   <div className="mt-3 rounded-md bg-sand/40 px-3 py-2 text-sm">

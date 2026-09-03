@@ -310,6 +310,30 @@ test.describe.serial('purchase and refund (Stripe test mode)', () => {
     const row = page.locator('tr', { hasText: orderShort }).first();
     await expect(row.getByRole('button', { name: /settle refund/i })).toBeVisible({ timeout: 15_000 });
     await row.getByRole('button', { name: /settle refund/i }).click();
+
+    // L6 — settling now asks WHY first, because the reason decides the split.
+    const dialog = page.getByRole('dialog', { name: /refund this order/i });
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+    const reason = dialog.getByLabel(/why is this being refunded/i);
+
+    // The artist approved a discretionary return, so change of mind is the
+    // default and the $1.06 fee is retained: $27.06 of the $28.21 charge.
+    await expect(reason).toHaveValue('change_of_mind');
+    await expect(dialog.getByText(/\$1\.06 retained/)).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /refund \$27\.06/i })).toBeVisible();
+
+    // Switch to a fault reason and the WHOLE charge goes back, fee included
+    // (Terms of Sale §2, Artist Agreement §8). Asserted here rather than
+    // settled: a real fault refund needs its own order, and Section D's
+    // first live purchase walks one by hand.
+    await reason.selectOption('not_as_described');
+    await expect(dialog.getByText(/\$1\.06 returned/)).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /refund \$28\.21/i })).toBeVisible();
+    await expect(dialog.getByText(/whole charge goes back/i)).toBeVisible();
+
+    // Back to the reason this order actually has, and settle it.
+    await reason.selectOption('change_of_mind');
+    await dialog.getByRole('button', { name: /refund \$27\.06/i }).click();
     await page.getByRole('button', { name: /refund buyer/i }).click();
     await expect(page.getByText(/refund settled/i)).toBeVisible({ timeout: 30_000 });
 
@@ -318,10 +342,16 @@ test.describe.serial('purchase and refund (Stripe test mode)', () => {
     const refundedRow = page.locator('tr', { hasText: orderShort }).first();
     await expect(refundedRow.getByText(/refunded/i).first()).toBeVisible({ timeout: 15_000 });
     await expect(refundedRow.getByRole('button', { name: /settle refund/i })).toHaveCount(0);
+    // L6: the row says which split was applied.
+    await expect(refundedRow.getByText(/change of mind — service fee retained/i)).toBeVisible();
     await ctx.close();
 
     await buyerPage.goto('/orders');
     await expect(buyerPage.getByText('Refunded', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
+    // L6: the buyer is told whether the service fee came back, unprompted.
+    await expect(
+      buyerPage.getByText(/change of mind — service fee retained/i).first()
+    ).toBeVisible({ timeout: 15_000 });
     await artistPage.goto('/studio/sales');
     await expect(
       artistPage.locator('div.rounded-xl', { hasText: orderShort }).first().getByText('Refunded', { exact: true })
