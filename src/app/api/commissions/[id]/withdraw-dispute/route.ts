@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { acceptanceGateFor } from '@/lib/acceptance';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
 /** The other half of ruling D5: the requester who raised the dispute can take
@@ -9,6 +10,12 @@ export async function POST(_request: Request, { params }: { params: { id: string
   const supabase = createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Ruling D11 (L2): a stale acceptance blocks the gated actions. The
+  // interstitial is the visible half of this; a client that never renders it
+  // still gets refused here.
+  const gate = await acceptanceGateFor(user.id);
+  if (gate) return NextResponse.json(gate, { status: 403 });
 
   const { data: commission } = await supabase
     .from('commissions')

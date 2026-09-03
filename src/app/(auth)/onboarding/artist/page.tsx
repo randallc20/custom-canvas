@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { artistProfileSchema, ArtistProfileFormData } from '@/schemas/artistSchema';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
-import { AGREEMENT_SUMMARY, ARTIST_AGREEMENT_VERSION } from '@/lib/agreement';
+import { AGREEMENT_SUMMARY, ARTIST_AGREEMENT_VERSION, SELLER_PROTECTION_VERSION } from '@/lib/agreement';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { supabase } from '@/lib/supabase';
@@ -211,7 +211,14 @@ export default function ArtistOnboardingPage() {
                 <a href="/artist-agreement" target="_blank" className="font-medium text-terraText underline">
                   Artist Agreement (v{ARTIST_AGREEMENT_VERSION})
                 </a>{' '}
-                and anytime from your Studio. Your acceptance and its date are recorded.
+                and anytime from your Studio. It incorporates the{' '}
+                {/* AA 4: "part of this agreement ... versioned with it" — so
+                    accepting the agreement accepts this too, and an artist
+                    must be able to read it at the moment they accept. */}
+                <a href="/seller-protection" target="_blank" className="font-medium text-terraText underline">
+                  Seller Protection Policy (v{SELLER_PROTECTION_VERSION})
+                </a>
+                , which decides who bears a chargeback. Your acceptance and its date are recorded.
               </p>
               <label className="flex items-start gap-2 rounded-lg border border-terra/30 bg-terraSoft/40 p-3">
                 <input

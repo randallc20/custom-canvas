@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CaptchaField, captchaEnabled } from '@/components/auth/CaptchaField';
 import Link from 'next/link';
 import { useAuth, postSignupPath } from '@/context/AuthContext';
+import { recordTermsAcceptance } from '@/services/acceptance';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -33,7 +34,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
     if (!acceptedTerms) {
-      setError('Please accept the Terms of Service and Privacy Policy to continue.');
+      setError('Please confirm you are 18 or older and accept the Terms of Service and Privacy Policy to continue.');
       return;
     }
     if (captchaEnabled && !captcha) {
@@ -43,6 +44,14 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const { needsEmailConfirmation } = await signUp(email, password, role, fullName, captcha);
+      // Record what the checkbox above covers: the Terms of Service (and the
+      // Privacy Policy, which is stamped with them). Explicitly NOT the Terms
+      // of Sale — those are accepted at checkout, and stamping them here would
+      // record an acceptance this person was never shown. When the project
+      // requires email confirmation there is no session yet, so nothing is
+      // stamped and the acceptance interstitial asks on their first signed-in
+      // visit instead.
+      if (!needsEmailConfirmation) await recordTermsAcceptance();
       if (needsEmailConfirmation) {
         setConfirmationSent(true);
         setCaptcha('');
@@ -158,7 +167,7 @@ export default function RegisterPage() {
               className="mt-0.5 rounded border-line"
             />
             <span>
-              I agree to the{' '}
+              I am 18 or older and agree to the{' '}
               <Link href="/terms" target="_blank" className="text-terraText hover:underline">Terms of Service</Link>{' '}
               and{' '}
               <Link href="/privacy" target="_blank" className="text-terraText hover:underline">Privacy Policy</Link>.

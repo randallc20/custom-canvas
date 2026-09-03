@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { dmcaAgentPending, LEGAL_DOCUMENTS, loadLegalDocument } from './legalDocuments';
+import {
+  ARTIST_AGREEMENT_VERSION,
+  PRIVACY_VERSION,
+  SELLER_PROTECTION_VERSION,
+  TERMS_OF_SALE_VERSION,
+  TERMS_VERSION,
+} from './agreement';
 
 /** The eight pages are the markdown files. If a document is replaced with a
  *  new counsel version and the identity line changes shape, these fail here
@@ -64,5 +71,19 @@ describe('DMCA designated agent (A4 / L11)', () => {
       // L11 landed: counsel's real agent block publishes as written.
       expect(body).not.toContain("Our designated agent's details are being registered");
     }
+  });
+});
+
+describe('acceptance constants track the documents', () => {
+  it('every recorded version equals the version in the markdown it names', () => {
+    // The acceptance record is stamped with these constants. If counsel ships
+    // a new version of a document and the constant does not move with it, the
+    // product records an acceptance of a version nobody was shown — and the
+    // re-acceptance interstitial never fires. Fail here instead.
+    expect(TERMS_VERSION).toBe(loadLegalDocument('terms').version);
+    expect(TERMS_OF_SALE_VERSION).toBe(loadLegalDocument('terms-of-sale').version);
+    expect(ARTIST_AGREEMENT_VERSION).toBe(loadLegalDocument('artist-agreement').version);
+    expect(SELLER_PROTECTION_VERSION).toBe(loadLegalDocument('seller-protection').version);
+    expect(PRIVACY_VERSION).toBe(loadLegalDocument('privacy').version);
   });
 });

@@ -346,7 +346,11 @@ BEGIN
     FROM information_schema.column_privileges
     WHERE table_schema = 'public' AND grantee IN ('anon','authenticated')
       AND privilege_type = 'SELECT'
-      AND ((table_name = 'profiles' AND column_name IN ('email','unsubscribe_token'))
+      AND ((table_name = 'profiles' AND column_name IN ('email','unsubscribe_token',
+            -- 00058 (L2): acceptance is read back through
+            -- GET /api/account/acceptance, never off the row.
+            'terms_version','terms_accepted_at',
+            'terms_of_sale_version','terms_of_sale_accepted_at'))
         OR (table_name = 'artist_profiles' AND column_name IN
             ('rejection_reason','reviewed_by','reviewed_at','stripe_account_id',
              'stripe_account_updated_at')));
@@ -1155,6 +1159,80 @@ BEGIN
     RETURNING * INTO c;
   IF c.status <> 'quoted' OR c.quoted_price_cents <> 15000 THEN
     RAISE EXCEPTION 'commissions guard: the privileged path lost its values';
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+END $$;
+ROLLBACK;
+
+-- ---------------------------------------------------------------------------
+-- 10. Acceptance record freeze (00058, L2). The four acceptance columns on
+--     profiles are a legal record: an account may not write, backdate or
+--     downgrade its own acceptance. Two locks are asserted here — the columns
+--     carry no UPDATE grant (so a client write is 42501), and
+--     guard_profiles_update restores them even if a grant ever appears.
+--     Also asserts they carry no SELECT grant: the client learns what it owes
+--     from GET /api/account/acceptance, not from the row.
+-- ---------------------------------------------------------------------------
+BEGIN;
+DO $$
+DECLARE
+  victim uuid;
+  leaked text;
+  after_row profiles%ROWTYPE;
+BEGIN
+  -- No SELECT and no UPDATE on the acceptance columns, for either browser
+  -- role. (INSERT/REFERENCES are inherited table-level grants and show up on
+  -- every profiles column; they are unreachable because profiles has no
+  -- INSERT policy — rows are minted by the handle_new_user trigger.)
+  SELECT string_agg(column_name || ' -> ' || grantee || ' (' || privilege_type || ')', ', ')
+    INTO leaked
+    FROM information_schema.column_privileges
+   WHERE table_schema = 'public' AND table_name = 'profiles'
+     AND grantee IN ('anon','authenticated')
+     AND privilege_type IN ('SELECT','UPDATE')
+     AND column_name IN ('terms_version','terms_accepted_at',
+                         'terms_of_sale_version','terms_of_sale_accepted_at');
+  IF leaked IS NOT NULL THEN
+    RAISE EXCEPTION 'acceptance columns are client-readable/writable: %', leaked;
+  END IF;
+
+  SELECT id INTO victim FROM profiles WHERE role <> 'admin' LIMIT 1;
+  IF victim IS NULL THEN
+    INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+      VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+              'smoke.acceptance.' || gen_random_uuid() || '@customcanvas.dev', '{"full_name":"Smoke Acceptance"}'::jsonb);
+    SELECT id INTO victim FROM profiles WHERE email LIKE 'smoke.acceptance.%' LIMIT 1;
+    IF victim IS NULL THEN
+      RAISE EXCEPTION 'acceptance freeze: could not mint a throwaway profile';
+    END IF;
+  END IF;
+
+  -- Privileged: the acceptance route's write must land.
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  UPDATE profiles
+     SET terms_version = '2.0', terms_accepted_at = now(),
+         terms_of_sale_version = '2.0', terms_of_sale_accepted_at = now()
+   WHERE id = victim;
+  SELECT * INTO after_row FROM profiles WHERE id = victim;
+  IF after_row.terms_version <> '2.0' OR after_row.terms_accepted_at IS NULL THEN
+    RAISE EXCEPTION 'acceptance freeze: the privileged (service-role) write did not land';
+  END IF;
+
+  -- Non-privileged: the account cannot rewrite its own acceptance record,
+  -- downgrade the version, or backdate the timestamp. The trigger restores
+  -- every one of them, so the UPDATE is a no-op rather than an error.
+  PERFORM set_config('request.jwt.claims',
+                     json_build_object('sub', victim, 'role', 'authenticated')::text, true);
+  UPDATE profiles
+     SET terms_version = '9.9', terms_accepted_at = '2000-01-01',
+         terms_of_sale_version = '9.9', terms_of_sale_accepted_at = '2000-01-01'
+   WHERE id = victim;
+  SELECT * INTO after_row FROM profiles WHERE id = victim;
+  IF after_row.terms_version <> '2.0'
+     OR after_row.terms_of_sale_version <> '2.0'
+     OR after_row.terms_accepted_at < '2020-01-01'
+     OR after_row.terms_of_sale_accepted_at < '2020-01-01' THEN
+    RAISE EXCEPTION 'acceptance freeze: an account rewrote its own acceptance record';
   END IF;
   PERFORM set_config('request.jwt.claims', '', true);
 END $$;

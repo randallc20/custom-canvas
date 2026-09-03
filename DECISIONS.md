@@ -3,6 +3,52 @@
 Deliberate choices with lasting consequences, recorded so they read as
 choices — not oversights. Newest first.
 
+## 2026-09-03 — D11: existing accounts re-accept the counsel set through a dismissible interstitial
+
+Terms of Service v2.0 adds an agreement to individual arbitration and a
+class-action waiver. §17 requires affirmative acceptance for a change that
+material, and no existing account had given one: buyers had accepted nothing
+recorded (the registration checkbox predated any versioning), and artists had
+accepted Artist Agreement v1.0.
+
+Taken with the plan's default. On the next signed-in visit every account is
+asked again — artists for the Terms of Service and the Artist Agreement
+(which carries the Seller Protection Policy, "versioned with it" per §4),
+everyone else for the Terms of Service and the Terms of Sale.
+
+The interstitial is dismissible and browsing stays open. It is not the
+enforcement: `acceptanceGate` returns a 403 from every gated write route —
+checkout, listing create and edit, message send, review submit and all seven
+commission actions — until the record is stamped. That split is deliberate.
+A hard wall would lock people out of a marketplace they are still deciding to
+trust, over a policy they have not been given a chance to read; and a modal
+alone would be defeated by any client that never renders it. The banner
+exists so the 403 makes sense when it arrives.
+
+The Terms of Sale deliberately do NOT block. Terms of Sale §1 says they are
+accepted at checkout, so the checkout route stamps them on a submitted order
+rather than refusing beforehand — blocking on them would stop a brand-new
+buyer from sending their first message, which no document asks for.
+
+Versions are stamped server-side from the constants in `src/lib/agreement.ts`,
+never from anything the client sends; the four acceptance columns on
+`profiles` carry no SELECT and no UPDATE grant, and `guard_profiles_update`
+restores them for any non-privileged writer (00058, pinned in db-smoke §10).
+Migration 00058 is deliberately NOT backfilled: recording an acceptance that
+never happened is the one thing this record exists to prevent.
+
+## 2026-09-03 — D12: age attestation rides on the acceptance checkbox; no date of birth
+
+Terms of Service §2 requires account holders to be 18 or older, and nothing
+asked. Taken with the plan's default: the registration checkbox now reads "I
+am 18 or older and agree to the Terms of Service and Privacy Policy", and the
+re-acceptance interstitial carries the same attestation.
+
+No date of birth is collected. A birth date would be a new category of
+personal data to hold, disclose in the Privacy Policy, and delete on request,
+in exchange for no more assurance than the attestation gives — the check is
+self-reported either way.
+
 ## 2026-09-02 — D6: seller-protection requirement 4 (signature confirmation) waived at launch
 
 Requirement 4 of Seller Protection — signature confirmation on orders of
