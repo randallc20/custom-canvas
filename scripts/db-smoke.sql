@@ -546,6 +546,11 @@ BEGIN
   UPDATE orders SET delivered_at = now(), pre_dispute_status = 'paid', shipped_email_sent_at = now(),
                     shipped_at = now() - interval '30 days', review_requested_at = now(),
                     dispute_status = 'needs_response',
+                    -- 00060 (D7/L12): seller-protection requirement 4 is the
+                    -- platform's to record, and the concession stamp is
+                    -- written by a route, not set directly.
+                    signature_confirmed = true, signature_confirmed_at = now(),
+                    dispute_conceded_at = now(),
                     shipping_address = '{"street":"666 Forged Ave","city":"Nowhere","state":"TX","zip":"00000","country":"US"}'::jsonb
     WHERE id = o;
   SELECT * INTO row_after FROM orders WHERE id = o;
@@ -571,6 +576,17 @@ BEGIN
   END IF;
   IF row_after.shipped_at IS DISTINCT FROM first_shipped THEN
     RAISE EXCEPTION 'transition matrix: shipped_at must not be client-writable';
+  END IF;
+  -- 00060 (D7): an artist who could stamp these would be granting themselves
+  -- protection requirement 4 and forging who checked the carrier.
+  IF row_after.signature_confirmed THEN
+    RAISE EXCEPTION 'transition matrix: signature_confirmed must be frozen for the artist (00060)';
+  END IF;
+  IF row_after.signature_confirmed_at IS NOT NULL THEN
+    RAISE EXCEPTION 'transition matrix: signature_confirmed_at must be frozen for the artist (00060)';
+  END IF;
+  IF row_after.dispute_conceded_at IS NOT NULL THEN
+    RAISE EXCEPTION 'transition matrix: dispute_conceded_at must be frozen for the artist (00060)';
   END IF;
 
   -- shipped -> delivered: denied (delivered is server-side only now).

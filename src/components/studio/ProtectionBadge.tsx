@@ -27,11 +27,12 @@ function isFrozen(failure: string) {
   return FROZEN_AT_SALE.some((f) => failure.toLowerCase().includes(f));
 }
 
-// Requirement 4 (signature confirmation) is waived at launch — ruling D6,
-// DECISIONS.md 2026-09-02 — so evaluateProtection never reports it today. If
-// the check is ever re-enabled, signature_confirmed is recorded by Custom
-// Canvas from the carrier's record, not by anything the artist can do in
-// Studio, so it must never be listed under "To protect this order:".
+// Requirement 4 (signature confirmation) is active again — ruling D7,
+// DECISIONS.md 2026-09-03. signature_confirmed is recorded by Custom Canvas
+// from the carrier's record, not by anything the artist can do in Studio, so
+// it must never be listed under "To protect this order:" — the artist's part
+// (buying the service at the counter) is already done or already missed by
+// the time this badge can say anything about it.
 function isPlatformRecorded(failure: string) {
   return failure.toLowerCase().includes('signature');
 }
@@ -129,11 +130,27 @@ export function ProtectionBadge({ order }: { order: Order }) {
                   </p>
                 </>
               )}
+              {/* Requirement 4 is neither "yours to fix" nor "frozen at sale":
+                  it can still be satisfied right up until a dispute is
+                  assessed, but only by us reading the carrier record (D7).
+                  Its own bucket, so the artist is not sent looking for a
+                  control that does not exist. */}
               {platformRecorded.length > 0 && (
-                <p className={`text-muted ${fixable.length || frozen.length ? 'mt-2' : ''}`}>
-                  {platformRecorded.join(' ')} Custom Canvas records signature confirmation from
-                  the carrier&apos;s delivery record — send it to support@customcanvas.shop.
-                </p>
+                <>
+                  <p className={`font-medium text-ink ${fixable.length || frozen.length ? 'mt-2' : ''}`}>
+                    Recorded by Custom Canvas, up until a dispute:
+                  </p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-4 text-muted">
+                    {platformRecorded.map((f) => (
+                      <li key={f}>{f}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-1.5 text-muted">
+                    If you bought signature confirmation and this order is ever disputed, send the
+                    carrier&apos;s signature record to support@customcanvas.shop and we will
+                    record it before we respond.
+                  </p>
+                </>
               )}
             </>
           )}

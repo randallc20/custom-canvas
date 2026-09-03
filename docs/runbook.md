@@ -83,6 +83,22 @@ reverses the artist payout exactly (idempotency-keyed, id persisted) and marks
 the order `refunded`; `won` restores it to delivered/paid. The piece is NOT
 auto-relisted after a chargeback — its whereabouts is unclear, so relist it by
 hand if the artist still has it.
+- **Signature confirmation on a $750+ order — do this FIRST, before you
+  respond.** Seller-protection requirement 4 is the platform's to record, not
+  the artist's (ruling D7). The protection verdict is frozen the instant the
+  dispute webhook lands, which is long before anyone could check a carrier.
+  The admin dispute notification says so when it applies. Steps:
+  1. Open the carrier's tracking page for the order's tracking number.
+  2. Look for an actual **signature event** — a name, or "signed for by". A
+     plain "delivered" scan is NOT signature confirmation.
+  3. If one exists, click **Record signature confirmation** on `/admin/orders`.
+     That writes the evidence and re-assesses the order, which can move it
+     from Not protected to Protected — meaning Custom Canvas absorbs the loss
+     instead of reversing the artist's payout.
+  4. Only then respond in Stripe, and include the signature record.
+
+  Never record it without seeing the carrier's record. It is seller-protection
+  evidence and the route refuses to write it twice.
 - **Inquiries** (`warning_*` statuses — Discover, Amex, Visa pre-disputes)
   arrive through the same event, move no funds and freeze nothing; admins are
   asked to respond in Stripe. If the inquiry is answered with a refund and the

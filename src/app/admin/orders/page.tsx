@@ -23,6 +23,10 @@ interface AdminOrder {
   created_at: string;
   refund_approved_at: string | null;
   amount_tax_cents: number;
+  /** Snapshotted at checkout from the listing price: whether protection
+   *  requirement 4 applies to this order at all (L5 / D7). */
+  signature_required: boolean;
+  signature_confirmed: boolean;
   buyer: { full_name: string | null } | null;
 }
 
@@ -49,6 +53,7 @@ function OrdersContent() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [signing, setSigning] = useState<string | null>(null);
   const [settling, setSettling] = useState<string | null>(null);
   const { toast } = useToast();
   const confirm = useConfirm();
@@ -57,7 +62,7 @@ function OrdersContent() {
     void supabase
       .from('orders')
       // email is not client-readable (00031) — full_name only.
-      .select('id, amount_cents, shipping_cents, platform_fee_cents, artist_payout_cents, amount_tax_cents, status, created_at, refund_approved_at, buyer:profiles!orders_buyer_id_fkey(full_name)')
+      .select('id, amount_cents, shipping_cents, platform_fee_cents, artist_payout_cents, amount_tax_cents, status, created_at, refund_approved_at, signature_required, signature_confirmed, buyer:profiles!orders_buyer_id_fkey(full_name)')
       .order('created_at', { ascending: false })
       .limit(200)
       .then(({ data }) => {
@@ -89,6 +94,32 @@ function OrdersContent() {
       toast(e instanceof Error ? e.message : 'Refund failed', 'error');
     } finally {
       setSettling(null);
+    }
+  };
+
+  /** Ruling D7: seller-protection requirement 4 is satisfied by Custom Canvas
+   *  reading the carrier's signature record, not by anything the artist can
+   *  do. This is the only writer. Do it BEFORE responding to a dispute — the
+   *  assessment is frozen once (see docs/runbook.md, chargebacks). */
+  const handleRecordSignature = async (o: AdminOrder) => {
+    const ok = await confirm({
+      title: 'Record signature confirmation?',
+      message:
+        'Only after opening the carrier tracking page and seeing an actual signature event for this order. This becomes seller-protection evidence and cannot be undone from here.',
+      confirmLabel: 'I checked the carrier record',
+    });
+    if (!ok) return;
+    setSigning(o.id);
+    try {
+      const res = await fetch(`/api/admin/orders/${o.id}/signature-confirmed`, { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      toast('Signature confirmation recorded.', 'success');
+      setOrders((prev) => prev.map((x) => (x.id === o.id ? { ...x, signature_confirmed: true } : x)));
+    } catch (e) {
+      captureException(e, { where: 'admin.orders.signatureConfirmed' });
+      toast(e instanceof Error ? e.message : 'Could not record it', 'error');
+    } finally {
+      setSigning(null);
     }
   };
 
@@ -169,6 +200,15 @@ function OrdersContent() {
                       <Button size="sm" variant="danger" loading={settling === o.id} onClick={() => handleSettleRefund(o)}>
                         Settle refund
                       </Button>
+                    )}
+                    {/* $750+ orders only, and only while it is unrecorded. */}
+                    {o.signature_required && !o.signature_confirmed && (
+                      <Button size="sm" variant="outline" loading={signing === o.id} onClick={() => handleRecordSignature(o)}>
+                        Record signature confirmation
+                      </Button>
+                    )}
+                    {o.signature_required && o.signature_confirmed && (
+                      <span className="text-xs text-muted">Signature recorded</span>
                     )}
                   </div>
                 </td>

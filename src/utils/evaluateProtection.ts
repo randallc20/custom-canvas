@@ -12,15 +12,21 @@ export const SUPPORTED_CARRIERS = ['usps', 'ups', 'fedex', 'dhl'] as const;
  *  eBay's threshold and the card-network evidence rules. */
 export const SIGNATURE_REQUIRED_FROM_CENTS = 75_000;
 
-/** Requirement 4 (signature confirmation at and above the threshold) has no
- *  writer at launch: `signature_confirmed` is service-role-only (00040) and
- *  no carrier integration or admin path sets it, so the check would fail
- *  every $750+ order by construction while Studio told the artist how to
- *  satisfy it. WAIVED — ruling D6, DECISIONS.md 2026-09-02. Flip to true when
- *  a confirmation path exists; the check is skipped below, not removed.
- *  `signature_required` is still snapshotted at checkout so the ship modal
- *  can RECOMMEND the option. */
-export const SIGNATURE_CONFIRMATION_AVAILABLE = false;
+/** Requirement 4 (signature confirmation at and above the threshold).
+ *
+ *  Ruling D6 waived this on 2026-09-02 because nothing could record it:
+ *  `signature_confirmed` is service-role-only (00040) and no route, cron or
+ *  admin page set it, so every $750+ order was ineligible by construction.
+ *
+ *  Ruling D7 (2026-09-03) supersedes that. Every document in the counsel set
+ *  requires signature confirmation on $750+ orders and lists it as protection
+ *  requirement 4 — the drafts were right and the code lacked a writer. The
+ *  writer now exists: an admin records it from the carrier's signature record
+ *  at dispute time, through POST /api/admin/orders/[id]/signature-confirmed.
+ *
+ *  It stays a constant rather than an inlined `true` because the ruling could
+ *  go the other way again, and because the tests exercise both sides. */
+export const SIGNATURE_CONFIRMATION_AVAILABLE = true;
 
 /** Platform-wide default. Not per-listing at launch: a per-listing window
  *  means a new field, new form UI, and teaching artists a concept they haven't
@@ -148,13 +154,16 @@ export function evaluateProtection(
     failures.push('The order was never marked delivered.');
   }
 
-  // 4. Signature confirmation on high-value orders. Skipped while nothing
-  //    can record it (ruling D6): a requirement nobody can satisfy is not a
-  //    bargain. The wording, when active, says what was not RECORDED — it is
-  //    written by the platform from the carrier's record, never by the
-  //    artist in Studio.
+  // 4. Signature confirmation on high-value orders (ruling D7). The wording
+  //    says what was not RECORDED, and who records it: Custom Canvas writes
+  //    this from the carrier's signature record, never the artist in Studio.
+  //    The artist's part is buying the service; ours is reading the carrier.
+  //    ProtectionBadge keys on the word "signature" to keep it out of the
+  //    "To protect this order" list for exactly that reason.
   if (signatureCheckActive && input.signatureRequired && !input.signatureConfirmed) {
-    failures.push('Signature confirmation was not recorded for this order of $750 or more.');
+    failures.push(
+      'Signature confirmation on orders of $750 or more — Custom Canvas records it from the carrier\'s record; make sure you bought it.'
+    );
   }
 
   // 5. Listing evidence, snapshotted at checkout.
