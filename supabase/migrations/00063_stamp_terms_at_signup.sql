@@ -28,7 +28,17 @@ $$;
 COMMENT ON FUNCTION current_terms_version() IS
   'The Terms of Service version handle_new_user stamps on a new account. Must equal TERMS_VERSION in src/lib/agreement.ts — src/lib/agreement.test.ts reads this migration and asserts it.';
 
-CREATE OR REPLACE FUNCTION handle_new_user() RETURNS trigger AS $$
+-- Every reference here is schema-qualified, and that is load-bearing rather
+-- than tidy. This trigger fires as GoTrue (supabase_auth_admin), whose
+-- search_path does not include `public` — which is why the original body
+-- wrote `public.profiles` rather than `profiles`. An unqualified
+-- `current_terms_version()` therefore resolved to nothing and every signup
+-- failed with "Database error creating new user". The e2e seeder caught it
+-- within the hour; db-smoke §12 had not, because it inserts as a superuser
+-- whose search_path DOES include public, so it now clears the search_path
+-- first to reproduce GoTrue's conditions.
+CREATE OR REPLACE FUNCTION handle_new_user() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, role, full_name, terms_version, terms_accepted_at)
   VALUES (
@@ -41,9 +51,9 @@ BEGIN
     -- an account existing IS that acceptance. Deliberately NOT the Terms of
     -- Sale: those are accepted at checkout (Terms of Sale §1), and stamping
     -- them here would record an acceptance nobody was shown.
-    current_terms_version(),
+    public.current_terms_version(),
     now()
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;

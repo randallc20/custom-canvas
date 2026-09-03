@@ -1367,16 +1367,25 @@ DECLARE
   uid uuid := gen_random_uuid();
   p profiles%ROWTYPE;
 BEGIN
+  -- Reproduce GoTrue's conditions, not psql's. This trigger fires as
+  -- supabase_auth_admin, whose search_path does NOT include public — which is
+  -- why the original body schema-qualifies `public.profiles`. The first cut of
+  -- 00063 called current_terms_version() unqualified and every real signup
+  -- failed with "Database error creating new user", while this section passed
+  -- because a superuser's search_path includes public. Clearing it here is
+  -- the difference between pinning the behaviour and pinning the environment.
+  PERFORM set_config('search_path', 'pg_catalog', true);
   INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
     VALUES (uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
             'smoke.signup.' || uid || '@customcanvas.dev', '{"full_name":"Smoke Signup"}'::jsonb);
+  PERFORM set_config('search_path', 'public, extensions', true);
 
-  SELECT * INTO p FROM profiles WHERE id = uid;
+  SELECT * INTO p FROM public.profiles WHERE id = uid;
   IF p.id IS NULL THEN
     RAISE EXCEPTION 'signup acceptance: handle_new_user did not create the profile row';
   END IF;
-  IF p.terms_version IS DISTINCT FROM current_terms_version() THEN
-    RAISE EXCEPTION 'signup acceptance: terms_version is %, expected %', p.terms_version, current_terms_version();
+  IF p.terms_version IS DISTINCT FROM public.current_terms_version() THEN
+    RAISE EXCEPTION 'signup acceptance: terms_version is %, expected %', p.terms_version, public.current_terms_version();
   END IF;
   IF p.terms_accepted_at IS NULL THEN
     RAISE EXCEPTION 'signup acceptance: terms_accepted_at was not stamped';
