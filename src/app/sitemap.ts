@@ -1,6 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { listingSitemapPageCount, SITEMAP_PAGE_SIZE } from '@/lib/sitemapPages';
+import { createSitemapSupabaseClient, listingSitemapPageCount, SITEMAP_PAGE_SIZE } from '@/lib/sitemapPages';
 
 /** Paged sitemaps (/sitemap/0.xml, /sitemap/1.xml, ...): page N carries
  *  listings N*1000..N*1000+999 in a stable created_at order; page 0 also
@@ -15,7 +14,7 @@ export async function generateSitemaps() {
 
 export default async function sitemap({ id }: { id: number }): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://customcanvas.shop';
-  const supabase = createServerSupabaseClient();
+  const supabase = createSitemapSupabaseClient();
   const from = id * SITEMAP_PAGE_SIZE;
 
   const { data: listings } = await supabase

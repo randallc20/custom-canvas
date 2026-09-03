@@ -3,7 +3,6 @@ import { captureException } from '@/lib/sentry';
 import type {
   ArtistEducation,
   ArtistPersonalPhoto,
-  ArtistVideo,
   ListingSeries,
 } from '@/types/artist';
 
@@ -90,41 +89,6 @@ export async function deletePersonalPhoto(id: string): Promise<void> {
     .from('artist_personal_photos').delete().eq('id', id).select('id').maybeSingle();
   if (error) throw error;
   if (!data) throw new Error('Could not delete the photo — please refresh and try again.');
-}
-
-// --- Videos ---
-
-export async function getVideos(artistId: string): Promise<ArtistVideo[]> {
-  const { data, error } = await supabase
-    .from('artist_videos')
-    .select('*')
-    .eq('artist_id', artistId)
-    .order('display_order');
-  if (error) throw error;
-  return data ?? [];
-}
-
-export async function addVideo(
-  artistId: string,
-  video: { video_url: string; thumbnail_url: string | null; display_order: number }
-): Promise<void> {
-  const { error } = await supabase.from('artist_videos').insert({ artist_id: artistId, ...video });
-  if (error) throw error;
-}
-
-export async function updateVideo(id: string, updates: { title?: string | null; description?: string | null; display_order?: number }): Promise<void> {
-  const { data, error } = await supabase
-    .from('artist_videos').update(updates).eq('id', id).select('id').maybeSingle();
-  if (error) throw error;
-  // Zero rows = RLS refused — see docs/CONVENTIONS.md.
-  if (!data) throw new Error('Could not save the video change — please refresh and try again.');
-}
-
-export async function deleteVideo(id: string): Promise<void> {
-  const { data, error } = await supabase
-    .from('artist_videos').delete().eq('id', id).select('id').maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error('Could not delete the video — please refresh and try again.');
 }
 
 // --- Series ---

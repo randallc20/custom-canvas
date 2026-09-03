@@ -136,7 +136,7 @@ export default function AccountPage() {
           // new-password hint instead of offering to fill the old one.
           <form
             className="space-y-4"
-            onSubmit={(e) => { e.preventDefault(); handlePasswordChange(); }}
+            onSubmit={(e) => { e.preventDefault(); void handlePasswordChange(); }}
           >
             <Input
               label="New Password"

@@ -54,7 +54,7 @@ function OrdersContent() {
   const confirm = useConfirm();
 
   useEffect(() => {
-    supabase
+    void supabase
       .from('orders')
       // email is not client-readable (00031) — full_name only.
       .select('id, amount_cents, shipping_cents, platform_fee_cents, artist_payout_cents, amount_tax_cents, status, created_at, refund_approved_at, buyer:profiles!orders_buyer_id_fkey(full_name)')

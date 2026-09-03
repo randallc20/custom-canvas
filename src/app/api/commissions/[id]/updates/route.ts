@@ -17,7 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const { data: commission } = await supabase
     .from('commissions')
-    .select('id, requester_id, artist_id, title, conversation_id, artist:artist_profiles!inner(profile_id, display_name)')
+    .select('id, requester_id, artist_id, title, status, conversation_id, artist:artist_profiles!inner(profile_id, display_name)')
     .eq('id', params.id)
     .single();
   if (!commission) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -25,6 +25,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const artist = commission.artist as unknown as { profile_id: string; display_name: string };
   if (artist.profile_id !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  // A closed commission takes no more progress updates: posting one also
+  // emails and notifies the buyer, so a cancelled or already-confirmed piece
+  // could keep sending "here's my progress" forever. Disputed is frozen
+  // until an admin resolves it or the requester withdraws (ruling D5).
+  if (['cancelled', 'confirmed', 'disputed'].includes(commission.status)) {
+    return NextResponse.json(
+      { error: 'This commission is closed — updates can no longer be posted.' },
+      { status: 409 }
+    );
   }
 
   const admin = createAdminSupabaseClient();

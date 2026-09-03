@@ -24,7 +24,7 @@ function CommissionRequestContent() {
 
   useEffect(() => {
     if (!artistSlug) return;
-    supabase.from('artist_profiles').select('id, display_name').eq('slug', artistSlug).single()
+    void supabase.from('artist_profiles').select('id, display_name').eq('slug', artistSlug).single()
       .then(({ data }) => setArtist(data));
   }, [artistSlug]);
 

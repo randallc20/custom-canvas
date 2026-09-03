@@ -64,7 +64,7 @@ function UsersContent() {
 
   useEffect(() => {
     // Emails aren't client-readable (00031) — go through the admin API.
-    fetch('/api/admin/users?limit=200')
+    void fetch('/api/admin/users?limit=200')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         setUsers(Array.isArray(data) ? data : []);
@@ -76,7 +76,7 @@ function UsersContent() {
     ? users.filter(
         (u) =>
           u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-          u.email.toLowerCase().includes(search.toLowerCase())
+          u.email?.toLowerCase().includes(search.toLowerCase())
       )
     : users;
 

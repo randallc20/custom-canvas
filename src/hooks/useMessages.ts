@@ -32,13 +32,13 @@ export function useMessages(conversationId: string) {
           filter: `conversation_id=eq.${conversationId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+          void queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [conversationId, queryClient]);
 
@@ -61,8 +61,8 @@ export function useSendMessage() {
   return useMutation({
     mutationFn: sendMessage,
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['messages', variables.conversation_id] });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      void queryClient.invalidateQueries({ queryKey: ['messages', variables.conversation_id] });
+      void queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
     // The composer clears optimistically — without this, a refused send
     // (blocked user, bad payload) just vanishes with zero feedback.
@@ -93,7 +93,11 @@ export function useMarkAsRead(conversationId: string, userId: string) {
   return useMutation({
     mutationFn: () => markMessagesAsRead(conversationId, userId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+      void queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
     },
+    // A toast would be noise (nobody asked to mark this read), but the
+    // failure has to reach someone: a zero-row update leaves the unread badge
+    // stuck in the inbox and navbar with no other signal. CONVENTIONS rule 2.
+    onError: (err) => captureException(err, { where: 'useMarkAsRead' }),
   });
 }

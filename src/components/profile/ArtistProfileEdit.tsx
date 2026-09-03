@@ -22,22 +22,20 @@ import { PersonalPhotoUploader } from '@/components/profile/PersonalPhotoUploade
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { ArtistProfile } from '@/types/artist';
 import { calculateCompletenessScore } from '@/utils/completenessScore';
 import { useToast } from '@/components/ui/Toast';
 import { useEducation, usePersonalPhotos, useSaveEducation } from '@/hooks/useArtistContent';
 import { numberOrNull } from '@/utils/formNumber';
-import { ARTIST_PUBLIC_COLS } from '@/lib/publicProfile';
+import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 
 export function ArtistProfileEdit() {
   const { user } = useAuth();
   const updateProfile = useUpdateArtistProfile();
-  const [artist, setArtist] = useState<ArtistProfile | null>(null);
+  // One shared, cached read of the own-artist row (00033's granted columns),
+  // not a seventh hand-rolled copy of it.
+  const { artist, loading, isError: loadError, refetch } = useOwnArtistProfile();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasListings, setHasListings] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [loadAttempt, setLoadAttempt] = useState(0);
   const [educationDrafts, setEducationDrafts] = useState<EducationDraft[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -60,45 +58,42 @@ export function ArtistProfileEdit() {
       graduation_year: artist.graduation_year,
       status: artist.status,
       neighborhood: artist.neighborhood ?? '',
-      city: artist.city,
+      city: artist.city ?? '',
       website_url: artist.website_url ?? '',
       fulfillment_pref: artist.fulfillment_pref,
-      commissions_open: artist.commissions_open,
+      commissions_open: artist.commissions_open ?? false,
       commission_desc: artist.commission_desc ?? '',
       commission_min_dollars: artist.commission_min_cents != null ? artist.commission_min_cents / 100 : null,
       commission_turnaround: artist.commission_turnaround ?? '',
-      accent_color: artist.accent_color,
-      bio_layout: artist.bio_layout,
+      accent_color: artist.accent_color ?? '#E8704A',
+      bio_layout: artist.bio_layout ?? 'left',
     } : undefined,
   });
 
+  // avatar_url lives on profiles, not artist_profiles, so it stays its own
+  // read; the listing count only feeds the local completeness bar.
   useEffect(() => {
     if (!user) return;
-    Promise.all([
-      supabase.from('artist_profiles').select(ARTIST_PUBLIC_COLS).eq('profile_id', user.id).maybeSingle<import('@/types/artist').ArtistProfile>(),
-      supabase.from('profiles').select('avatar_url').eq('id', user.id).maybeSingle(),
-    ]).then(async ([{ data: artistData, error: artistError }, { data: profileData }]) => {
-      // A transient error here used to render "Artist profile not found"
-      // over a profile that exists — distinguish it and offer a retry.
-      if (artistError) {
-        captureException(artistError, { where: 'ArtistProfileEdit.load' });
-        setLoadError(true);
-        setLoading(false);
-        return;
-      }
-      setLoadError(false);
-      setArtist(artistData);
-      setAvatarUrl(profileData?.avatar_url ?? null);
-      if (artistData) {
-        const { count } = await supabase
-          .from('listings')
-          .select('id', { count: 'exact', head: true })
-          .eq('artist_id', artistData.id);
-        setHasListings((count ?? 0) > 0);
-      }
-      setLoading(false);
-    });
-  }, [user, loadAttempt]);
+    let cancelled = false;
+    void supabase.from('profiles').select('avatar_url').eq('id', user.id).maybeSingle()
+      .then(({ data, error }) => {
+        if (error) captureException(error, { where: 'ArtistProfileEdit.avatarLoad' });
+        if (!cancelled) setAvatarUrl(data?.avatar_url ?? null);
+      });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const artistId = artist?.id;
+  useEffect(() => {
+    if (!artistId) return;
+    let cancelled = false;
+    void supabase
+      .from('listings')
+      .select('id', { count: 'exact', head: true })
+      .eq('artist_id', artistId)
+      .then(({ count }) => { if (!cancelled) setHasListings((count ?? 0) > 0); });
+    return () => { cancelled = true; };
+  }, [artistId]);
 
   useEffect(() => {
     if (educationData) setEducationDrafts(educationData);
@@ -124,7 +119,7 @@ export function ArtistProfileEdit() {
         <Button
           type="button"
           className="mt-4"
-          onClick={() => { setLoading(true); setLoadAttempt((n) => n + 1); }}
+          onClick={() => refetch()}
         >
           Try again
         </Button>
@@ -143,8 +138,12 @@ export function ArtistProfileEdit() {
     else {
       setAvatarUrl(url);
       toast('Profile photo updated', 'success');
-      supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
-      queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] }); // checklist row
+      // Awaited: an un-awaited PostgREST builder never issues its request,
+      // so the Studio card kept showing a stale score. Cosmetic, so a
+      // failure is logged, not toasted.
+      const { error: scoreError } = await supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
+      if (scoreError) captureException(scoreError, { where: 'ArtistProfileEdit.avatarScore' });
+      void queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] }); // checklist row
     }
   };
 
@@ -153,10 +152,10 @@ export function ArtistProfileEdit() {
       .from('artist_profiles').update({ banner_image_url: url }).eq('id', artist.id).select('id').maybeSingle();
     if (error || !updated) { captureException(error ?? new Error('banner save matched zero rows'), { where: 'ArtistProfileEdit.banner' }); toast('Failed to save banner', 'error'); }
     else {
-      setArtist((a) => (a ? { ...a, banner_image_url: url } : a));
       toast('Banner updated', 'success');
-      supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
-      queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] }); // checklist row
+      const { error: scoreError } = await supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
+      if (scoreError) captureException(scoreError, { where: 'ArtistProfileEdit.bannerScore' });
+      void queryClient.invalidateQueries({ queryKey: ['own-artist-profile'] }); // checklist row
     }
   };
 
@@ -187,7 +186,8 @@ export function ArtistProfileEdit() {
         },
       });
       // Canonical score is computed server-side from actual data.
-      await supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
+      const { error: scoreError } = await supabase.rpc('refresh_completeness_score', { p_artist_id: artist.id });
+      if (scoreError) captureException(scoreError, { where: 'ArtistProfileEdit.saveScore' });
       toast('Profile updated successfully!', 'success');
     } catch (err) {
       captureException(err, { where: 'ArtistProfileEdit.onSubmit' });
@@ -310,10 +310,6 @@ export function ArtistProfileEdit() {
         <fieldset className="space-y-4">
           <legend className="text-lg font-semibold text-ink">Meet the Artist — Photos</legend>
           <PersonalPhotoUploader artistId={artist.id} />
-        </fieldset>
-
-        <fieldset className="space-y-4">
-          <legend className="text-lg font-semibold text-ink">Videos</legend>
         </fieldset>
 
         <fieldset className="space-y-4">

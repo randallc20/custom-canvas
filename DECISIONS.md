@@ -3,6 +3,41 @@
 Deliberate choices with lasting consequences, recorded so they read as
 choices — not oversights. Newest first.
 
+## 2026-09-02 — D5: a disputed commission is closed by an admin, or withdrawn by the requester who raised it
+
+A commission that reached `disputed` could not leave it. Enumerating every
+writer: `accept` needs `pending`, `confirm` needs `quoted`/`delivered`,
+`complete` needs `accepted`/`in_progress`, `decline` needs `pending`/`quoted`,
+`dispute` needs `in_progress`/`delivered`, the nudge cron only writes
+`last_nudge_at`, and 00009 removed the client UPDATE policy. The admin
+"disputes" page manages the `reports` table and never reads `commissions`.
+So the artist could not deliver, the requester could not confirm or take it
+back, and no admin could close it: a permanent red badge on the thread, the
+panel and the artist's queue (`docs/reviews/04-money.md` P2).
+
+Taken as R10 with the plan's default. Two exits, both server-side (there is
+no client UPDATE policy on `commissions`, so every write goes through a route
+under the service role after an explicit check):
+
+- `POST /api/admin/commissions/[id]/resolve` — admin only, `disputed ->
+  confirmed | cancelled`, compare-and-swap on `disputed` so two admins cannot
+  both close it, `closed_by = 'admin'` and a required `closed_reason` that
+  both parties are notified with. Surfaced on a new `/admin/commissions`
+  queue, since an admin cannot read other people's commissions from the
+  browser at all.
+- `POST /api/commissions/[id]/withdraw-dispute` — the requester who raised
+  it, restoring `pre_dispute_status` (persisted at dispute time in 00053,
+  mirroring what orders do since 00050) rather than guessing between
+  `in_progress` and `delivered`.
+
+No money moves in commissions, so this is a workflow unlock, not a payment
+one; an admin's decision here does not settle any funds. Two related
+corrections ship with it: the dispute reason is stored in its own
+`dispute_reason` column instead of overwriting the artist's `artist_notes`
+(the quote note it was destroying), and the `updates` route now refuses
+`cancelled`/`confirmed`/`disputed`, which were accepting progress updates —
+and the buyer emails that go with them — on closed work. Migration 00053.
+
 ## 2026-09-02 — Public profile visibility: full_name stays anon-readable, email_preferences and the follow graph do not (ruling D3, default applied)
 
 Review 01-P2 found the anon key could read every user's `full_name`, role,

@@ -120,6 +120,16 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
   }
 
   const { error } = await supabase.from('listings').delete().eq('id', params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // 23503 = the orders.listing_id FK: a sold piece cannot be deleted, which
+    // is correct — it was just surfacing as a 500 with the raw Postgres text.
+    if (error.code === '23503') {
+      return NextResponse.json(
+        { error: 'This piece has an order against it and can’t be deleted. Set it to hidden instead.' },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }

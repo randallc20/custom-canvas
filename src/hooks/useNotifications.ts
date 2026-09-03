@@ -23,7 +23,7 @@ export function useMarkNotificationRead() {
   return useMutation({
     mutationFn: markNotificationRead,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
     // Call sites fire-and-forget with .mutate() — surface failures here.
     onError: toastError(toast, 'useMarkNotificationRead'),
@@ -37,7 +37,7 @@ export function useMarkAllRead(userId: string) {
   return useMutation({
     mutationFn: () => markAllNotificationsRead(userId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
     onError: toastError(toast, 'useMarkAllRead'),
   });

@@ -16,7 +16,9 @@ export async function getConversations(userId: string): Promise<InboxConversatio
       `*, participant_one_profile:profiles!conversations_participant_one_fkey(${PUBLIC_PROFILE_COLS}), participant_two_profile:profiles!conversations_participant_two_fkey(${PUBLIC_PROFILE_COLS})`
     )
     .or(`participant_one.eq.${userId},participant_two.eq.${userId}`)
-    .order('last_message_at', { ascending: false });
+    // Postgres puts NULLs FIRST on a DESC sort, so a brand-new empty thread
+    // floated above every real conversation in the inbox.
+    .order('last_message_at', { ascending: false, nullsFirst: false });
 
   if (error) throw error;
   const conversations = data as InboxConversation[];

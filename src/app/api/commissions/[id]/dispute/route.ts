@@ -9,7 +9,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const { data: commission } = await supabase
     .from('commissions')
-    .select('requester_id')
+    .select('requester_id, status')
     .eq('id', params.id)
     .single();
 
@@ -24,16 +24,30 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: 'Please describe the issue (up to 2000 characters).' }, { status: 400 });
   }
 
+  // Disputes only make sense on active or delivered work. Checked here so the
+  // update below can compare-and-swap on the EXACT status it read, which is
+  // also the status pre_dispute_status has to record.
+  if (commission.status !== 'in_progress' && commission.status !== 'delivered') {
+    return NextResponse.json({ error: 'Only active or delivered commissions can be disputed.' }, { status: 409 });
+  }
+
   const { data, error } = await createAdminSupabaseClient()
     .from('commissions')
-    .update({ status: 'disputed', artist_notes: reason })
+    .update({
+      status: 'disputed',
+      // dispute_reason, not artist_notes (00053): the reason used to
+      // overwrite the ARTIST's quote note on the row and destroy it.
+      dispute_reason: reason,
+      // Persisted so a withdrawn dispute restores the exact prior status
+      // instead of guessing between the two.
+      pre_dispute_status: commission.status,
+    })
     .eq('id', params.id)
-    // Disputes only make sense on active or delivered work.
-    .in('status', ['in_progress', 'delivered'])
+    .eq('status', commission.status)
     .select()
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!data) return NextResponse.json({ error: 'Only active or delivered commissions can be disputed.' }, { status: 409 });
+  if (!data) return NextResponse.json({ error: 'This commission just changed — reload and try again.' }, { status: 409 });
   return NextResponse.json(data);
 }

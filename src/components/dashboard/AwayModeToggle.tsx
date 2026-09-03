@@ -1,33 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatDateOnly } from '@/utils/formatDateOnly';
 import { captureException } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/context/AuthContext';
+import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
 export function AwayModeToggle() {
-  const { user } = useAuth();
+  const { artist, refetch } = useOwnArtistProfile();
   const { toast } = useToast();
-  const [artist, setArtist] = useState<{ id: string; away_mode: boolean; away_message: string | null; away_until: string | null; commissions_open: boolean } | null>(null);
   const [message, setMessage] = useState('');
   const [until, setUntil] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Seed the form from the row the first time it arrives; after that the
+  // artist owns what is in the boxes.
+  const seeded = useRef(false);
   useEffect(() => {
-    if (!user) return;
-    supabase.from('artist_profiles').select('id, away_mode, away_message, away_until, commissions_open').eq('profile_id', user.id).single()
-      .then(({ data }) => {
-        if (data) {
-          setArtist(data);
-          setMessage(data.away_message ?? '');
-          setUntil(data.away_until ?? '');
-        }
-      });
-  }, [user]);
+    if (!artist || seeded.current) return;
+    seeded.current = true;
+    setMessage(artist.away_message ?? '');
+    setUntil(artist.away_until ?? '');
+  }, [artist]);
 
   if (!artist) return null;
 
@@ -45,7 +42,7 @@ export function AwayModeToggle() {
       commissions_open: false,
     }).eq('id', artist.id).select('id').maybeSingle();
     if (error || !updated) { captureException(error ?? new Error('away-mode enable matched zero rows'), { where: 'AwayModeToggle.enable' }); toast('Could not enable away mode', 'error'); }
-    else { setArtist({ ...artist, away_mode: true }); toast('Away mode on — your shop is paused.', 'success'); }
+    else { refetch(); toast('Away mode on — your shop is paused.', 'success'); }
     setSaving(false);
   };
 
@@ -60,7 +57,7 @@ export function AwayModeToggle() {
       commissions_open_before_away: null,
     }).eq('id', artist.id).select('id').maybeSingle();
     if (error || !updated) { captureException(error ?? new Error('away-mode disable matched zero rows'), { where: 'AwayModeToggle.disable' }); toast('Could not turn off away mode', 'error'); }
-    else { setArtist({ ...artist, away_mode: false }); toast('Welcome back — your shop is live again.', 'success'); }
+    else { refetch(); toast('Welcome back — your shop is live again.', 'success'); }
     setSaving(false);
   };
 

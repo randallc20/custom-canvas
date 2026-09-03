@@ -16,16 +16,19 @@ export interface ArtistProfile {
   graduation_year: number | null;
   status: ArtistStatus | null;
   neighborhood: string | null;
-  city: string;
+  // Nullable with a default in the DB (00001). Onboarding sets all four, so
+  // no live row has a null today; the types said 'cannot be null', which is a
+  // promise the schema does not make.
+  city: string | null;
   website_url: string | null;
   fulfillment_pref: FulfillmentPref | null;
-  commissions_open: boolean;
+  commissions_open: boolean | null;
   commission_desc: string | null;
   commission_min_cents: number | null;
   commission_turnaround: string | null;
-  accent_color: string;
+  accent_color: string | null;
   banner_image_url: string | null;
-  bio_layout: BioLayout;
+  bio_layout: BioLayout | null;
   is_houston_verified: boolean;
   is_featured: boolean;
   completeness_score: number;

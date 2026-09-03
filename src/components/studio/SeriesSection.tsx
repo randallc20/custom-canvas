@@ -27,6 +27,7 @@ export function SeriesSection() {
   const [editing, setEditing] = useState<ListingSeries | null>(null);
   const [creating, setCreating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<ListingSeries | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({ name: '', description: '', cover_image_url: '' });
   const [saving, setSaving] = useState(false);
 
@@ -74,6 +75,7 @@ export function SeriesSection() {
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
+    setDeleting(true);
     try {
       await deleteSeries(confirmDelete.id);
       toast('Series deleted — its listings stay in All Work', 'success');
@@ -82,6 +84,7 @@ export function SeriesSection() {
       captureException(err, { where: 'SeriesSection.delete' });
       toast('Failed to delete series', 'error');
     } finally {
+      setDeleting(false);
       setConfirmDelete(null);
     }
   };
@@ -179,8 +182,8 @@ export function SeriesSection() {
           return to All Work.
         </p>
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDelete}>Delete</Button>
+          <Button variant="outline" disabled={deleting} onClick={() => setConfirmDelete(null)}>Cancel</Button>
+          <Button variant="danger" loading={deleting} onClick={handleDelete}>Delete</Button>
         </div>
       </Modal>
     </div>

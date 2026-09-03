@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { Message, MessageAttachment } from '@/types/message';
+import { Message } from '@/types/message';
 
 interface MessageParams {
   cursor?: string;
@@ -102,14 +102,4 @@ export async function getUnreadCounts(): Promise<Record<string, number>> {
     counts[row.conversation_id] = Number(row.unread);
   }
   return counts;
-}
-
-export async function getAttachments(messageId: string): Promise<MessageAttachment[]> {
-  const { data, error } = await supabase
-    .from('message_attachments')
-    .select('*')
-    .eq('message_id', messageId);
-
-  if (error) throw error;
-  return data;
 }

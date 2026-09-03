@@ -1,5 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getReviewsByArtist, getReviewByOrderId } from '@/services/reviews';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Review } from '@/types/order';
 
 // The review write goes through the API route, not a client insert: the
@@ -31,21 +30,6 @@ export function createReview(data: {
   });
 }
 
-export function useArtistReviews(artistId: string) {
-  return useQuery({
-    queryKey: ['reviews', 'artist', artistId],
-    queryFn: () => getReviewsByArtist(artistId),
-    enabled: !!artistId,
-  });
-}
-
-export function useOrderReview(orderId: string) {
-  return useQuery({
-    queryKey: ['reviews', 'order', orderId],
-    queryFn: () => getReviewByOrderId(orderId),
-    enabled: !!orderId,
-  });
-}
 
 export function useCreateReview() {
   const queryClient = useQueryClient();
@@ -53,9 +37,9 @@ export function useCreateReview() {
   return useMutation({
     mutationFn: createReview,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reviews'] });
+      void queryClient.invalidateQueries({ queryKey: ['reviews'] });
       // The buyer orders query embeds reviews(id) for "already reviewed".
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
   });
 }

@@ -24,9 +24,9 @@ export function ListingImagesManager({ listingId, images }: ListingImagesManager
   const sorted = [...images].sort((a, b) => a.display_order - b.display_order);
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['listing', listingId] });
-    queryClient.invalidateQueries({ queryKey: ['listings'] });
-    queryClient.invalidateQueries({ queryKey: ['feed'] });
+    void queryClient.invalidateQueries({ queryKey: ['listing', listingId] });
+    void queryClient.invalidateQueries({ queryKey: ['listings'] });
+    void queryClient.invalidateQueries({ queryKey: ['feed'] });
   };
 
   // Keeps display_order dense (0..n-1) and is_primary pinned to the first

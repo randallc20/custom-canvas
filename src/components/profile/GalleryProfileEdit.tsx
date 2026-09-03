@@ -27,7 +27,7 @@ export function GalleryProfileEdit() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('gallery_profiles').select('*').eq('profile_id', user.id).maybeSingle()
+    void supabase.from('gallery_profiles').select('*').eq('profile_id', user.id).maybeSingle()
       .then(({ data, error }) => {
         // No organisation yet: this form would render empty and its Save would
         // update zero rows while toasting success. Send them to the setup form

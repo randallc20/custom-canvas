@@ -1,13 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getOrdersByBuyer, getOrdersByArtist, getArtistSalesTotals, updateOrderStatus, getOrderById } from '@/services/orders';
-
-export function useOrder(id: string) {
-  return useQuery({
-    queryKey: ['order', id],
-    queryFn: () => getOrderById(id),
-    enabled: !!id,
-  });
-}
+import { getOrdersByBuyer, getOrdersByArtist, getArtistSalesTotals, updateOrderStatus } from '@/services/orders';
 
 export function useBuyerOrders(buyerId: string) {
   return useQuery({
@@ -42,7 +34,7 @@ export function useUpdateOrderStatus() {
     mutationFn: ({ id, status, updates }: { id: string; status: string; updates?: Record<string, unknown> }) =>
       updateOrderStatus(id, status, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
   });
 }
@@ -61,7 +53,7 @@ export function useMarkDelivered() {
       return body as { ok: boolean; alreadyDelivered?: boolean };
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
   });
 }
@@ -81,7 +73,7 @@ export function useConfirmPickup() {
       return body as { confirmed: boolean; bothConfirmed: boolean; alreadyConfirmed?: boolean };
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
   });
 }

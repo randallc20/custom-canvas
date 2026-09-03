@@ -32,7 +32,7 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
 
   return (
     <div>
-      <div className="relative h-48 w-full bg-sand md:h-64" style={{ backgroundColor: artist.accent_color }}>
+      <div className="relative h-48 w-full bg-sand md:h-64" style={{ backgroundColor: artist.accent_color ?? '#E8704A' }}>
         {artist.banner_image_url && (
           <Image
             src={artist.banner_image_url}

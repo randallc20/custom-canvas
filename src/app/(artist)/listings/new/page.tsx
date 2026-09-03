@@ -5,15 +5,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { listingSchema, ListingFormData, toCents } from '@/schemas/listingSchema';
 import { useCreateListing } from '@/hooks/useListings';
-import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useToast } from '@/components/ui/Toast';
-import { captureException } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/sentry';
+import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 import { numberOrNull } from '@/utils/formNumber';
 import { DimensionsFieldset, useDimensionUnit } from '@/components/listing/DimensionsFieldset';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
@@ -27,16 +27,16 @@ import { addListingImages, setListingTags } from '@/services/listings';
 
 export default function NewListingPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const createListing = useCreateListing();
   const { toast } = useToast();
-  const [artistId, setArtistId] = useState('');
+  const { artist } = useOwnArtistProfile();
+  const artistId = artist?.id ?? '';
+  const isPickupOnly = isPickupPref(artist?.fulfillment_pref);
   // A failure AFTER the insert (images, tags) used to leave the form looking
   // untouched, and the next Publish inserted a second listing. Remember what
   // was created so a retry patches onto it instead.
   const createdIdRef = useRef<string | null>(null);
   const imagesAttachedRef = useRef(false);
-  const [isPickupOnly, setIsPickupOnly] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
 
   const moveImage = (i: number, dir: -1 | 1) => {
@@ -46,17 +46,6 @@ export default function NewListingPage() {
       return next;
     });
   };
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from('artist_profiles').select('id, fulfillment_pref').eq('profile_id', user.id).single()
-      .then(({ data }) => {
-        if (data) {
-          setArtistId(data.id);
-          setIsPickupOnly(isPickupPref(data.fulfillment_pref));
-        }
-      });
-  }, [user]);
 
   const { data: seriesOptions = [] } = useSeries(artistId);
 
@@ -92,8 +81,6 @@ export default function NewListingPage() {
           sold_price_cents: null,
           show_sold_price: false,
           series_id: data.series_id || null,
-          artist_id: artistId,
-          is_featured: false,
         });
         listingId = listing.id;
         createdIdRef.current = listingId;
@@ -108,7 +95,11 @@ export default function NewListingPage() {
         await setListingTags(listingId, data.tags);
       }
       // First listing is worth 20 completeness points — refresh canonically.
-      supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
+      // An un-awaited PostgREST builder never issues its request at all, so
+      // this has to be awaited; the score is cosmetic, so a failure is logged
+      // rather than shown.
+      const { error: scoreError } = await supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
+      if (scoreError) captureException(scoreError, { where: 'NewListing.refreshScore' });
       router.push('/studio/work');
     } catch (err) {
       captureException(err, { where: `listings/new.onSubmit:${stage}` });

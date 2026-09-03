@@ -49,7 +49,7 @@ function DisputesContent() {
   const [resolveAction, setResolveAction] = useState<ReportStatus>('dismissed');
 
   useEffect(() => {
-    supabase
+    void supabase
       .from('reports')
       // email is not client-readable (00031) — full_name only.
       .select('*, reporter:profiles!reports_reporter_id_fkey(full_name), listing:listings!reports_listing_id_fkey(title), reported:profiles!reports_reported_profile_id_fkey(full_name)')

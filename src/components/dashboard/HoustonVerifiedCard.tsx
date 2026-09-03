@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { captureException } from '@/lib/sentry';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/context/AuthContext';
+import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,9 +11,8 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 
 export function HoustonVerifiedCard() {
-  const { user } = useAuth();
+  const { artist } = useOwnArtistProfile();
   const { toast } = useToast();
-  const [artist, setArtist] = useState<{ id: string; is_houston_verified: boolean } | null>(null);
   const [pending, setPending] = useState(false);
   const [open, setOpen] = useState(false);
   const [connectionType, setConnectionType] = useState('school');
@@ -21,16 +20,14 @@ export function HoustonVerifiedCard() {
   const [links, setLinks] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const artistId = artist?.id;
   useEffect(() => {
-    if (!user) return;
-    supabase.from('artist_profiles').select('id, is_houston_verified').eq('profile_id', user.id).single()
-      .then(async ({ data }) => {
-        if (!data) return;
-        setArtist(data);
-        const { data: req } = await supabase.from('verification_requests').select('id').eq('artist_id', data.id).eq('status', 'pending').maybeSingle();
-        setPending(!!req);
-      });
-  }, [user]);
+    if (!artistId) return;
+    let cancelled = false;
+    void supabase.from('verification_requests').select('id').eq('artist_id', artistId).eq('status', 'pending').maybeSingle()
+      .then(({ data: req }) => { if (!cancelled) setPending(!!req); });
+    return () => { cancelled = true; };
+  }, [artistId]);
 
   if (!artist || artist.is_houston_verified) return null;
 

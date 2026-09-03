@@ -55,7 +55,7 @@ export function EmailPreferences() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('profiles').select('email_preferences').eq('id', user.id).single()
+    void supabase.from('profiles').select('email_preferences').eq('id', user.id).single()
       .then(({ data }) => {
         if (!touched.current && data?.email_preferences) setPrefs({ ...DEFAULTS, ...data.email_preferences });
         setLoading(false);

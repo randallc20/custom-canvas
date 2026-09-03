@@ -14,7 +14,7 @@ export function RecentlyViewed() {
   useEffect(() => {
     if (!user) return;
     let active = true;
-    (async () => {
+    void (async () => {
       const { data: events } = await supabase
         .from('analytics_events')
         .select('listing_id, created_at')

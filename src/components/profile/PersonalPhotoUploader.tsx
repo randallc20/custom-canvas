@@ -31,7 +31,10 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
       return;
     }
     invalidate(artistId, 'personal-photos');
-    supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
+    // Awaited: an un-awaited PostgREST builder never issues its request, so
+    // the two personal-photo points never reached the stored score.
+    const { error: scoreError } = await supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
+    if (scoreError) captureException(scoreError, { where: 'PersonalPhotoUploader.uploadScore' });
   };
 
   const handleCaption = async (id: string, caption: string) => {
@@ -53,7 +56,8 @@ export function PersonalPhotoUploader({ artistId }: PersonalPhotoUploaderProps) 
       return;
     }
     invalidate(artistId, 'personal-photos');
-    supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
+    const { error: scoreError } = await supabase.rpc('refresh_completeness_score', { p_artist_id: artistId });
+    if (scoreError) captureException(scoreError, { where: 'PersonalPhotoUploader.deleteScore' });
   };
 
   const move = async (i: number, dir: -1 | 1) => {

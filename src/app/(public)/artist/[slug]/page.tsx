@@ -130,7 +130,7 @@ export default async function ArtistPage({ params }: Props) {
               <SeriesTabs
                 listings={processedListings}
                 series={seriesRes.data ?? []}
-                accentColor={artist.accent_color}
+                accentColor={artist.accent_color ?? undefined}
               />
             </div>
             <MeetTheArtist

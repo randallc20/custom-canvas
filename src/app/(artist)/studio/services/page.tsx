@@ -50,7 +50,7 @@ export default function StudioServicesPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 

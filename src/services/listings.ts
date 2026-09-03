@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { Listing, ListingImage, ListingWithImages } from '@/types/listing';
+import type { ListingWriteData } from '@/schemas/listingSchema';
 
 export async function getListingById(id: string): Promise<ListingWithImages | null> {
   const { data, error } = await supabase
@@ -34,7 +35,10 @@ async function listingApi<T>(path: string, init: RequestInit): Promise<T> {
   return res.json();
 }
 
-export async function createListing(listing: Omit<Listing, 'id' | 'view_count' | 'save_count' | 'search_vector' | 'created_at' | 'updated_at'>): Promise<Listing> {
+// The body the route actually accepts: listingWriteSchema strips anything
+// else, and artist_id comes from the session there — so the client type must
+// not promise the server fields it discards.
+export async function createListing(listing: ListingWriteData): Promise<Listing> {
   return listingApi<Listing>('/api/listings', {
     method: 'POST',
     body: JSON.stringify(listing),
@@ -114,15 +118,4 @@ export async function deleteListingImage(id: string): Promise<void> {
   if (error) throw error;
   // Zero rows = RLS refused — the image would vanish from the UI but survive.
   if (!data) throw new Error('Could not remove the image — please refresh and try again.');
-}
-
-export async function getListingImages(listingId: string) {
-  const { data, error } = await supabase
-    .from('listing_images')
-    .select('*')
-    .eq('listing_id', listingId)
-    .order('display_order');
-
-  if (error) throw error;
-  return data;
 }

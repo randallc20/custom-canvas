@@ -7,7 +7,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { listingSchema, ListingFormData, toCents } from '@/schemas/listingSchema';
 import { useListing, useUpdateListing } from '@/hooks/useListings';
 import { setListingTags } from '@/services/listings';
-import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
@@ -16,13 +15,13 @@ import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useToast } from '@/components/ui/Toast';
 import { captureException } from '@/lib/sentry';
-import { useEffect, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useEffect, useRef } from 'react';
 import { TagPicker } from '@/components/listing/TagPicker';
 import { numberOrNull } from '@/utils/formNumber';
 import { cmToIn } from '@/utils/dimensions';
 import { DimensionsFieldset, useDimensionUnit } from '@/components/listing/DimensionsFieldset';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
+import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 import { useSeries } from '@/hooks/useArtistContent';
 import { ListingImagesManager } from '@/components/listing/ListingImagesManager';
 import { PhotoTipsPanel } from '@/components/upload/PhotoTipsPanel';
@@ -30,24 +29,13 @@ import { PhotoTipsPanel } from '@/components/upload/PhotoTipsPanel';
 export default function EditListingPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useAuth();
   const { data: listing, isLoading, isError } = useListing(id);
   const updateListing = useUpdateListing();
   const { toast } = useToast();
-  const [isPickupOnly, setIsPickupOnly] = useState(false);
-  const [artistId, setArtistId] = useState('');
-  const [artistLoaded, setArtistLoaded] = useState(false);
+  const { artist, loading: artistLoading } = useOwnArtistProfile();
+  const artistId = artist?.id ?? '';
+  const isPickupOnly = isPickupPref(artist?.fulfillment_pref);
   const { data: seriesOptions = [] } = useSeries(artistId);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from('artist_profiles').select('id, fulfillment_pref').eq('profile_id', user.id).single()
-      .then(({ data }) => {
-        if (data) setArtistId(data.id);
-        setIsPickupOnly(isPickupPref(data?.fulfillment_pref));
-        setArtistLoaded(true);
-      });
-  }, [user]);
 
   const { register, handleSubmit, watch, setValue, getValues, reset, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
     resolver: zodResolver(listingSchema),
@@ -90,7 +78,7 @@ export default function EditListingPage() {
   const aiInvolvement = watch('ai_involvement');
   const isSold = listing?.status === 'sold';
 
-  if (isLoading || !artistLoaded) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
+  if (isLoading || artistLoading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
 
   // A deleted listing (PGRST116) rendered as a blank editable form, and any
   // public listing the session could read — another artist's — loaded into

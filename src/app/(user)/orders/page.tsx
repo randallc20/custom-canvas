@@ -60,7 +60,7 @@ export default function OrdersPage() {
   const confirming = justPurchased && !hasRecentOrder && !confirmExpired;
   useEffect(() => {
     if (!confirming) return;
-    const interval = setInterval(() => { refetch(); }, CONFIRM_POLL_MS);
+    const interval = setInterval(() => { void refetch(); }, CONFIRM_POLL_MS);
     const timeout = setTimeout(() => setConfirmExpired(true), CONFIRM_POLL_FOR_MS);
     return () => { clearInterval(interval); clearTimeout(timeout); };
   }, [confirming, refetch]);

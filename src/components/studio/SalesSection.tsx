@@ -84,7 +84,7 @@ export function SalesSection() {
       const res = await fetch(`/api/orders/${order.id}/approve-refund`, { method: 'POST' });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
       toast('Refund approved — Custom Canvas will settle the payment.', 'success');
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
     } catch (e) {
       captureException(e, { where: 'SalesSection.approveRefund' });
       toast(e instanceof Error ? e.message : 'Could not approve the refund', 'error');

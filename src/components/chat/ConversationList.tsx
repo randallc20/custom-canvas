@@ -45,11 +45,11 @@ export function ConversationList({
             className={`flex items-center gap-3 px-4 py-3 transition-colors hover:bg-sand/50
               ${conv.id === activeId ? 'bg-terraSoft' : ''}`}
           >
-            <Avatar src={other.avatar_url} alt={other.full_name ?? other.email} size="md" />
+            <Avatar src={other.avatar_url} alt={other.full_name ?? 'Conversation'} size="md" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
                 <p className={`flex items-center gap-1 truncate text-sm ${unread > 0 && !muted ? 'font-semibold text-ink' : 'font-medium text-ink'}`}>
-                  {other.full_name ?? other.email}
+                  {other.full_name ?? 'Someone'}
                   {muted && (
                     <svg className="h-3.5 w-3.5 flex-shrink-0 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-label="Muted">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z M17 9l4 4m0-4l-4 4" />
