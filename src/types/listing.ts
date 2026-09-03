@@ -15,6 +15,16 @@ export interface Listing {
   shipping_rate_cents: number | null;
   ai_involvement: 'none' | 'assisted';
   ai_disclosure: string | null;
+  // Listing Standards Part one (00059 / L4).
+  edition_type: import('@/schemas/listingSchema').EditionType;
+  edition_size: number | null;
+  edition_number: number | null;
+  is_signed: boolean;
+  condition_notes: string | null;
+  handling_notes: string | null;
+  /** Nudity or mature themes. Filtered out of browsing unless the viewer
+   *  opts in (ruling D8). */
+  is_mature: boolean;
   price_visible: boolean;
   sold_price_cents: number | null;
   show_sold_price: boolean;

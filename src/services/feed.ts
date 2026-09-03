@@ -39,6 +39,10 @@ export interface FeedParams {
   schools?: string[];
   commissionsOpen?: boolean;
   availability?: Availability;
+  /** Ruling D8: mature work is excluded from browsing unless the viewer has
+   *  opted in. Defaults to false — the safe direction, and what an anonymous
+   *  visitor gets. */
+  showMature?: boolean;
 }
 
 interface FeedResult {
@@ -60,6 +64,7 @@ async function runFeedQuery(params: FeedParams, searchMode: 'strict' | 'fallback
   const {
     page = 0, limit = 20, city, medium, minPrice, maxPrice, search, sort = 'recent',
     neighborhoods, schools, commissionsOpen, availability = 'available',
+    showMature = false,
   } = params;
 
   // Inner-join artist_profiles so artist-attribute filters apply and we can
@@ -81,6 +86,11 @@ async function runFeedQuery(params: FeedParams, searchMode: 'strict' | 'fallback
   } else {
     query = query.eq('status', 'available');
   }
+
+  // Listing Standards Part three / ruling D8. The 00059 partial index covers
+  // the default (available, not mature) so this filter does not change the
+  // plan shape of the common feed.
+  if (!showMature) query = query.eq('is_mature', false);
 
   if (city) query = query.ilike('artist_profiles.city', cityMatchPattern(city));
   if (medium) query = query.eq('medium', medium);
@@ -186,7 +196,10 @@ export async function getSearchSuggestions(term: string): Promise<SearchSuggesti
     const [artistsRes, listingsRes] = await Promise.all([
       supabase.from('artist_profiles').select('slug, display_name').eq('is_live', true)
         .textSearch('search_vector', searchArg, searchOpts).limit(3),
-      supabase.from('listings').select('id, title').eq('status', 'available')
+      // Suggestions are a browsing surface too (D8). No opt-in is threaded
+      // here: a typeahead is not somewhere to surface mature work, and the
+      // listing is still reachable by searching for it properly.
+      supabase.from('listings').select('id, title').eq('status', 'available').eq('is_mature', false)
         .textSearch('search_vector', searchArg, searchOpts).limit(3),
     ]);
     return { artists: artistsRes.data ?? [], listings: listingsRes.data ?? [] };

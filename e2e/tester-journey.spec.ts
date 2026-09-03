@@ -138,6 +138,10 @@ test.describe.serial('tester round 1 journey', () => {
 
     await page.getByLabel('Title').fill(listingTitle);
     await page.getByLabel('Medium').fill('Oil on panel');
+    // L4: the Listing Standards require every listing to state its
+    // condition. Edition type defaults to Original, which is what these
+    // fixtures are.
+    await page.getByLabel('Condition').fill('New, no damage.');
     // Inches are the default — the toggle must say "in" is active.
     await expect(page.getByRole('button', { name: 'in', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await page.getByLabel('Width (in)').fill('24');

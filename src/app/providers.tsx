@@ -6,6 +6,7 @@ import { getQueryClient } from '@/lib/queryClient';
 import { AuthProvider } from '@/context/AuthContext';
 import { UnreadProvider } from '@/context/UnreadContext';
 import { LocationProvider } from '@/context/LocationContext';
+import { MatureProvider } from '@/context/MatureContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { ToastProvider } from '@/components/ui/Toast';
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
@@ -20,6 +21,7 @@ export function Providers({ children }: { children: ReactNode }) {
         <UnreadProvider>
           <NotificationProvider>
             <LocationProvider>
+              <MatureProvider>
               <ToastProvider>
                 <ConfirmProvider>
                   {/* Ruling D11: asks every signed-in account to accept the
@@ -30,6 +32,7 @@ export function Providers({ children }: { children: ReactNode }) {
                   {children}
                 </ConfirmProvider>
               </ToastProvider>
+              </MatureProvider>
             </LocationProvider>
           </NotificationProvider>
         </UnreadProvider>

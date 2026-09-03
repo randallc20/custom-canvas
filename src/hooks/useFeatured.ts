@@ -7,19 +7,22 @@ import {
   removeFeatured,
   updateFeaturedOrder,
 } from '@/services/featured';
+import { useMature } from '@/context/MatureContext';
 
 export function useFeaturedShelf() {
+  const { showMature } = useMature();
   return useQuery({
-    queryKey: ['featured', 'shelf'],
-    queryFn: getFeaturedShelf,
+    queryKey: ['featured', 'shelf', showMature],
+    queryFn: () => getFeaturedShelf(showMature),
     staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useNeighborhoodSpotlight(city?: string, enabled = true) {
+  const { showMature } = useMature();
   return useQuery({
-    queryKey: ['featured', 'spotlight', city ?? null],
-    queryFn: () => getNeighborhoodSpotlight(undefined, city),
+    queryKey: ['featured', 'spotlight', city ?? null, showMature],
+    queryFn: () => getNeighborhoodSpotlight(undefined, city, showMature),
     staleTime: 5 * 60 * 1000,
     enabled,
   });

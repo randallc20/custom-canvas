@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { captureException } from '@/lib/sentry';
 import { useOwnArtistProfile } from '@/hooks/useArtistProfileId';
 import { numberOrNull } from '@/utils/formNumber';
+import { AboutPieceFieldset } from '@/components/listing/AboutPieceFieldset';
 import { DimensionsFieldset, useDimensionUnit } from '@/components/listing/DimensionsFieldset';
 import { isPickupOnly as isPickupPref } from '@/utils/fulfillment';
 import { useSeries } from '@/hooks/useArtistContent';
@@ -51,13 +52,14 @@ export default function NewListingPage() {
 
   const { register, handleSubmit, watch, setValue, getValues, formState: { errors, isSubmitting } } = useForm<ListingFormData>({
     resolver: zodResolver(listingSchema),
-    defaultValues: { status: 'available', tags: [], price_visible: true, ai_involvement: 'none' },
+    defaultValues: { status: 'available', tags: [], price_visible: true, ai_involvement: 'none', edition_type: 'original', is_signed: false, is_mature: false },
   });
   const { unit, switchUnit, toCm } = useDimensionUnit(getValues, setValue);
 
   const priceVisible = watch('price_visible');
   const selectedTags = watch('tags');
   const aiInvolvement = watch('ai_involvement');
+  const editionType = watch('edition_type');
 
   const onSubmit = async (data: ListingFormData, asDraft = false) => {
     let stage: 'create' | 'images' | 'tags' = 'create';
@@ -81,6 +83,14 @@ export default function NewListingPage() {
           sold_price_cents: null,
           show_sold_price: false,
           series_id: data.series_id || null,
+          // Listing Standards Part one (L4).
+          edition_type: data.edition_type,
+          edition_size: data.edition_type === 'limited_edition' ? (data.edition_size ?? null) : null,
+          edition_number: data.edition_type === 'limited_edition' ? (data.edition_number ?? null) : null,
+          is_signed: !!data.is_signed,
+          condition_notes: data.condition_notes,
+          handling_notes: data.handling_notes || null,
+          is_mature: !!data.is_mature,
         });
         listingId = listing.id;
         createdIdRef.current = listingId;
@@ -121,6 +131,7 @@ export default function NewListingPage() {
         <Textarea label="Description" rows={4} {...register('description')} error={errors.description?.message} />
         <Input label="Medium" {...register('medium')} error={errors.medium?.message} />
         <DimensionsFieldset unit={unit} onSwitch={switchUnit} register={register} />
+        <AboutPieceFieldset register={register} errors={errors} editionType={editionType} />
         <Input label="Year Created" type="number" {...register('year_created', { setValueAs: numberOrNull })} error={errors.year_created?.message} />
         {seriesOptions.length > 0 && (
           <Select label="Series (optional)" {...register('series_id')}>

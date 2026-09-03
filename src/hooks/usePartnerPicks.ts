@@ -6,11 +6,13 @@ import {
   removePick,
   updatePick,
 } from '@/services/partnerPicks';
+import { useMature } from '@/context/MatureContext';
 
 export function usePartnerPicksShelf() {
+  const { showMature } = useMature();
   return useQuery({
-    queryKey: ['partner-picks', 'shelf'],
-    queryFn: () => getPartnerPicksShelf(),
+    queryKey: ['partner-picks', 'shelf', showMature],
+    queryFn: () => getPartnerPicksShelf(undefined, showMature),
     staleTime: 5 * 60 * 1000,
   });
 }

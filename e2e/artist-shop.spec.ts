@@ -231,6 +231,8 @@ test.describe.serial('artist shop building, reject → resubmit → approve, goi
       'week it sells.'
     );
     await page.getByLabel('Medium').fill('Oil on canvas');
+    // L4: condition is a required Listing Standards field.
+    await page.getByLabel('Condition').fill('New, no damage.');
     await page.getByLabel('Width (in)').fill('24');
     await page.getByLabel('Height (in)').fill('36');
     await page.getByLabel('Year Created').fill('2026');
@@ -302,6 +304,8 @@ test.describe.serial('artist shop building, reject → resubmit → approve, goi
     await page.getByLabel('Title').fill(bayouTitle);
     await page.locator('textarea').first().fill('Quick gouache study of Buffalo Bayou.');
     await page.getByLabel('Medium').fill('Gouache');
+    // L4: condition is a required Listing Standards field.
+    await page.getByLabel('Condition').fill('New, no damage.');
     await page.getByLabel('Price ($)').fill('8');
     await page.getByLabel('Shipping rate ($)').fill('0');
     await page

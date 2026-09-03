@@ -1254,4 +1254,78 @@ BEGIN
 END $$;
 ROLLBACK;
 
+-- ---------------------------------------------------------------------------
+-- 11. Listing Standards columns (00059, L4). The CHECK on edition_type is
+--     what stops a reproduction being stored as an original by a client that
+--     skips the zod schema, and is_mature has to default to false — a new
+--     column defaulting the other way would put every existing piece behind
+--     the mature notice.
+-- ---------------------------------------------------------------------------
+BEGIN;
+DO $$
+DECLARE
+  artist uuid;
+  l listings%ROWTYPE;
+  denied boolean;
+BEGIN
+  SELECT id INTO artist FROM artist_profiles LIMIT 1;
+  IF artist IS NULL THEN
+    RAISE EXCEPTION 'listing standards: no artist to build the fixture from';
+  END IF;
+
+  -- Defaults: existing rows and any insert that omits them.
+  INSERT INTO listings (artist_id, title, medium, price_cents)
+    VALUES (artist, 'smoke standards', 'Oil', 10000)
+    RETURNING * INTO l;
+  IF l.edition_type <> 'original' THEN
+    RAISE EXCEPTION 'listing standards: edition_type must default to original, got %', l.edition_type;
+  END IF;
+  IF l.is_mature THEN
+    RAISE EXCEPTION 'listing standards: is_mature must default to false';
+  END IF;
+  IF l.is_signed THEN
+    RAISE EXCEPTION 'listing standards: is_signed must default to false';
+  END IF;
+
+  -- The CHECK is the backstop for the zod rule.
+  denied := false;
+  BEGIN
+    UPDATE listings SET edition_type = 'unique_snowflake' WHERE id = l.id;
+  EXCEPTION WHEN check_violation THEN denied := true;
+  END;
+  IF NOT denied THEN
+    RAISE EXCEPTION 'listing standards: edition_type accepted a value outside the CHECK';
+  END IF;
+
+  -- All four documented values are accepted.
+  UPDATE listings SET edition_type = 'limited_edition' WHERE id = l.id;
+  UPDATE listings SET edition_type = 'open_edition' WHERE id = l.id;
+  UPDATE listings SET edition_type = 'reproduction' WHERE id = l.id;
+  UPDATE listings SET edition_type = 'original' WHERE id = l.id;
+
+  -- Edition numbers are positive.
+  denied := false;
+  BEGIN
+    UPDATE listings SET edition_size = 0 WHERE id = l.id;
+  EXCEPTION WHEN check_violation THEN denied := true;
+  END;
+  IF NOT denied THEN
+    RAISE EXCEPTION 'listing standards: edition_size accepted 0';
+  END IF;
+END $$;
+ROLLBACK;
+
+-- The partial index the default feed depends on (00059): available and not
+-- mature, which is what every anonymous browse asks for.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+     WHERE schemaname = 'public' AND tablename = 'listings'
+       AND indexname = 'listings_available_not_mature_idx'
+  ) THEN
+    RAISE EXCEPTION 'missing index listings_available_not_mature_idx (00059)';
+  END IF;
+END $$;
+
 \echo 'db-smoke: all checks passed'
