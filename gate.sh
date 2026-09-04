@@ -12,6 +12,24 @@
 set -uo pipefail
 cd "$(dirname "$0")" || exit 1
 
+# Git hooks run with a minimal PATH — no login shell, so nvm is never sourced
+# and `npm` is not found. Every step then "fails" in 0s with `command not
+# found`, which reads as a red tree and blocks the push for a reason that has
+# nothing to do with the code. (The launchd nightly hit this same thing five
+# times before it was diagnosed.) Resolve node ourselves when the caller has
+# not: newest nvm version wins, and if there is genuinely no node we say so
+# rather than reporting four failed steps.
+if ! command -v npm >/dev/null 2>&1; then
+  for bin in "$HOME/.nvm/versions/node"/*/bin; do
+    [ -x "$bin/npm" ] && PATH="$bin:$PATH"
+  done
+  export PATH
+fi
+if ! command -v npm >/dev/null 2>&1; then
+  printf '\033[31m✗ gate cannot run: npm is not on PATH and no nvm install was found\033[0m\n'
+  exit 1
+fi
+
 MODE="fast"
 [ "${1:-}" = "--e2e" ] && MODE="e2e"
 
