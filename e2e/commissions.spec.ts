@@ -74,7 +74,14 @@ async function paceCommissionWrites(page: Page) {
   for (;;) {
     const now = Date.now();
     while (commissionWrites.length && now - commissionWrites[0] > 62_000) commissionWrites.shift();
-    if (commissionWrites.length < 4) break;
+    // The bucket is 5 non-GET per 60s per IP on /api/commissions (middleware
+    // LIMITS), and it covers every sub-route — accept, complete, confirm,
+    // decline, updates, dispute. This counter only sees the writes the spec
+    // makes deliberately, so the headroom has to absorb the ones it does not:
+    // a UI click that posts on its own, a retry, a stray request from the
+    // previous spec still inside the sliding window. Four left no room and
+    // produced 429s on two different tests today.
+    if (commissionWrites.length < 3) break;
     await page.waitForTimeout(62_000 - (now - commissionWrites[0]) + 500);
   }
   commissionWrites.push(Date.now());
@@ -117,16 +124,23 @@ async function requestCommission(
   await page.getByLabel('Description').fill(brief);
   await page.getByLabel('Min Budget ($)').fill('200');
   await page.getByLabel('Max Budget ($)').fill('400');
-  await paceCommissionWrites(page);
-  const [res] = await Promise.all([
-    page.waitForResponse(
-      (r) => r.url().endsWith('/api/commissions') && r.request().method() === 'POST',
-      { timeout: 30_000 }
-    ),
-    page.getByRole('button', { name: 'Send Request' }).click(),
-  ]);
-  expect(res.status()).toBe(201);
-  const body = await res.json();
+  // Retried through the limiter, like the stale probes. The form is a real UI
+  // click, so this cannot go through `staleProbe` — but a 429 here is the same
+  // harness artifact and used to fail 11.12 outright.
+  let res: import('@playwright/test').Response | null = null;
+  for (let attempt = 0; attempt < 2 && (!res || res.status() === 429); attempt += 1) {
+    if (res?.status() === 429) await page.waitForTimeout(62_000);
+    await paceCommissionWrites(page);
+    [res] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().endsWith('/api/commissions') && r.request().method() === 'POST',
+        { timeout: 30_000 }
+      ),
+      page.getByRole('button', { name: 'Send Request' }).click(),
+    ]);
+  }
+  expect(res!.status()).toBe(201);
+  const body = await res!.json();
   expect(body.id).toBeTruthy();
   expect(body.conversation_id).toBeTruthy();
   // The form drops the buyer straight into the conversation with the artist.
