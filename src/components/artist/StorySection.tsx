@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import type { ArtistProfile } from '@/types/artist';
 
 interface StorySectionProps {
@@ -8,7 +7,6 @@ interface StorySectionProps {
 }
 
 export function StorySection({ artist }: StorySectionProps) {
-  const [statementOpen, setStatementOpen] = useState(false);
   const hasStory = artist.story?.trim();
   const hasStatement = artist.artist_statement?.trim();
   const hasInfluences = artist.influences?.trim();
@@ -26,33 +24,19 @@ export function StorySection({ artist }: StorySectionProps) {
         </div>
       )}
 
+      {/* A plain headed section, like Influences below it. It used to collapse
+          into a full-width bordered box with a chevron whenever the artist
+          also had a story — the only control of its kind on the page, sitting
+          under prose, which read as an empty form field rather than something
+          to expand. A tester called it "weird" and they were right. One code
+          path now, and it matches the two sections either side of it. */}
       {hasStatement && (
-        hasStory ? (
-          <div className="rounded-xl border border-line bg-surface">
-            <button
-              onClick={() => setStatementOpen((o) => !o)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-ink"
-            >
-              Artist Statement
-              <svg
-                className={`h-4 w-4 text-muted transition-transform duration-200 ${statementOpen ? 'rotate-180' : ''}`}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {statementOpen && (
-              <p className="whitespace-pre-line border-t border-line px-4 py-3 text-sm text-muted">
-                {artist.artist_statement}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div>
-            <h3 className="mb-2 text-lg font-semibold text-ink">Artist Statement</h3>
-            <p className="whitespace-pre-line text-muted">{artist.artist_statement}</p>
-          </div>
-        )
+        <div>
+          <h3 className="mb-2 text-lg font-semibold text-ink">Artist Statement</h3>
+          <p className="max-w-prose whitespace-pre-line leading-relaxed text-ink/80">
+            {artist.artist_statement}
+          </p>
+        </div>
       )}
 
       {hasInfluences && (

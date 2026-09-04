@@ -301,6 +301,16 @@ test.describe.serial('part 11 — commissions', () => {
 
   test('11.3 artist sends a quote — nonsense price refused first', async () => {
     const page = artistPage;
+    // Park the BUYER on the thread first, before the quote exists. This is the
+    // state the whole suite was missing: every other test opens a page after
+    // the thing it checks has already happened, so the commission query is
+    // always fetched warm and correct. A real buyer has the conversation open
+    // from the request onward, and their cached commission still says
+    // `pending` when the quote lands. Shipped a card reading "Accepted" with
+    // no buttons to a live tester (2026-09-04); asserted at 11.3b below.
+    await loverPage.goto(`/messages/${commission1.conversationId}`);
+    await expect(loverPage.getByText(brief).first()).toBeVisible({ timeout: 20_000 });
+
     await page.goto(`/messages/${commission1.conversationId}`);
     const panel = await openCommissionPanel(page);
     await panel.getByRole('button', { name: 'Send Quote' }).click();
@@ -323,6 +333,19 @@ test.describe.serial('part 11 — commissions', () => {
     await expect(panel.getByText('Artist Quote')).toBeVisible();
     await expect(panel.getByText('$300.00')).toBeVisible();
     await expect(panel.getByText('Estimated completion: 4 weeks')).toBeVisible();
+  });
+
+  test('11.3b the buyer\'s already-open thread offers the quote without a reload', async () => {
+    // The cold-session case. `loverPage` has been sitting on this conversation
+    // since before the quote was sent and has NOT been reloaded, so its
+    // commission is the `pending` one it fetched on arrival. The card must
+    // still come to life when the quote message arrives.
+    const card = loverPage.locator('div').filter({ hasText: /^Commission quote/ }).first();
+    await expect(card).toBeVisible({ timeout: 45_000 });
+    await expect(card.getByRole('button', { name: 'Accept' })).toBeVisible({ timeout: 45_000 });
+    await expect(card.getByRole('button', { name: 'Decline' })).toBeVisible();
+    // And emphatically not the state that shipped: a decision already made.
+    await expect(card.getByText('Accepted')).toHaveCount(0);
   });
 
   test('11.4 lover accepts the quote — in progress straight away, everywhere', async () => {

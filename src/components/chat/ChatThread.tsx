@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMessages, useSendMessage, useMarkAsRead } from '@/hooks/useMessages';
 import { useAuth } from '@/context/AuthContext';
 import { useUnread } from '@/context/UnreadContext';
@@ -23,6 +24,7 @@ export function ChatThread({ conversationId, otherPartnerType }: ChatThreadProps
   const sendMessage = useSendMessage();
   const markAsRead = useMarkAsRead(conversationId, user?.id ?? '');
   const { refreshUnread } = useUnread();
+  const queryClient = useQueryClient();
   // One read, shared with the rail's cache entry. The quote card needs the
   // commission's REAL status: keeping accepted/declined in the bubble's own
   // state put Accept and Decline back on an already-accepted quote after
@@ -40,6 +42,19 @@ export function ChatThread({ conversationId, otherPartnerType }: ChatThreadProps
       markAsRead.mutate(undefined, { onSuccess: () => refreshUnread() });
     }
   }, [messages.length, user, conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A quote arriving is a change to the COMMISSION, not just to the thread,
+  // and nothing told this side about it: the buyer's commission was fetched
+  // when they opened the conversation — status `pending` — and React Query
+  // held that answer while the artist quoted. The card read the stale status
+  // and the whole exchange deadlocked. Refetch whenever the thread grows; it
+  // is one cheap query against a row we already cache, and it is the only
+  // moment the commission can change without this browser doing it.
+  useEffect(() => {
+    if (messages.length > prevMessageCount.current && prevMessageCount.current > 0) {
+      void queryClient.invalidateQueries({ queryKey: ['commission', conversationId] });
+    }
+  }, [messages.length, conversationId, queryClient]);
 
   // Auto-scroll to bottom on new messages (but not when loading older)
   useEffect(() => {

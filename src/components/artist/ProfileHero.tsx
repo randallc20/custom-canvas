@@ -32,31 +32,49 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
 
   return (
     <div>
-      {/* The banner's shape must match what the uploader promises. The editor
-          says "1440x400 works best" (3.6:1) and previews it at that ratio;
-          this was a FIXED 192/256px height at full bleed, so on a 1512px
-          laptop the same image was squeezed into roughly 5.9:1 and about 40%
-          of it — including, in the report that found this, most of a group
-          photo — was simply cut away. Wider monitors made it worse.
-
-          An aspect box instead of a height: a correctly-sized banner is shown
-          whole at any width up to 1440px, and the cap keeps the hero from
-          swallowing the fold on very wide screens. Reported by a tester,
-          2026-09-03. */}
-      <div className="relative aspect-[36/10] max-h-[25rem] w-full overflow-hidden bg-sand" style={{ backgroundColor: artist.accent_color ?? '#E8704A' }}>
+      {/* Nothing is cropped, whatever the artist uploads.
+          The first attempt at this matched the box to the uploader's advice
+          ("1440x400 works best") and still cut a 1511x1007 photo in half,
+          because artists upload photographs, not banner strips — measured on
+          the live page: a 400px-tall box showing 40% of the image. Any fixed
+          ratio has that failure, and there is no crop tool to make the artist
+          choose which 40%.
+          So: the image is CONTAINED, and a blurred copy of it fills the space
+          either side. The whole photo is always visible, a correctly-sized
+          1440x400 banner is unchanged (contain and cover agree at that ratio),
+          and the fill is drawn from the image itself so it never fights the
+          artist's colours. */}
+      <div
+        className="relative aspect-[36/10] max-h-[25rem] w-full overflow-hidden bg-sand"
+        style={{ backgroundColor: artist.accent_color ?? '#E8704A' }}
+      >
         {artist.banner_image_url && (
-          <Image
-            src={artist.banner_image_url}
-            alt={`${artist.display_name}'s banner`}
-            fill
-            sizes="100vw"
-            className="object-cover"
-            priority
-          />
+          <>
+            <Image
+              src={artist.banner_image_url}
+              alt=""
+              aria-hidden
+              fill
+              sizes="100vw"
+              className="scale-110 object-cover blur-2xl"
+              priority
+            />
+            <Image
+              src={artist.banner_image_url}
+              alt={`${artist.display_name}'s banner`}
+              fill
+              sizes="100vw"
+              className="object-contain"
+              priority
+            />
+          </>
         )}
       </div>
       <div className={`mx-auto flex max-w-7xl flex-col px-4 ${alignment}`}>
-        <div className="-mt-12 mb-4">
+        {/* `relative z-10`: the banner above is positioned, so without a
+            stacking context of its own this avatar paints UNDERNEATH it and
+            loses its top half to the banner's bottom edge. */}
+        <div className="relative z-10 -mt-12 mb-4">
           <div className="inline-flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gray-300 text-2xl font-bold text-white shadow-lg">
             {artist.profile?.avatar_url ? (
               <Image

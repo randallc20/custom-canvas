@@ -6,23 +6,39 @@ describe('quoteCardState', () => {
     expect(quoteCardState('quoted')).toBe('open');
   });
 
+  it('leaves it open on a request that has not been quoted yet', () => {
+    // The regression that reached prod. The first cut of this function listed
+    // the declined statuses and called everything else accepted, so `pending`
+    // — a commission that has only been requested — rendered as "Accepted"
+    // with no buttons. A buyer whose thread was open before the artist quoted
+    // could never accept, and the artist sat on "Quote sent" forever.
+    expect(quoteCardState('pending')).toBe('open');
+  });
+
   it('is open when the commission has not loaded yet', () => {
-    // Undefined is "we do not know", and hiding the buttons on a slow query
-    // would look like the same bug from the other side.
     expect(quoteCardState(undefined)).toBe('open');
     expect(quoteCardState(null)).toBe('open');
   });
 
-  it('closes the decision once the quote was accepted', () => {
-    // The reported bug: after a reload this returned to `open` and the buyer
-    // was offered a decision they had already made, which then 409'd.
+  it('is open on a status it does not recognise', () => {
+    // Fail toward the button. A control the route may refuse is recoverable;
+    // a card with no control at all strands both parties.
+    expect(quoteCardState('some_future_status')).toBe('open');
+  });
+
+  it('closes the decision once the quote was accepted, and stays closed after', () => {
+    expect(quoteCardState('accepted')).toBe('Accepted');
     expect(quoteCardState('in_progress')).toBe('Accepted');
     expect(quoteCardState('delivered')).toBe('Accepted');
+    expect(quoteCardState('confirmed')).toBe('Accepted');
     expect(quoteCardState('completed')).toBe('Accepted');
   });
 
-  it('reads declined and cancelled as a decline', () => {
-    expect(quoteCardState('declined')).toBe('Declined');
+  it('reads a dispute as accepted work, not an open offer', () => {
+    expect(quoteCardState('disputed')).toBe('Accepted');
+  });
+
+  it('reads cancelled as a decline', () => {
     expect(quoteCardState('cancelled')).toBe('Declined');
   });
 
