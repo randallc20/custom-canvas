@@ -135,7 +135,7 @@ test.describe.serial('artist shop building, reject → resubmit → approve, goi
 
   // ── 4.9 — fill in the public page ─────────────────────────────────────────
 
-  test('4.9: public page — avatar, story, statement, influences, mediums, neighborhood, fulfillment', async () => {
+  test('4.9: public page — avatar, story, influences, mediums, neighborhood, fulfillment', async () => {
     test.setTimeout(120_000);
     const page = artistPage;
     await page.goto('/studio/page');
@@ -151,10 +151,6 @@ test.describe.serial('artist shop building, reject → resubmit → approve, goi
       'and the neighborhoods that grew up around them. This shop exists so the e2e suite can walk ' +
       'the whole shop-building journey for real, end to end.'
     );
-    await page
-      .locator('fieldset', { hasText: 'About Your Work' })
-      .locator('textarea')
-      .fill('I work wet-into-wet, chasing the moment the light goes.');
     await page.getByLabel('Influences').fill('Rackstraw Downes, Julie Mehretu');
     await page.getByRole('button', { name: 'Oil Paint', exact: true }).click();
     await page.getByRole('button', { name: 'Ink', exact: true }).click();

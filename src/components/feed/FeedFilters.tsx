@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { FilterDrawer } from './FilterDrawer';
 import { FilterControls } from './FilterControls';
 import { activeFilterCount, type FeedFilterValues } from './filterTypes';
@@ -17,37 +17,31 @@ interface FeedFiltersProps {
 
 export function FeedFilters({ filters, city, onFilterChange }: FeedFiltersProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
-
-  // Controlled so the box reflects external changes (navbar search, Clear).
-  const [searchInput, setSearchInput] = useState(filters.search ?? '');
-  useEffect(() => { setSearchInput(filters.search ?? ''); }, [filters.search]);
-
-  const handleSearch = (value: string) => {
-    setSearchInput(value);
-    clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => {
-      onFilterChange({ ...filters, search: value || undefined });
-    }, 300);
-  };
-
   const activeCount = activeFilterCount(filters);
 
   return (
     <div className="mb-6 space-y-3">
-      <div className="relative">
-        <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input
-          type="text"
-          aria-label="Search art, artists, styles"
-          value={searchInput}
-          onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Search art, artists, styles..."
-          className="w-full rounded-full border border-line bg-surface py-2 pl-10 pr-4 text-sm text-ink placeholder:text-muted/70 focus:border-terra focus:outline-none focus:ring-2 focus:ring-terra/20"
-        />
-      </div>
+      {/* The search input lived here AND in the navbar, with the same
+          placeholder, writing the same `q` to the same feed — one search
+          rendered twice. The navbar's is the one that survives: it works from
+          every page and it suggests. What remains here is the state, as
+          something you can see and remove. */}
+      {filters.search && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-muted">Searching</span>
+          <button
+            type="button"
+            onClick={() => onFilterChange({ ...filters, search: undefined })}
+            className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-sm font-medium text-cream"
+            aria-label={`Clear search for ${filters.search}`}
+          >
+            &ldquo;{filters.search}&rdquo;
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       <div className="hidden md:block">
         <FilterControls layout="row" filters={filters} city={city} onFilterChange={onFilterChange} />

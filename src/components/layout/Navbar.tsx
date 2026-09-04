@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useUnread } from '@/context/UnreadContext';
 import { NotificationDropdown } from '@/components/notification/NotificationDropdown';
 import { NavSearch } from '@/components/layout/NavSearch';
+import { Suspense } from 'react';
 import { LocationPicker } from '@/components/layout/LocationPicker';
 import { useToast } from '@/components/ui/Toast';
 import { captureException } from '@/lib/sentry';
@@ -45,7 +46,11 @@ export function Navbar() {
         </Link>
 
         <div className="hidden flex-1 items-center justify-center gap-3 px-8 md:flex">
-          <NavSearch className="w-full max-w-md" />
+          {/* Suspense because NavSearch reads the query string; without a
+              boundary every page that mounts the nav is forced dynamic. */}
+          <Suspense fallback={<div className="h-9 w-full max-w-md rounded-full bg-sand/60" />}>
+            <NavSearch className="w-full max-w-md" />
+          </Suspense>
           <LocationPicker />
         </div>
 
@@ -141,7 +146,9 @@ export function Navbar() {
       {menuOpen && (
         <div className="border-t border-line bg-cream px-4 pb-4 md:hidden">
           <div className="mt-3">
-            <NavSearch />
+            <Suspense fallback={<div className="h-9 w-full rounded-full bg-sand/60" />}>
+              <NavSearch />
+            </Suspense>
           </div>
           <div className="mt-3">
             <LocationPicker />

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { getInitials } from '@/utils/initials';
 
 const sizes = {
   xs: 'h-6 w-6 text-xs',
@@ -26,16 +27,6 @@ interface AvatarProps {
   alt: string;
   size?: keyof typeof sizes;
   className?: string;
-}
-
-export function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((part) => part[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 }
 
 export function Avatar({ src, alt, size = 'md', className = '' }: AvatarProps) {

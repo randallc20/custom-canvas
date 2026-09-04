@@ -1,4 +1,4 @@
-import { getInitials } from '@/components/ui/Avatar';
+import { getInitials } from '@/utils/initials';
 
 /** Stand-in for a partner banner that was never uploaded. The bare `bg-sand`
  *  box read as a rendering mistake — this makes "no banner yet" look chosen:

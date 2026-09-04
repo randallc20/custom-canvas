@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSearchSuggestions } from '@/hooks/useFeed';
 
 interface NavSearchProps {
@@ -16,12 +16,18 @@ export function NavSearch({ className = '' }: NavSearchProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
 
-  // Seed from the URL's q param so a shared/search URL shows its query.
-  // Read on mount only (window avoids forcing the whole nav into Suspense).
+  // TRACK the q param, do not read it once. This used to seed from
+  // window.location on mount only, so the box went stale the moment anything
+  // else changed the query — clearing the search from the feed left the term
+  // sitting in the navbar, and navigating between searches showed the first
+  // one forever. That was survivable while the feed had its own search box.
+  // It is not now that this is the only one, so the nav accepts a Suspense
+  // boundary (see Navbar) in exchange for being correct.
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get('q') ?? '';
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get('q');
-    if (q) setTerm(q);
-  }, []);
+    setTerm(urlQuery);
+  }, [urlQuery]);
 
   const { data: suggestions } = useSearchSuggestions(debounced);
 
