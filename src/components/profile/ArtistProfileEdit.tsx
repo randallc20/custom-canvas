@@ -50,7 +50,6 @@ export function ArtistProfileEdit() {
     values: artist ? {
       display_name: artist.display_name,
       bio: artist.bio ?? '',
-      artist_statement: artist.artist_statement ?? '',
       story: artist.story ?? '',
       primary_mediums: artist.primary_mediums ?? [],
       influences: artist.influences ?? '',
@@ -229,7 +228,7 @@ export function ArtistProfileEdit() {
           // by its VISIBLE label, not its schema key.
           const labels: Record<string, string> = {
             display_name: 'Display Name', bio: 'Bio', school: 'School',
-            graduation_year: 'Graduation Year', artist_statement: 'Artist Statement',
+            graduation_year: 'Graduation Year',
             influences: 'Influences', website_url: 'Website', city: 'City',
             neighborhood: 'Neighborhood', fulfillment_pref: 'Fulfillment Preference',
             commission_desc: 'Commission Description', commission_min_dollars: 'Minimum Price',
@@ -297,7 +296,6 @@ export function ArtistProfileEdit() {
 
         <fieldset className="space-y-4">
           <legend className="text-lg font-semibold text-ink">About Your Work</legend>
-          <Textarea label="Artist Statement" rows={4} {...register('artist_statement')} error={errors.artist_statement?.message} />
           <Input label="Influences" {...register('influences')} error={errors.influences?.message} />
           <Input label="Website" {...register('website_url')} placeholder="https://" error={errors.website_url?.message} />
         </fieldset>

@@ -43,9 +43,16 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
           either side. The whole photo is always visible, a correctly-sized
           1440x400 banner is unchanged (contain and cover agree at that ratio),
           and the fill is drawn from the image itself so it never fights the
-          artist's colours. */}
+          artist's colours.
+          The tall box applies only when there IS a banner. Most artists have
+          none, and giving them a 400px slab of flat accent colour above the
+          fold was a worse page than the one being fixed — an empty header is
+          not worth a third of the screen. Without an image it keeps the
+          original height. */}
       <div
-        className="relative aspect-[36/10] max-h-[25rem] w-full overflow-hidden bg-sand"
+        className={`relative w-full overflow-hidden bg-sand ${
+          artist.banner_image_url ? 'aspect-[36/10] max-h-[25rem]' : 'h-48 md:h-64'
+        }`}
         style={{ backgroundColor: artist.accent_color ?? '#E8704A' }}
       >
         {artist.banner_image_url && (
