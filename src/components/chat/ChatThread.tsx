@@ -5,6 +5,7 @@ import { useMessages, useSendMessage, useMarkAsRead } from '@/hooks/useMessages'
 import { useAuth } from '@/context/AuthContext';
 import { useUnread } from '@/context/UnreadContext';
 import { MessageBubble } from './MessageBubble';
+import { useConversationCommission } from '@/hooks/useConversationCommission';
 import { MessageInput } from './MessageInput';
 import { Spinner } from '@/components/ui/Spinner';
 
@@ -22,6 +23,11 @@ export function ChatThread({ conversationId, otherPartnerType }: ChatThreadProps
   const sendMessage = useSendMessage();
   const markAsRead = useMarkAsRead(conversationId, user?.id ?? '');
   const { refreshUnread } = useUnread();
+  // One read, shared with the rail's cache entry. The quote card needs the
+  // commission's REAL status: keeping accepted/declined in the bubble's own
+  // state put Accept and Decline back on an already-accepted quote after
+  // every reload.
+  const { data: commission } = useConversationCommission(conversationId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevMessageCount = useRef(0);
@@ -94,7 +100,13 @@ export function ChatThread({ conversationId, otherPartnerType }: ChatThreadProps
         )}
         <div className="space-y-2">
           {reversed.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} isOwn={msg.sender_id === user?.id} senderPartnerType={otherPartnerType} />
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              isOwn={msg.sender_id === user?.id}
+              senderPartnerType={otherPartnerType}
+              commissionStatus={commission?.status ?? null}
+            />
           ))}
         </div>
         <div ref={bottomRef} />

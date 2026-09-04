@@ -4,9 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ListingWithImages } from '@/types/listing';
 import { listingPriceLabel } from '@/utils/formatPrice';
-import { useAuth } from '@/context/AuthContext';
-import { useSavedIds, useToggleSave } from '@/hooks/useSaved';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
+import { SaveHeart } from '@/components/listing/SaveHeart';
 
 interface FeedCardProps {
   listing: ListingWithImages;
@@ -17,23 +16,8 @@ interface FeedCardProps {
 }
 
 export function FeedCard({ listing, revealDelayMs = 0, natural = false }: FeedCardProps) {
-  const { user } = useAuth();
-  const { data: savedIds } = useSavedIds(user?.id ?? '');
-  const isSaved = savedIds?.has(listing.id) ?? false;
-  const toggleSave = useToggleSave();
   const revealRef = useScrollReveal<HTMLDivElement>();
   const primaryImage = listing.images.find((img) => img.is_primary) ?? listing.images[0];
-
-  const handleSave = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!user) return;
-    toggleSave.mutate({
-      profileId: user.id,
-      listingId: listing.id,
-      isSaved,
-    });
-  };
 
   return (
     <Link href={`/listing/${listing.id}`} className="group block">
@@ -64,27 +48,7 @@ export function FeedCard({ listing, revealDelayMs = 0, natural = false }: FeedCa
             <span className="text-sm font-semibold text-ink">
               {listingPriceLabel(listing)}
             </span>
-            {user && (
-              <button
-                onClick={handleSave}
-                // Until the shared saved-ids set has loaded every heart reads
-                // "Save", and a click on an already-saved piece posts a duplicate
-                // (409). Hold the click until the state is known.
-                disabled={!!user && savedIds === undefined}
-                className={`transition-colors duration-150 ${isSaved ? 'text-terra' : 'text-muted/60 hover:text-terra'}`}
-                aria-label={isSaved ? 'Unsave' : 'Save'}
-              >
-                <svg
-                  key={isSaved ? 'saved' : 'unsaved'}
-                  className="h-5 w-5 animate-heart-pop"
-                  fill={isSaved ? 'currentColor' : 'none'}
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              </button>
-            )}
+            <SaveHeart listingId={listing.id} />
           </div>
         </div>
       </div>

@@ -39,14 +39,12 @@ export function AvatarBannerSection({
 
       <div>
         <p className="mb-2 text-sm font-medium text-ink">Banner</p>
+        {/* Previewed at the SAME ratio the page renders (36:10), so what the
+            artist approves here is what visitors see. */}
         {bannerUrl && (
-          <Image
-            src={bannerUrl}
-            alt="Profile banner"
-            width={1440}
-            height={400}
-            className="mb-2 max-h-40 w-full rounded-xl border border-line object-cover"
-          />
+          <div className="relative mb-2 aspect-[36/10] w-full overflow-hidden rounded-xl border border-line bg-sand">
+            <Image src={bannerUrl} alt="Profile banner" fill sizes="(max-width: 768px) 100vw, 640px" className="object-cover" />
+          </div>
         )}
         <ImageUpload
           endpoint="/api/storage/banner"

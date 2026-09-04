@@ -32,12 +32,24 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
 
   return (
     <div>
-      <div className="relative h-48 w-full bg-sand md:h-64" style={{ backgroundColor: artist.accent_color ?? '#E8704A' }}>
+      {/* The banner's shape must match what the uploader promises. The editor
+          says "1440x400 works best" (3.6:1) and previews it at that ratio;
+          this was a FIXED 192/256px height at full bleed, so on a 1512px
+          laptop the same image was squeezed into roughly 5.9:1 and about 40%
+          of it — including, in the report that found this, most of a group
+          photo — was simply cut away. Wider monitors made it worse.
+
+          An aspect box instead of a height: a correctly-sized banner is shown
+          whole at any width up to 1440px, and the cap keeps the hero from
+          swallowing the fold on very wide screens. Reported by a tester,
+          2026-09-03. */}
+      <div className="relative aspect-[36/10] max-h-[25rem] w-full overflow-hidden bg-sand" style={{ backgroundColor: artist.accent_color ?? '#E8704A' }}>
         {artist.banner_image_url && (
           <Image
             src={artist.banner_image_url}
             alt={`${artist.display_name}'s banner`}
             fill
+            sizes="100vw"
             className="object-cover"
             priority
           />

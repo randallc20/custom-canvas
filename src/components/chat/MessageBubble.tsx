@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { captureException } from '@/lib/sentry';
+import { quoteCardState } from '@/utils/quoteCardState';
 import { announceAcceptanceRequired } from '@/services/acceptance';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -22,6 +23,10 @@ interface MessageBubbleProps {
   isOwn: boolean;
   /** Set when the sender is a verified partner — renders the shield. */
   senderPartnerType?: PartnerType | null;
+  /** The live status of the conversation's commission, when there is one.
+   *  The quote card's Accept/Decline is derived from this rather than from
+   *  local state, so a reload cannot re-offer a decision already made. */
+  commissionStatus?: string | null;
 }
 
 /** A refusal from a quote action. `byPolicy` marks the ones the server meant
@@ -36,13 +41,13 @@ class QuoteActionRefused extends Error {
   }
 }
 
-export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubbleProps) {
+export function MessageBubble({ message, isOwn, senderPartnerType, commissionStatus }: MessageBubbleProps) {
   const { toast } = useToast();
   const confirm = useConfirm();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [acting, setActing] = useState(false);
-  const [resolved, setResolved] = useState<string | null>(null);
+  const [justActed, setJustActed] = useState<string | null>(null);
   const attachment = message.attachments?.[0];
 
   // Chat media lives in a private bucket — resolve a signed URL by object path.
@@ -80,6 +85,18 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
 
   // Quote card — in-thread commission quote with Accept/Decline for the buyer.
   if (message.message_type === 'quote_card' && attachment) {
+    // Derived from the commission, not from a click. `useState` alone meant a
+    // reload — or opening the thread on another device — put Accept and
+    // Decline back on a quote that had already been accepted; pressing it
+    // 409'd, and the caller threw the 409's sentence away, so the buyer saw
+    // "Action failed. Try again." on a commission that was already in
+    // progress. Reported by a tester on prod, 2026-09-03.
+    //
+    // Only `quoted` is still a live decision. `delivered` is the rail's
+    // confirm-receipt step, not this card's, even though the same endpoint
+    // serves both.
+    const settled = quoteCardState(commissionStatus);
+    const resolved = justActed ?? (settled === 'open' ? null : settled);
     const commissionId = meta.commission_id as string | undefined;
     const price = meta.quoted_price_cents as number | undefined;
     const completion = meta.estimated_completion as string | undefined;
@@ -114,7 +131,7 @@ export function MessageBubble({ message, isOwn, senderPartnerType }: MessageBubb
             res.status === 403 || res.status === 503,
           );
         }
-        setResolved(action === 'confirm' ? 'Accepted' : 'Declined');
+        setJustActed(action === 'confirm' ? 'Accepted' : 'Declined');
         toast(action === 'confirm' ? 'Quote accepted' : 'Quote declined', 'success');
         // Reflect the new commission status across the thread, the rail, and
         // the inbox pills.

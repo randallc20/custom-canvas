@@ -304,6 +304,24 @@ test.describe.serial('part 11 — commissions', () => {
     await expect(page.getByText('In progress', { exact: true })).toBeVisible({ timeout: 20_000 });
   });
 
+  test('11.4b the in-thread quote card survives a reload — no second Accept', async () => {
+    // A tester on prod reported "not letting me accept quote" on a commission
+    // the database showed as already in progress. The card kept its
+    // accepted/declined state in local component state, so a reload put Accept
+    // and Decline back on a quote already accepted; pressing it 409'd, and the
+    // caller threw the 409's sentence away and showed "Action failed. Try
+    // again." The whole experience of an accepted commission was a button that
+    // never worked.
+    const page = loverPage;
+    await page.goto(`/messages/${commission1.conversationId}`);
+    // The thread's own quote card, not the panel's.
+    const card = page.locator('div').filter({ hasText: /^Commission quote/ }).first();
+    await expect(card).toBeVisible({ timeout: 20_000 });
+    await expect(card.getByText('Accepted')).toBeVisible({ timeout: 15_000 });
+    await expect(card.getByRole('button', { name: 'Accept' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: 'Decline' })).toHaveCount(0);
+  });
+
   test('11.5 artist posts a progress update with a photo and a percent', async () => {
     const page = artistPage;
     await page.goto(`/messages/${commission1.conversationId}`);

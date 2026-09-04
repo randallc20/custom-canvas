@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { useConversationCommission } from '@/hooks/useConversationCommission';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -36,18 +37,13 @@ export function CommissionPanel({ conversationId }: { conversationId: string }) 
 
   // A failed read is not "not found": the old queryFn dropped the error and
   // returned null, so a network blip read as a missing commission.
-  const { data: commission = null, isLoading: loading, isError, refetch, isFetching } = useQuery({
-    queryKey: ['commission', conversationId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('commissions')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .maybeSingle();
-      if (error) throw error;
-      return (data as Commission | null) ?? null;
-    },
-  });
+  const {
+    data: commission = null,
+    isLoading: loading,
+    isError,
+    refetch,
+    isFetching,
+  } = useConversationCommission(conversationId);
 
   const [showQuoteForm, setShowQuoteForm] = useState(false);
   const [quotedPrice, setQuotedPrice] = useState('');

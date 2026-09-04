@@ -25,7 +25,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
       {/* Ruling D8: a mature piece is reachable, but its images are behind
           a notice for a viewer who has not opted in. */}
       <MatureGate isMature={!!listing.is_mature}>
-        <ImageCarousel images={listing.images} title={listing.title} />
+        <ImageCarousel images={listing.images} title={listing.title} listingId={listing.id} />
       </MatureGate>
       <div className="mt-6">
         {/* Title, artist and price live in the right rail (ListingHeader /

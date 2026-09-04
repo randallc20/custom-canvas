@@ -3,13 +3,16 @@
 import { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { ListingImage } from '@/types/listing';
+import { SaveHeart } from './SaveHeart';
 
 interface ImageCarouselProps {
   images: ListingImage[];
   title: string;
+  /** Enables the save control in the full-screen view. */
+  listingId?: string;
 }
 
-export function ImageCarousel({ images, title }: ImageCarouselProps) {
+export function ImageCarousel({ images, title, listingId }: ImageCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
   const sorted = [...images].sort((a, b) => a.display_order - b.display_order);
@@ -134,6 +137,15 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
                 </svg>
               </button>
             </>
+          )}
+          {/* Full screen is where someone decides they want a piece, so the
+              save has to be reachable there — it used to exist only on the
+              grid card, which meant going back to the list to save something
+              you were looking at. */}
+          {listingId && (
+            <div className="absolute left-4 top-4" onClick={(e) => e.stopPropagation()}>
+              <SaveHeart listingId={listingId} withLabel tone="overlay" />
+            </div>
           )}
           <button
             onClick={() => setLightbox(false)}

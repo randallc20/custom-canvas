@@ -15,6 +15,7 @@ import { paymentsEnabled } from '@/utils/features';
 import { useAuth } from '@/context/AuthContext';
 import { useFindOrCreateConversation } from '@/hooks/useConversations';
 import { useToast } from '@/components/ui/Toast';
+import { SaveHeart } from '@/components/listing/SaveHeart';
 
 interface PurchasePanelProps {
   listing: Listing;
@@ -150,6 +151,16 @@ export function PurchasePanel({ listing, artistProfileId, artistName, fulfillmen
             <Button className="w-full">Buy Now</Button>
           </Link>
           {messageButton}
+        </div>
+      )}
+      {/* Saving is not part of the buy decision, so it sits under the divider
+          rather than competing with the buttons — but it has to BE here. The
+          heart existed only on the grid card, so someone who opened a piece to
+          look at it properly had to go back to the list to save it, which is
+          exactly backwards from when they decide they want it. */}
+      {!isOwnListing && (
+        <div className="mt-4 border-t border-line pt-3">
+          <SaveHeart listingId={listing.id} withLabel />
         </div>
       )}
     </div>
