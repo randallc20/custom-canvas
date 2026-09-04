@@ -5,9 +5,13 @@ actually wrong and where the fix stands. Written as a handoff so this round can
 be finished in a clean conversation.
 
 **Live site:** https://customcanvas.shop
-**Deployed commit:** `2a754ff` (deployment `custom-canvas-prod-jxulgj59d`, Ready)
-**Not deployed:** three commits ahead of `2a754ff` (`2035663`, `d1c4158`,
-`6a4a40f`). All verified, committed, not pushed.
+**Deployed commit:** `d3a6cc3` (deployment `custom-canvas-prod-5agbgfbl6`, Ready) —
+ALL EIGHT ITEMS BELOW ARE LIVE as of 2026-09-04, verified against
+https://customcanvas.shop: every page 200, exactly one `h1`, zero leaked
+attributes, and the artist page screenshotted to confirm the banner shows the
+whole image and the avatar is no longer clipped.
+**Nothing outstanding in this round.** Working tree clean, master level with
+origin.
 
 ---
 
@@ -52,7 +56,7 @@ card threw that sentence away for "Action failed. Try again."
 
 Fixed by deriving the card's state from the commission. **That fix caused #5.**
 
-## 3. Artist profile banner cut off ⚠️ partially shipped, second fix pending
+## 3. Artist profile banner cut off ✅ shipped (second fix)
 
 > "artist profiles show up cut off like this" (screenshot of
 > `/artist/michelangelo-de-lodovico-mtkj5kiw`)
@@ -68,7 +72,7 @@ First fix (shipped): an aspect box at 36:10 instead of a pixel height.
 photographs, not banner strips, and no crop tool exists to make them choose
 which 40%.
 
-Second fix (**not shipped**): the image is `object-contain` with a blurred copy
+Second fix (shipped): the image is `object-contain` with a blurred copy
 of itself filling the space either side. Nothing is ever cropped; a correctly
 sized 1440×400 banner is unchanged, because contain and cover agree at that
 ratio. Same fix applied to the partner/gallery hero.
@@ -85,7 +89,7 @@ look at it, go back, save it.
 Fixed: extracted as `SaveHeart`, added to the purchase panel and to the
 full-screen viewer.
 
-## 5. Quote card said "Accepted" with no buttons ❌ REGRESSION from #2, not shipped
+## 5. Quote card said "Accepted" with no buttons ✅ shipped
 
 > "when I send quote as an artist, it doesn't give me the option to accept or
 > decline as buyer, it just says accepted. But in the artist view it still says
@@ -105,12 +109,12 @@ sent", and neither side could move. Leaving and returning remounted the thread,
 refetched the commission, and unblocked it — which is exactly what the tester
 observed and is the proof of the diagnosis.
 
-Fixed (**not shipped**): all eight commission statuses named explicitly, with
+Fixed and shipped: all eight commission statuses named explicitly, with
 anything unrecognised falling to *open* — a button the route may refuse is
 recoverable, a card with no control at all is not. The thread now invalidates
 the commission query whenever a message arrives.
 
-## 6. Artist statement dropdown looked wrong ❌ not shipped
+## 6. Artist statement dropdown looked wrong ✅ shipped
 
 > "the artist statement in that little dropdown box is weird"
 
@@ -118,12 +122,12 @@ When an artist had both a story and a statement, the statement collapsed into a
 full-width bordered box with a chevron — the only control of its kind on the
 page, sitting under prose, reading as an empty form field.
 
-**Removed** (not shipped) — owner decision, 2026-09-04. Taken out of the public
+**Removed and shipped** — owner decision, 2026-09-04. Taken out of the public
 profile AND the edit form: leaving the form asking for it would collect text
 nobody reads. The database column is untouched, so existing statements survive
 if it is ever brought back.
 
-## 7. Avatar clipped by the banner ❌ not shipped (found while investigating #3)
+## 7. Avatar clipped by the banner ✅ shipped (found while investigating #3)
 
 Not reported directly, but visible in the tester's first screenshot. The
 avatar overlaps the banner via a negative margin, and the banner is
@@ -132,7 +136,7 @@ avatar's top half. Predates all of the above. Fixed with a stacking context.
 
 ---
 
-## 8. Avatar showed a name sprawling out of the circle ❌ not shipped
+## 8. Avatar showed a name sprawling out of the circle ✅ shipped
 
 Not reported — found while screenshotting #3. Both profile heroes hand-rolled
 their own `next/image` rather than using the shared `Avatar`, and Next renders a
@@ -180,3 +184,31 @@ outstanding.
   all-skipped case is the dangerous one, because it does not look like a
   failure.
 - `db-smoke` green on DEV and prod. No migrations pending.
+
+---
+
+## Also shipped in the same release (not tester-reported)
+
+- **`/partners` returned 200 with nothing in it.** Adding `'use client'` to
+  `Avatar` pulled `getInitials` inside the boundary, and the server-rendered
+  Partners page imports it — a server component importing a plain function
+  from a client module gets a client-reference proxy, so it threw at render.
+  tsc, lint, the build and 362 unit tests were all green on a blank page; two
+  e2e tests caught it. Helper moved to `utils/initials.ts`.
+- **Two legal-page defects**, found by counting `<h1>` on every route rather
+  than trusting a 200: `/shipping-returns` rendered two `h1`s, and all eight
+  documents leaked `node="[object Object]"` into the markup.
+- **The signed-in homepage**: no acquisition hero, one search box instead of
+  two, a Studio link for artists. Signed-out is unchanged.
+
+## Known, deliberate, still open
+
+- **Production runs LIVE Stripe keys with payments enabled**, but the only
+  artist on prod has not completed Stripe onboarding, so checkout refuses with
+  "This artist has not finished setting up payments yet". No money can move
+  until an artist onboards. `docs/GO-LIVE-FIRST-PURCHASE.md` is the walk; make
+  both sides of it accounts you control so the only cost is Stripe's fee
+  (~$1.10 a refund).
+- The showcase artist profile on the live domain still has placeholder copy.
+- Sentry 90-day retention and a watched `support@customcanvas.shop`.
+- Round ten review and 17 deferred P2/P3s (`docs/POST-LAUNCH-BACKLOG.md`).
