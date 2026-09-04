@@ -80,6 +80,28 @@ async function paceCommissionWrites(page: Page) {
   commissionWrites.push(Date.now());
 }
 
+
+/** POST a deliberately stale action and return the response, retrying once
+ *  through the rate limiter.
+ *
+ *  `paceCommissionWrites` models the limiter as "fewer than 4 writes per 62s"
+ *  and counts only this spec's own writes — but the limit is per-IP across
+ *  every mutating route, so a spec that ran just before this one can leave the
+ *  bucket short and the probe comes back 429 instead of the 409 it is
+ *  asserting. Retrying keeps the assertion exact rather than widening it to
+ *  "409 or 429", which would stop it noticing a route that silently succeeded.
+ */
+async function staleProbe(page: Page, path: string, body?: Record<string, unknown>) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await paceCommissionWrites(page);
+    const res = await page.request.post(path, body ? { data: body } : undefined);
+    if (res.status() !== 429) return res;
+    await page.waitForTimeout(62_000);
+  }
+  await paceCommissionWrites(page);
+  return page.request.post(path, body ? { data: body } : undefined);
+}
+
 /** Request a commission through the real journey: artist page → panel button →
  *  /commission-request form → lands in the new conversation. Returns the ids
  *  the API answered with (for stale-action probes and direct navigation). */
@@ -385,25 +407,22 @@ test.describe.serial('part 11 — commissions', () => {
   test('11.9 stale actions are refused with a conflict, not a silent change', async () => {
     // The commission is confirmed. Every out-of-order action must 409 with a
     // clear message (the exact copy each route ships).
-    await paceCommissionWrites(artistPage);
-    const quoteAgain = await artistPage.request.post(`/api/commissions/${commission1.id}/accept`, {
-      data: { quoted_price_cents: 30_000, estimated_completion: '4 weeks' },
+    const quoteAgain = await staleProbe(artistPage, `/api/commissions/${commission1.id}/accept`, {
+      quoted_price_cents: 30_000,
+      estimated_completion: '4 weeks',
     });
     expect(quoteAgain.status()).toBe(409);
     expect((await quoteAgain.json()).error).toBe('Only new requests can be quoted.');
 
-    await paceCommissionWrites(artistPage);
-    const deliverAgain = await artistPage.request.post(`/api/commissions/${commission1.id}/complete`);
+    const deliverAgain = await staleProbe(artistPage, `/api/commissions/${commission1.id}/complete`);
     expect(deliverAgain.status()).toBe(409);
     expect((await deliverAgain.json()).error).toBe('Only in-progress commissions can be delivered.');
 
-    await paceCommissionWrites(artistPage);
-    const confirmAgain = await loverPage.request.post(`/api/commissions/${commission1.id}/confirm`);
+    const confirmAgain = await staleProbe(loverPage, `/api/commissions/${commission1.id}/confirm`);
     expect(confirmAgain.status()).toBe(409);
     expect((await confirmAgain.json()).error).toBe('This commission is not awaiting your confirmation.');
 
-    await paceCommissionWrites(artistPage);
-    const declineLate = await loverPage.request.post(`/api/commissions/${commission1.id}/decline`);
+    const declineLate = await staleProbe(loverPage, `/api/commissions/${commission1.id}/decline`);
     expect(declineLate.status()).toBe(409);
     expect((await declineLate.json()).error).toBe('This commission can no longer be cancelled.');
 
