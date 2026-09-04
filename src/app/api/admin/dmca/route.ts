@@ -379,15 +379,34 @@ export async function PATCH(request: NextRequest) {
 
       const { data: listing } = await admin
         .from('listings')
-        .select('status, pre_dmca_status, dmca_quarantined_paths')
+        .select('status, pre_dmca_status, dmca_quarantined_paths, dmca_removed_at')
         .eq('id', notice.listing_id)
         .maybeSingle();
+
+      // Nothing was ever taken down under this notice, so there is nothing to
+      // put back — and "restoring" it would take a LIVE listing off sale.
+      // The path is reachable: the card offers "Counter-notice received" at
+      // status `received`, and once a notice sits at `counter_received` the
+      // only control left is Restore, so an admin closing out a notice they
+      // never acted on lands here. `pre_dmca_status` is NULL, the fallback
+      // below is 'hidden', and the artist's available piece silently left the
+      // marketplace with a green "Done." on the admin's screen (r11 auth
+      // pass, P2). Close the notice; leave the listing alone.
+      if (!listing?.dmca_removed_at && !listing?.pre_dmca_status) {
+        await admin.from('dmca_notices').update(stamp('restored')).eq('id', id);
+        return NextResponse.json({
+          ok: true,
+          listing_restored: false,
+          warning:
+            'This notice is resolved. Nothing was ever removed under it, so the listing was left exactly as it is.',
+        });
+      }
 
       // Back to what it was. Falling back to 'hidden' rather than
       // 'available': the stamp is cleared, so the artist can republish it
       // themselves, and a guess that puts a sold piece on sale is worse than
       // one that leaves it hidden.
-      let target = listing?.pre_dmca_status ?? 'hidden';
+      let target = listing.pre_dmca_status ?? 'hidden';
 
       // The same live-order check the listing PATCH route runs. A piece with
       // a live order must not go back to 'available' whatever it was before.
@@ -404,7 +423,7 @@ export async function PATCH(request: NextRequest) {
       // is visible again. The paths live on the LISTING, so a second notice
       // against the same piece cannot restore it with its images still locked
       // away (r5 auth pass, P2).
-      const quarantined = (listing?.dmca_quarantined_paths as string[] | null) ?? [];
+      const quarantined = (listing.dmca_quarantined_paths as string[] | null) ?? [];
       if (quarantined.length) await restoreImages(admin, quarantined);
 
       const { error: restoreError } = await admin

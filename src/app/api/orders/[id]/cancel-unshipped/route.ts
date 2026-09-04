@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { cancelUnshippedOrder } from '@/lib/cancelUnshipped';
 import { fulfillmentWindow } from '@/utils/fulfillmentWindow';
+import { cancelUnshippedReason } from '@/utils/cancelReason';
 
 /** The buyer cancels an order the artist never shipped (L7).
  *
@@ -27,7 +28,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, status, shipped_at, is_pickup, created_at, buyer_id, proposed_ship_by, agreed_ship_by, fulfillment_window_days, artist:artist_profiles(profile_id)')
+    .select('id, status, shipped_at, is_pickup, created_at, buyer_id, proposed_ship_by, agreed_ship_by, fulfillment_window_days, refund_approved_at, refund_reason, artist:artist_profiles(profile_id)')
     .eq('id', params.id)
     .single();
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -58,6 +59,27 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
     );
   }
 
+  // An artist who has already approved a refund has made their decision, and
+  // this route is not how it gets carried out: it posts `artist_cancelled`,
+  // which is a FAULT reason, so cancelling here would refund the buyer fee and
+  // its tax on top of a change-of-mind refund that retains them — and the
+  // row's `refund_reason` would still read `change_of_mind` to everyone
+  // looking at it (r9 money pass). The Studio button is hidden now; this is
+  // the same refusal for a stale tab or a direct POST.
+  //
+  // The BUYER's door stays open even then. Terms of Sale §3 gives them a
+  // full-refund right of their own once the window is missed, and it does not
+  // depend on what the artist has or has not approved.
+  if (isArtist && order.refund_approved_at) {
+    return NextResponse.json(
+      {
+        error:
+          'You have already approved a refund on this order — Custom Canvas is settling it. Cancelling here would refund the buyer more than the approval agreed to. If it has not moved, write to support@customcanvas.shop.',
+      },
+      { status: 409 },
+    );
+  }
+
   if (isBuyer) {
     const win = fulfillmentWindow(order as Parameters<typeof fulfillmentWindow>[0]);
     // A proposed-but-unanswered date is itself an admission the window was
@@ -84,7 +106,18 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
     // The reason is what happened, from the buyer's side either way: the
     // piece was never shipped. artist_cancelled records that the artist chose
     // to stop rather than being held to a window.
-    reason: isBuyer ? 'not_shipped' : 'artist_cancelled',
+    //
+    // UNLESS the artist has already approved a refund. Then this door is not
+    // a new decision, it is the buyer closing out one already made, and the
+    // money follows the approval: `not_shipped` is a FAULT reason, so a buyer
+    // whose change-of-mind refund was approved on day six would otherwise be
+    // handed the service fee and its tax as well — on the one order where the
+    // product had just told the artist not to ship, and with the thread and
+    // the artist's bell both recording a missed shipping promise that never
+    // happened (r13 money pass, P1). The same conversion was already ruled a
+    // defect at the cron and at the artist's own Cancel button; this is the
+    // third door in the class.
+    reason: cancelUnshippedReason(order, isBuyer ? 'buyer' : 'artist'),
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
 

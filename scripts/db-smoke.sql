@@ -1759,4 +1759,40 @@ BEGIN
   END IF;
 END $$;
 
+-- ---------------------------------------------------------------------------
+-- The DMCA quarantine bucket is PRIVATE, and nothing can reach it but the
+-- service role.
+--
+-- This is the single fact the whole removal path rests on: "remove material"
+-- means access is disabled, and it is disabled by moving the file into this
+-- bucket. A bucket flipped public — by hand in Studio, or by a migration that
+-- re-inserts the row without `public = false` — turns every takedown into a
+-- move that changed the URL and nothing else, silently, while the log says
+-- the work came down. 00068 creates it correctly and deliberately gives it NO
+-- policies; with RLS on and no policy, anon and authenticated can do nothing
+-- and the service role bypasses RLS. Nothing asserted any of that (r9 auth
+-- pass, P3).
+DO $$
+DECLARE
+  is_public BOOLEAN;
+  policy_count INT;
+BEGIN
+  SELECT public INTO is_public FROM storage.buckets WHERE id = 'dmca-quarantine';
+  IF is_public IS NULL THEN
+    RAISE EXCEPTION 'storage: the dmca-quarantine bucket does not exist (00068)';
+  END IF;
+  IF is_public THEN
+    RAISE EXCEPTION 'storage: the dmca-quarantine bucket is PUBLIC — every DMCA takedown is serving the removed file';
+  END IF;
+
+  SELECT count(*) INTO policy_count
+    FROM pg_policies
+   WHERE schemaname = 'storage'
+     AND tablename = 'objects'
+     AND qual LIKE '%dmca-quarantine%';
+  IF policy_count > 0 THEN
+    RAISE EXCEPTION 'storage: % policy/policies reference dmca-quarantine; it is meant to have none, so only the service role can reach it', policy_count;
+  END IF;
+END $$;
+
 \echo 'db-smoke: all checks passed'

@@ -1,14 +1,34 @@
 name: CI
 
+# ── NOTHING HERE RUNS BY ITSELF ANY MORE ────────────────────────────────────────────────────
+#
+# The account's GitHub-hosted minutes are spent and cannot be bought (owner instruction
+# 2026-09-03: no revenue, so the free allowance is the whole budget, indefinitely). A workflow
+# that fires on push would simply fail — jobs are refused a runner and die in two seconds with
+# zero steps, which reads as broken code and is actually billing.
+#
+# The gate moved to the Mac, where it costs nothing:
+#
+#     ./gate.sh          lint · types · unit · build   (~2 min, runs on pre-push)
+#     ./gate.sh --e2e    + the browser suite against the deployed staging app
+#
+# The file is kept, intact and runnable by hand, because it is the written record of what a
+# complete verification is — and because the day a self-hosted runner is registered on this Mac
+# (free: self-hosted usage never touches the quota) the triggers come back for nothing. The
+# guards below — concurrency, timeouts — stay for that day.
+# ────────────────────────────────────────────────────────────────────────────────────────────
 on:
-  push:
-    branches: [master]
-  pull_request:
-    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint-and-typecheck:
     runs-on: ubuntu-latest
+    # The default ceiling is 360 minutes; one hung job would eat a fifth of the month.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,6 +42,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: lint-and-typecheck
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +71,16 @@ jobs:
   # tests the deployed staging environment rather than the PR's own code.
   e2e:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    timeout-minutes: 25
+    # ------------------------------------------------------------------------------------
+    # OPT-IN. This job tests the DEPLOYED staging app, so it spent most of its life paying a
+    # runner to sleep: up to twelve minutes of `curl; sleep 15` waiting for Vercel to finish,
+    # before a single test ran. Minutes cannot be bought (owner instruction 2026-09-03), and
+    # a runner that is waiting is a runner being billed.
+    #
+    # Nothing is lost: the same suite runs nightly on the Mac against the same deployment,
+    # for free. Ask for a CI run by dispatching the workflow, or by labelling a PR `e2e`.
+    # ------------------------------------------------------------------------------------
     needs: build
     steps:
       - uses: actions/checkout@v4

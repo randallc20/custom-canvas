@@ -1,6 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// `acceptanceGateFor` builds its own service-role client.
+const adminBehaviour = { throwOnRead: false };
+// Answers PER TABLE. Ignoring the table argument handed the artist_profiles
+// lookup the profiles row, so the "buyer" fixture also owed the Artist
+// Agreement — the assertions held but the state was not one the product can
+// produce (r9 auth pass, appendix).
+vi.mock('@/lib/supabase-admin', () => ({
+  createAdminSupabaseClient: () => ({
+    from: (table: string) => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => {
+            if (adminBehaviour.throwOnRead) return { data: null, error: { message: 'statement timeout' } };
+            if (table === 'artist_profiles') return { data: null, error: null };
+            return { data: { role: 'user', terms_version: null, terms_of_sale_version: null }, error: null };
+          },
+        }),
+      }),
+    }),
+  }),
+}));
+vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { acceptanceBlocks, outstandingAcceptances } from './acceptance';
+import { acceptanceBlocks, acceptanceGateFor, outstandingAcceptances } from './acceptance';
 import {
   ARTIST_AGREEMENT_VERSION,
   TERMS_OF_SALE_VERSION,
@@ -196,5 +219,32 @@ describe('a failed lookup is not "owes nothing"', () => {
     await expect(outstandingAcceptances(failingClient(), 'u1')).rejects.toMatchObject({
       message: 'statement timeout',
     });
+  });
+});
+
+describe('acceptanceGateFor', () => {
+  it('refuses with 403 and the interstitial code when an acceptance is genuinely outstanding', async () => {
+    adminBehaviour.throwOnRead = false;
+    const gate = await acceptanceGateFor('u1');
+    expect(gate?.status).toBe(403);
+    expect(gate?.body.code).toBe('acceptance_required');
+    // A plain buyer with no artist profile: Terms of Service (which blocks)
+    // and Terms of Sale (which does not).
+    expect(gate?.body.outstanding.map((o) => o.document)).toEqual(['terms', 'terms_of_sale']);
+  });
+
+  it('refuses with 503 rather than throwing when the lookup fails', async () => {
+    // `outstandingAcceptances` throws by design so the write endpoints fail
+    // closed. Nothing caught it, so a statement timeout on `profiles` was an
+    // unhandled exception in all thirteen gated routes at once — message send,
+    // listing create and edit, checkout, reviews, every commission action —
+    // and Next answered each with a bare 500 and no body (r8 auth pass).
+    adminBehaviour.throwOnRead = true;
+    const gate = await acceptanceGateFor('u1');
+    expect(gate?.status).toBe(503);
+    expect(gate?.body.code).toBe('acceptance_unavailable');
+    // No interstitial: there is nothing here the person can accept.
+    expect(gate?.body.outstanding).toEqual([]);
+    adminBehaviour.throwOnRead = false;
   });
 });

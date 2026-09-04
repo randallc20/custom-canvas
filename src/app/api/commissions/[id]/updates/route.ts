@@ -14,7 +14,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   // interstitial is the visible half of this; a client that never renders it
   // still gets refused here.
   const gate = await acceptanceGateFor(user.id);
-  if (gate) return NextResponse.json(gate, { status: 403 });
+  if (gate) return NextResponse.json(gate.body, { status: gate.status });
 
   const { note, photoUrl, progressPercent } = await request.json();
   if (!note?.trim()) return NextResponse.json({ error: 'A note is required' }, { status: 400 });

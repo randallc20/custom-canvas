@@ -5,6 +5,7 @@ import { cancelUnshippedOrder } from '@/lib/cancelUnshipped';
 import { postOrderSystemMessage } from '@/lib/orderThread';
 import { businessDaysBetween } from '@/utils/evaluateProtection';
 import { fulfillmentWindow } from '@/utils/fulfillmentWindow';
+import { cancelUnshippedReason } from '@/utils/cancelReason';
 
 /**
  * Daily: the missed-window path nobody is present for (L7).
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
   const { data: orders, error } = await supabase
     .from('orders')
     .select(
-      'id, created_at, shipped_at, is_pickup, refund_approved_at, buyer_id, listing_id, fulfillment_window_days, proposed_ship_by, agreed_ship_by, window_missed_at, platform_nudged_at, artist:artist_profiles(profile_id, display_name), listing:listings(title)',
+      'id, created_at, shipped_at, is_pickup, refund_approved_at, refund_reason, buyer_id, listing_id, fulfillment_window_days, proposed_ship_by, agreed_ship_by, window_missed_at, platform_nudged_at, artist:artist_profiles(profile_id, display_name), listing:listings(title)',
     )
     .eq('status', 'paid')
     .is('shipped_at', null)
@@ -116,7 +117,12 @@ export async function GET(request: NextRequest) {
       const result = await cancelUnshippedOrder(supabase, {
         orderId: o.id as string,
         by: 'platform',
-        reason: 'not_shipped',
+        // Through the shared rule rather than a literal. The sweep already
+        // filters out orders with an approved refund, so this resolves to
+        // `not_shipped` today — but "which reason does a cancellation settle
+        // under" has now been got wrong at all three doors, and a filter is a
+        // weaker guarantee than asking the function that knows (r13).
+        reason: cancelUnshippedReason(o, 'platform'),
         note: 'Auto-cancelled: unshipped past the window and the artist did not respond to our request.',
       });
       if (result.ok) cancelled += 1;
