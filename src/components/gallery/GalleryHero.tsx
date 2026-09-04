@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { Avatar } from '@/components/ui/Avatar';
 import { GalleryProfile } from '@/types/gallery';
 import { PartnerBadge } from './PartnerBadge';
 import { BannerFallback } from './BannerFallback';
@@ -36,12 +37,10 @@ export function GalleryHero({ gallery }: GalleryHeroProps) {
       </div>
       <div className="mx-auto max-w-7xl px-4">
         <div className="-mt-12 mb-4">
-          <div className="inline-flex h-24 w-24 items-center justify-center rounded-full border-4 border-white bg-gray-300 text-2xl font-bold text-white shadow-lg">
-            {gallery.avatar_url ? (
-              <Image src={gallery.avatar_url} alt={gallery.gallery_name} width={96} height={96} className="h-full w-full rounded-full object-cover" />
-            ) : (
-              gallery.gallery_name[0].toUpperCase()
-            )}
+          {/* Same as the artist hero: the shared Avatar falls back to initials
+              when the stored file is gone, instead of rendering alt text. */}
+          <div className="inline-flex overflow-hidden rounded-full border-4 border-white shadow-lg">
+            <Avatar src={gallery.avatar_url} alt={gallery.gallery_name} size="2xl" />
           </div>
         </div>
         <div className="flex items-center gap-2">

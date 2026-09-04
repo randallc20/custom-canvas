@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { Avatar } from '@/components/ui/Avatar';
 import { formatDateOnly } from '@/utils/formatDateOnly';
 import { ArtistWithProfile } from '@/types/artist';
 import { Badge } from '@/components/ui/Badge';
@@ -82,18 +83,12 @@ export function ProfileHero({ artist }: ProfileHeroProps) {
             stacking context of its own this avatar paints UNDERNEATH it and
             loses its top half to the banner's bottom edge. */}
         <div className="relative z-10 -mt-12 mb-4">
-          <div className="inline-flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gray-300 text-2xl font-bold text-white shadow-lg">
-            {artist.profile?.avatar_url ? (
-              <Image
-                src={artist.profile.avatar_url}
-                alt={artist.display_name}
-                width={96}
-                height={96}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              artist.display_name[0].toUpperCase()
-            )}
+          {/* The shared Avatar, not a hand-rolled next/image: it falls back to
+              initials when the file has gone missing from storage. A broken
+              <img> renders as its alt text, so a deleted avatar used to show
+              the artist's whole name sprawling out of the circle. */}
+          <div className="inline-flex overflow-hidden rounded-full border-4 border-white shadow-lg">
+            <Avatar src={artist.profile?.avatar_url} alt={artist.display_name} size="2xl" />
           </div>
         </div>
         <div className="flex flex-wrap items-start justify-between gap-4">

@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import Image from 'next/image';
 
 const sizes = {
@@ -6,6 +9,7 @@ const sizes = {
   md: 'h-10 w-10 text-sm',
   lg: 'h-14 w-14 text-base',
   xl: 'h-20 w-20 text-lg',
+  '2xl': 'h-24 w-24 text-2xl',
 };
 
 const pixelSizes: Record<keyof typeof sizes, number> = {
@@ -14,6 +18,7 @@ const pixelSizes: Record<keyof typeof sizes, number> = {
   md: 40,
   lg: 56,
   xl: 80,
+  '2xl': 96,
 };
 
 interface AvatarProps {
@@ -34,7 +39,14 @@ export function getInitials(name: string): string {
 }
 
 export function Avatar({ src, alt, size = 'md', className = '' }: AvatarProps) {
-  if (src) {
+  // A file that has gone missing from storage is not the same as no file. Next
+  // renders a broken <img> as its ALT TEXT, so a deleted avatar showed the
+  // person's whole name sprawling out of a 96px circle rather than the
+  // initials this component already knows how to draw. Falling back on error
+  // makes the two cases look the same, which is what a reader expects.
+  const [failed, setFailed] = useState(false);
+
+  if (src && !failed) {
     return (
       <Image
         src={src}
@@ -42,6 +54,7 @@ export function Avatar({ src, alt, size = 'md', className = '' }: AvatarProps) {
         width={pixelSizes[size]}
         height={pixelSizes[size]}
         className={`${sizes[size]} rounded-full object-cover ${className}`}
+        onError={() => setFailed(true)}
       />
     );
   }
