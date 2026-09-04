@@ -6,8 +6,8 @@ be finished in a clean conversation.
 
 **Live site:** https://customcanvas.shop
 **Deployed commit:** `2a754ff` (deployment `custom-canvas-prod-jxulgj59d`, Ready)
-**Not deployed:** one commit ahead of `2a754ff` — see "Fixed but not
-shipped" at the bottom. Verified, committed, not pushed.
+**Not deployed:** three commits ahead of `2a754ff` (`2035663`, `d1c4158`,
+`6a4a40f`). All verified, committed, not pushed.
 
 ---
 
@@ -118,10 +118,10 @@ When an artist had both a story and a statement, the statement collapsed into a
 full-width bordered box with a chevron — the only control of its kind on the
 page, sitting under prose, reading as an empty form field.
 
-Fixed (**not shipped**): rendered as a plain headed section like Influences.
-One code path instead of two. *Open question for the owner: delete it from the
-public page entirely? If so the field should also come out of the edit form
-rather than collecting text nobody sees.*
+**Removed** (not shipped) — owner decision, 2026-09-04. Taken out of the public
+profile AND the edit form: leaving the form asking for it would collect text
+nobody reads. The database column is untouched, so existing statements survive
+if it is ever brought back.
 
 ## 7. Avatar clipped by the banner ❌ not shipped (found while investigating #3)
 
@@ -132,16 +132,24 @@ avatar's top half. Predates all of the above. Fixed with a stacking context.
 
 ---
 
-## Fixed but not shipped (6 files)
+## 8. Avatar showed a name sprawling out of the circle ❌ not shipped
 
-- `src/utils/quoteCardState.ts` + test — every status named (#5)
-- `src/components/chat/ChatThread.tsx` — refetch the commission on new
-  messages (#5)
-- `src/components/artist/ProfileHero.tsx` — contain + blurred fill, avatar
-  stacking context (#3, #7)
-- `src/components/gallery/GalleryHero.tsx` — same banner fix (#3)
-- `src/components/artist/StorySection.tsx` — statement as a plain section (#6)
-- `e2e/commissions.spec.ts` — cold-session test `11.3b` (see below)
+Not reported — found while screenshotting #3. Both profile heroes hand-rolled
+their own `next/image` rather than using the shared `Avatar`, and Next renders a
+broken `<img>` as its **alt text**. An avatar whose file has gone missing from
+storage therefore displayed the person's whole name breaking out of a 96px
+circle. Both heroes use the shared component now, which falls back to initials
+on error.
+
+---
+
+## Fixed but not shipped — three commits
+
+`2035663` quote card (#5), banners (#3), avatar stacking (#7), cold-session
+test `11.3b`
+`d1c4158` Artist Statement removed from page and form (#6); a missing banner no
+longer gets a 400px header
+`6a4a40f` avatars fall back to initials when the stored file is gone (#8)
 
 ## The gap these keep falling through
 
