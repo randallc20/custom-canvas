@@ -24,6 +24,50 @@
 --    Trigger functions can't be SELECTed; they are pinned by guard 1b below
 --    so a new function can't silently join the schema untested.
 -- ---------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
+-- Throwaway fixture for an EMPTY database (2026-09-05, the pre-launch reset).
+--
+-- Six sections build their test rows on top of whichever real artist, buyer
+-- or listing happens to exist, and RAISE when none does. That made the suite
+-- red on the one database where it matters most — production, the morning it
+-- was wiped for launch. This mints what they need instead: a live artist, a
+-- buyer, and one listing, through the same auth.users INSERT the commissions
+-- section already used, so `handle_new_user` runs for real.
+--
+-- pg_temp: a temporary function lives for this psql session only and is
+-- never written to the schema. It is created OUTSIDE any transaction so the
+-- file's many BEGIN…ROLLBACK pairs cannot discard it; the ROWS it inserts are
+-- made inside a section's own transaction and vanish with that section's
+-- ROLLBACK. Nothing here persists. Every section verifies that by design.
+-- ---------------------------------------------------------------------------
+CREATE FUNCTION pg_temp.smoke_fixture() RETURNS void LANGUAGE plpgsql AS $$
+DECLARE
+  artist_pid uuid;
+  artist_id uuid;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM artist_profiles ap JOIN profiles p ON p.id = ap.profile_id WHERE p.role <> 'admin') THEN
+    INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+      VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+              'smoke.artist.' || gen_random_uuid() || '@customcanvas.dev',
+              '{"role":"artist","full_name":"Smoke Artist"}'::jsonb);
+    SELECT id INTO artist_pid FROM profiles WHERE email LIKE 'smoke.artist.%' ORDER BY created_at DESC LIMIT 1;
+    INSERT INTO artist_profiles (profile_id, slug, display_name, is_live, application_status)
+      VALUES (artist_pid, 'smoke-artist-' || substr(artist_pid::text, 1, 8), 'Smoke Artist', true, 'approved')
+      RETURNING id INTO artist_id;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM profiles WHERE role = 'user') THEN
+    INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+      VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+              'smoke.buyer.' || gen_random_uuid() || '@customcanvas.dev',
+              '{"role":"user","full_name":"Smoke Buyer"}'::jsonb);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM listings) THEN
+    IF artist_id IS NULL THEN SELECT id INTO artist_id FROM artist_profiles LIMIT 1; END IF;
+    INSERT INTO listings (artist_id, title, medium, price_cents, status)
+      VALUES (artist_id, 'Smoke Listing', 'Oil Paint', 10000, 'available');
+  END IF;
+END $$;
+
 BEGIN;
 SELECT is_privileged();
 SELECT blocked_by('00000000-0000-0000-0000-000000000001'::uuid);
@@ -504,16 +548,11 @@ DECLARE
   row_after orders%ROWTYPE;
   orig_window int;
 BEGIN
+  PERFORM pg_temp.smoke_fixture();
   SELECT ap.id, ap.profile_id INTO artist_row
     FROM artist_profiles ap JOIN profiles p ON p.id = ap.profile_id
     WHERE p.role <> 'admin' LIMIT 1;
-  IF artist_row IS NULL THEN
-    RAISE EXCEPTION 'transition matrix: no non-admin artist_profiles row to build the fixture from';
-  END IF;
   SELECT id INTO buyer FROM profiles WHERE id <> artist_row.profile_id LIMIT 1;
-  IF buyer IS NULL THEN
-    RAISE EXCEPTION 'transition matrix: no second profiles row to act as the buyer';
-  END IF;
 
   INSERT INTO orders (buyer_id, artist_id, amount_cents, platform_fee_cents, artist_payout_cents,
                       buyer_fee_cents, shipping_cents, status, stripe_payment_intent_id, shipping_address)
@@ -741,11 +780,9 @@ DECLARE
   non_admin uuid;
   admin_id uuid;
 BEGIN
+  PERFORM pg_temp.smoke_fixture();
   SELECT id INTO non_admin FROM profiles WHERE role <> 'admin' LIMIT 1;
   SELECT id INTO admin_id FROM profiles WHERE role = 'admin' LIMIT 1;
-  IF non_admin IS NULL THEN
-    RAISE EXCEPTION 'access matrix: no non-admin profiles row to act as the caller';
-  END IF;
 
   -- is_privileged(): true only for no-request / service_role / admin.
   PERFORM set_config('request.jwt.claims', '', true);
@@ -1139,10 +1176,8 @@ DECLARE
   c commissions%ROWTYPE;
   denied boolean;
 BEGIN
+  PERFORM pg_temp.smoke_fixture();
   SELECT id INTO live_artist FROM artist_profiles WHERE is_live LIMIT 1;
-  IF live_artist IS NULL THEN
-    RAISE EXCEPTION 'commissions guard: no live artist to build the fixture from';
-  END IF;
   SELECT ap.id INTO dark_artist FROM artist_profiles ap WHERE NOT ap.is_live LIMIT 1;
   IF dark_artist IS NULL THEN
     -- Darken one inside this rolled-back transaction (privileged: no claims).
@@ -1302,10 +1337,8 @@ DECLARE
   l listings%ROWTYPE;
   denied boolean;
 BEGIN
+  PERFORM pg_temp.smoke_fixture();
   SELECT id INTO artist FROM artist_profiles LIMIT 1;
-  IF artist IS NULL THEN
-    RAISE EXCEPTION 'listing standards: no artist to build the fixture from';
-  END IF;
 
   -- Defaults: existing rows and any insert that omits them.
   INSERT INTO listings (artist_id, title, medium, price_cents)
@@ -1476,11 +1509,9 @@ BEGIN
     RAISE EXCEPTION 'dmca_notices is client-accessible: %', leaked;
   END IF;
 
+  PERFORM pg_temp.smoke_fixture();
   SELECT li.id, ap.profile_id INTO l, artist_user
     FROM listings li JOIN artist_profiles ap ON ap.id = li.artist_id LIMIT 1;
-  IF l IS NULL THEN
-    RAISE EXCEPTION 'dmca: no listing to build the fixture from';
-  END IF;
 
   PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
   UPDATE listings SET status = 'hidden', dmca_removed_at = now() WHERE id = l;

@@ -309,6 +309,55 @@ Production** (instant rollback, no rebuild). Then fix forward on a branch.
 
 ---
 
+## Resetting the database (purging test data)
+
+Used once before launch (2026-09-05) to give production a clean slate. It is
+the procedure for "remove every test account and everything they created,
+keep the platform."
+
+```
+node scripts/purge-test-data.mjs --prod            # dry run — prints, deletes nothing
+node scripts/purge-test-data.mjs --prod --execute  # deletes
+```
+
+**Keeps:** admin accounts (`role = 'admin'`), the `tags` reference list (44
+curated names the app only ever reads), the schema, Vercel crons, auth email
+templates. **Deletes:** every other account and everything under it —
+artist profiles, listings, images, conversations, messages, commissions,
+notifications, follows, saves, analytics, the drip log — and every file in
+the user-content storage buckets.
+
+Read the dry run before executing. It lists the accounts by email and role,
+exact per-table row counts (`count(*)`, not `pg_stat` estimates, which lag
+and once reported a purge as having done nothing), and every storage object.
+
+**Why the order in the script matters.** `commissions.conversation_id` is
+`ON DELETE NO ACTION`, so deleting a user whose conversations carry a
+commission fails inside the auth cascade with "Database error deleting
+user" — the same message the e2e seed logs on every run. Commissions are
+deleted first, explicitly; then the auth users (profiles and everything
+under them CASCADE); then rows that only SET NULL on a user delete and would
+otherwise linger as orphans (`analytics_events`), plus notifications and the
+drip log; then storage. Do not reorder it.
+
+**Afterwards, verify — the script's own summary is not enough:**
+
+1. `./scripts/db-smoke.sh --prod` — must pass. It mints its own throwaway
+   artist, buyer and listing inside rolled-back transactions when the
+   database is empty (before 2026-09-05 it could not run on an empty
+   database at all). Confirm nothing persisted: `select count(*) from
+   auth.users` before and after must match.
+2. The live site on an empty database: `/` renders the hero and a clean
+   "No art found"; `/partners`, `/terms` and the other static pages answer
+   200 with one `h1`; a deleted artist's old URL answers **404**, not a 200
+   shell.
+3. Nothing external needs resetting: no Stripe customers or Connect
+   accounts existed, Upstash keys expire on their own, Sentry events are
+   history.
+
+Never run this with `--execute` against a database that has taken a real
+order. It has no notion of "real" versus "test" beyond the admin role.
+
 ## Owner-action checklist (dashboard toggles this repo can't do in code)
 - [ ] **Upstash**: create a free Redis DB — pick the region colocated with
       the Vercel functions (US East / iad1); every API request pays one Redis

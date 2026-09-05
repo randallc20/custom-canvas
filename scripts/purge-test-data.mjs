@@ -27,7 +27,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 
 const args = new Set(process.argv.slice(2));
 const EXECUTE = args.has('--execute');
@@ -55,10 +55,17 @@ const host = target === 'prod' ? 'aws-0-us-east-2.pooler.supabase.com' : 'aws-1-
 const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
 function sql(query) {
-  return execSync(`psql -h ${host} -U postgres.${ref} -d postgres -q -t -A -F'|' -c ${JSON.stringify(query)}`, {
+  // No shell. Passing the query through `sh -c` turned the DO block's `$$`
+  // into the shell's PID and psql saw `do 24530 declare ...`. spawnSync with an
+  // argv array hands psql the text untouched; stdout and stderr are joined
+  // because the exact-count query reports through RAISE NOTICE, which psql
+  // writes to stderr.
+  const r = spawnSync('psql', ['-h', host, '-U', `postgres.${ref}`, '-d', 'postgres', '-q', '-t', '-A', "-F|", '-c', query], {
     env: { ...process.env, PGPASSWORD: dbPassword },
     encoding: 'utf8',
-  }).trim();
+  });
+  if (r.status !== 0) throw new Error(`psql failed: ${r.stderr || r.stdout}`);
+  return `${r.stdout}\n${r.stderr}`.trim();
 }
 
 const USER_BUCKETS = ['avatars', 'banners', 'artist-photos', 'artist-videos', 'listing-images', 'chat-attachments', 'gallery-avatars', 'gallery-banners'];
@@ -69,9 +76,17 @@ const users = sql(`select u.id, u.email, coalesce(p.role,'?') from auth.users u 
 const keep = users.filter((u) => u.role === 'admin');
 const purge = users.filter((u) => u.role !== 'admin');
 
+// Exact counts. pg_stat_user_tables.n_live_tup is an autovacuum ESTIMATE and
+// reported the pre-purge numbers straight back after the purge — every table
+// "still had rows" that a count(*) showed were gone.
 const counts = () => Object.fromEntries(
-  sql(`select relname, n_live_tup from pg_stat_user_tables where schemaname='public' and n_live_tup>0 order by relname`)
-    .split('\n').filter(Boolean).map((l) => { const [t, n] = l.split('|'); return [t, Number(n)]; }),
+  sql(`do $$ declare r record; n bigint; begin
+         for r in select tablename from pg_tables where schemaname='public' order by 1 loop
+           execute format('select count(*) from %I', r.tablename) into n;
+           if n > 0 then raise notice '%|%', r.tablename, n; end if;
+         end loop; end $$;`)
+    .split('\n').map((l) => l.replace(/^NOTICE:\s+/, '')).filter((l) => l.includes('|'))
+    .map((l) => { const [t, n] = l.split('|'); return [t, Number(n)]; }),
 );
 const before = counts();
 

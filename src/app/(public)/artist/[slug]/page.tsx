@@ -31,7 +31,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Non-live shops must not leak the artist's name via <title>/og tags —
   // the page body 404s, and the metadata must match (owner/admin previews
   // just get the generic title; fine).
-  if (!data || !data.is_live) return { title: 'Artist Not Found' };
+  // notFound() HERE, not only in the page body. Metadata resolves before the
+  // response commits; a notFound() thrown later, from the body, arrives after
+  // the 200 has already gone out — the browser hydrates the not-found UI so it
+  // looks right, but curl, Google and a link checker see a live 200 with an
+  // empty shell. Every public detail page had this. Found the morning the
+  // database was reset for launch, when the old test artist's URL kept
+  // answering 200.
+  if (!data) notFound();
+  // Non-live shops still get the generic title (owner/admin preview must work;
+  // the body decides who may see it).
+  if (!data.is_live) return { title: 'Artist Not Found' };
 
   return {
     title: data.display_name,

@@ -492,15 +492,16 @@ test.describe('listing page (7.7, 7.8, 7.10)', () => {
 });
 
 test.describe('nonsense addresses (7.12)', () => {
-  test('/artist/does-not-exist renders the not-found page with a way back', async ({ page }) => {
-    await page.goto('/artist/does-not-exist');
-    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible(LOAD);
-    await expect(page.getByRole('link', { name: 'Explore Art' })).toBeVisible();
-  });
-
-  test('/listing/not-a-real-id renders the not-found page, not a crash', async ({ page }) => {
-    await page.goto('/listing/not-a-real-id');
-    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible(LOAD);
-    await expect(page.getByRole('link', { name: 'Explore Art' })).toBeVisible();
-  });
+  // The STATUS is asserted, not just the page. These passed for months while
+  // every detail page answered 200 for a missing row: the body threw
+  // notFound() after the response had committed, so the browser hydrated the
+  // right UI over a live 200. Only the status code tells the two apart.
+  for (const path of ['/artist/does-not-exist', '/listing/00000000-0000-4000-8000-000000000000', '/gallery/does-not-exist']) {
+    test(`${path} is a real 404 with a way back`, async ({ page }) => {
+      const res = await page.goto(path);
+      expect(res?.status(), `${path} must answer 404, not a 200 shell`).toBe(404);
+      await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible(LOAD);
+      await expect(page.getByRole('link', { name: 'Explore Art' })).toBeVisible();
+    });
+  }
 });

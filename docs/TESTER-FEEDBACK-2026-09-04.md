@@ -201,6 +201,29 @@ outstanding.
 - **The signed-in homepage**: no acquisition hero, one search box instead of
   two, a Studio link for artists. Signed-out is unchanged.
 
+## Shipped 2026-09-05, the launch-morning sweep
+
+- **Every public detail page answered 200 for a missing row** — artist,
+  listing, gallery. A root `src/app/loading.tsx` (the scaffold's generic
+  spinner, day one, never scoped) wrapped every route in Suspense, so dynamic
+  pages streamed a 200 shell before the page body ran, and the `notFound()`
+  thrown afterwards could not change a status already on the wire. The
+  browser hydrated the right UI, so the e2e passed; curl, Google and any link
+  checker saw a live page. Root boundary removed; `notFound()` also thrown in
+  each `generateMetadata`. The status is 404 now; the not-found UI still
+  arrives via the RSC payload and renders on hydration, which is Next 14's
+  behaviour for `notFound()` in a dynamic page. The visitor spec asserts the
+  **status**, not just the heading — it had passed for months while this was
+  broken.
+- **db-smoke runs on an empty database.** Six sections built their fixtures on
+  whichever real artist/buyer/listing existed and RAISEd when none did — red on
+  production the morning it was wiped. A `pg_temp` helper mints a throwaway
+  artist, buyer and listing inside each section's own rolled-back transaction.
+  Verified: `auth.users` 1 → 1 on prod across a full run.
+- **`scripts/purge-test-data.mjs`** — dry-run by default, exact counts (not
+  `pg_stat` estimates), deletes commissions first because
+  `commissions.conversation_id` is NO ACTION and blocks the auth cascade.
+
 ## Known, deliberate, still open
 
 - **Production runs LIVE Stripe keys with payments enabled**, but the only
@@ -209,6 +232,8 @@ outstanding.
   until an artist onboards. `docs/GO-LIVE-FIRST-PURCHASE.md` is the walk; make
   both sides of it accounts you control so the only cost is Stripe's fee
   (~$1.10 a refund).
-- The showcase artist profile on the live domain still has placeholder copy.
+- ~~The showcase artist profile on the live domain still has placeholder copy.~~
+  Resolved 2026-09-05: production was purged for launch (`scripts/purge-test-data.mjs`).
+  One admin account and the 44-name `tags` list remain; storage is empty.
 - Sentry 90-day retention and a watched `support@customcanvas.shop`.
 - Round ten review and 17 deferred P2/P3s (`docs/POST-LAUNCH-BACKLOG.md`).
