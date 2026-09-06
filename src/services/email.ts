@@ -43,9 +43,15 @@ async function sendTemplate(template: string, payload: SendPayload): Promise<boo
   if (!error) return true;
   const to = Array.isArray(payload.to) ? payload.to[0] : payload.to;
   const domain = typeof to === 'string' ? to.split('@')[1] ?? 'unknown' : 'unknown';
+  // The e2e accounts live at @customcanvas.dev, a domain with no MX record on
+  // purpose — nothing is meant to be delivered there. Resend refuses it with
+  // "The request could not be resolved", correctly, on every suite run, and
+  // each refusal paged Sentry at error level as if a real person's email had
+  // failed (2026-09-06). Expected, so it is recorded, not paged.
+  const level = domain === 'customcanvas.dev' ? 'info' : 'error';
   Sentry.captureMessage(
     `Email send failed: template=${template} to=@${domain} — ${error.name}: ${error.message}`,
-    'error'
+    level
   );
   return false;
 }

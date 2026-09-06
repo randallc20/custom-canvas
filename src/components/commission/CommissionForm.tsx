@@ -53,14 +53,33 @@ export function CommissionForm({ artistId, artistName }: CommissionFormProps) {
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to submit request');
+      if (!res.ok) {
+        // Carry the server's own reason — a 403 from the acceptance gate or a
+        // 429 from the limiter says exactly what to do; "Failed to submit"
+        // says nothing. Same lesson as the quote card.
+        const body = await res.json().catch(() => ({} as Record<string, unknown>));
+        throw new Error(typeof body.error === 'string' ? body.error : 'Failed to submit request');
+      }
 
       const created = await res.json();
       toast('Commission request sent!', 'success');
       router.push(created?.conversation_id ? `/messages/${created.conversation_id}` : '/messages?tab=commissions');
     } catch (err) {
-      captureException(err, { where: 'CommissionForm.submit' });
-      toast('Something went wrong. Please try again.', 'error');
+      // `TypeError: Failed to fetch` is the BROWSER saying the request never
+      // completed on its side — connection dropped, tab torn down, offline —
+      // not the server saying no. The server may already have created the
+      // commission: a Sentry report on 2026-09-06 carried the exact timestamp
+      // of a row that had landed. Reporting it as an app error was noise, and
+      // "please try again" invited a duplicate request. Say what actually
+      // happened and where to look before resending.
+      const networkFailure = err instanceof TypeError;
+      if (!networkFailure) captureException(err, { where: 'CommissionForm.submit' });
+      toast(
+        networkFailure
+          ? 'The connection dropped before we heard back. Check Messages — if your request is there, it went through; if not, send it again.'
+          : err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+        'error',
+      );
       setSubmitting(false);
     }
   };

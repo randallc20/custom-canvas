@@ -1,10 +1,12 @@
 import * as Sentry from '@sentry/nextjs';
+import { sentryEnvironment } from './sentryEnvironment';
+
 
 export function initSentry() {
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     tracesSampleRate: 1.0,
-    environment: process.env.NODE_ENV,
+    environment: sentryEnvironment(),
     enabled: process.env.NODE_ENV === 'production',
   });
 }
